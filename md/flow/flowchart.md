@@ -83,19 +83,21 @@ flowchart LR
 
 ## Agent 迭代流程图
 
-读图说明：人工先提出目标；Agent A 只负责分析并写给 Agent B 的实现提示词；Agent B 实现和测试；Agent C 验收并更新核心逻辑文档；人工复核后进入下一轮。
+读图说明：人工先提出目标；Agent A 只负责分析并写给 Agent B 的实现提示词；Agent B 实现和测试；Agent C 验收并更新核心逻辑文档。若不通过，Agent C 把问题退回 Agent B；若最终通过，Agent C 按版本号自动提交，再交给人工复核和下一轮。
 
 ```mermaid
 flowchart TD
-  Human["人工：提出目标、限制、验收标准"] --> Context["提供 AGENT、update_log、flow、test 和相关上下文"]
+  Human["人工：提出目标、限制、验收标准"] --> Context["提供 AGENTS、update_log、flow、test 和相关上下文"]
   Context --> AgentA["Agent A：分析目标，不默认写代码"]
   AgentA --> Prompt["md/prompt/vX（阶段）/vX.Y（任务）.md：详细实现提示词"]
   Prompt --> AgentB["Agent B：按提示词实现、测试、记录结果"]
   AgentB --> Diff["实际 diff、测试命令、结果、风险说明"]
   Diff --> AgentC["Agent C：验收实现、核对架构边界和测试"]
-  AgentC --> FlowUpdate["更新 md/flow/flow.md 和 md/flow/flowchart.md"]
-  AgentC --> LogUpdate["必要时更新 update_log.md 和 README.md"]
-  FlowUpdate --> HumanReview["人工复核：通过、退回或提出下一轮目标"]
-  LogUpdate --> HumanReview
+  AgentC --> Decision{"Agent C 是否通过？"}
+  Decision -- "不通过" --> ReturnB["退回 Agent B：列出问题和修复要求"]
+  ReturnB --> AgentB
+  Decision -- "通过" --> FlowUpdate["更新 flow、flowchart、update_log、README"]
+  FlowUpdate --> Commit["按版本号 git commit：提交说明简要概括本版工作"]
+  Commit --> HumanReview["人工复核：确认版本或提出下一轮目标"]
   HumanReview --> Human
 ```

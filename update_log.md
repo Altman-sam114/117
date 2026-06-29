@@ -25,9 +25,41 @@
 - Markdown 预览采用轻量自研解析器，不承诺完整 CommonMark 支持。
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
 - iPhone 支持竖屏、横屏左、横屏右；宽屏阈值当前为 `820` pt。
-- 后续迭代采用“人工 -> Agent A -> Agent B -> Agent C -> 人工复核”的文档化流程。
+- 后续迭代采用“人工 -> Agent A -> Agent B -> Agent C -> 自动版本提交 -> 人工复核”的文档化流程。
+- Agent C 不通过时退回 Agent B 修复，不得提交；最终通过后按版本号提交，提交说明简要概括本版本工作。
 
 ## 历史记录
+
+### v0.2 / 更新 Agent C 验收提交规则
+
+日期：2026-06-29
+
+核心变更：
+
+- 明确 Agent C 验收不通过时退回 Agent B，并列出问题与修复要求。
+- 明确 Agent C 最终通过后按版本号自动 stage 并 git commit。
+- 规定提交说明使用“版本号 + 简短工作概括”，用于概括该版本工作内容。
+- 同步更新入口规则、核心流程、流程图、README 和更新日志。
+
+关键文件：
+
+- `AGENTS.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `README.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check` 通过。
+- `rg -n "[ \t]+$" AGENTS.md update_log.md README.md md` 无输出。
+- `plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过。
+- `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过。
+- 本轮仅修改文档流程，未重跑 Xcode generic iOS build。
+
+遗留事项：
+
+- 本轮仅修改文档流程，不涉及 Swift 源码和 Xcode 工程。
 
 ### v0.1 / 建立多 Agent 迭代文档体系
 
@@ -35,7 +67,7 @@
 
 核心变更：
 
-- 新增标准入口 `AGENT.md`。
+- 新增标准入口 `AGENT.md`，后续工作区入口调整为 `AGENTS.md`。
 - 新增 `update_log.md` 记录版本、决策和遗留问题。
 - 新增 `md/prompt/` 提示词目录和本轮 v0.1 提示词。
 - 新增 `md/test/test.md` 测试分层与当前基线。

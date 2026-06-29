@@ -144,7 +144,8 @@ JournalEntry.body
 - 模型/规则层：`MarkdownBlockParser`、`JournalStatistics`、日期格式化和 Markdown snippet。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本和方向。
-- 文档与流程层：`AGENT.md`、`update_log.md`、`md/test/test.md`、`md/flow/`、`md/prompt/`。
+- 文档与流程层：`AGENTS.md`、`update_log.md`、`md/test/test.md`、`md/flow/`、`md/prompt/`。
+- 版本提交层：Agent C 最终验收通过后，按版本号 stage 并 git commit；验收不通过时退回 Agent B，不得提交。
 
 ## 5. 用户入口
 
@@ -172,6 +173,8 @@ JournalEntry.body
 - iPhone 需要支持竖屏、横屏左、横屏右。
 - 宽屏阈值当前为 `820` pt。
 - 文档-only 变更也要至少跑 `git diff --check` 并记录结果。
+- Agent C 通过才允许形成版本提交；提交说明必须包含版本号和简短工作概括。
+- Agent C 不通过时必须回退给 Agent B 修复，不得提交半成品版本。
 
 ## 8. 未来扩展点
 
