@@ -12,9 +12,9 @@
 ## 当前状态
 
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
-- 当前应用：原生 SwiftUI iOS Markdown 日记应用。
+- 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 build/test 重验证。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -26,12 +26,52 @@
 - Markdown 预览采用轻量自研解析器，不承诺完整 CommonMark 支持。
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
 - iPhone 支持竖屏、横屏左、横屏右；宽屏阈值当前为 `820` pt。
+- Mac 版本当前采用 Mac Catalyst 路径，不新增独立 native macOS target。
 - 后续迭代采用“人工 -> Agent A -> Agent B main 直推 -> GitHub Actions 结果包 -> Agent C 下载复判 -> 人工复核”的文档化流程。
 - 未来可使用 `agentx`、`x:` 或 `X:` 召唤 Agent X 主控循环；Agent X 只调度 A/B/C 多轮迭代，不替代 Agent A 提示词、Agent B 实现 push 或 Agent C artifact 验收。
 - `main` 是默认唯一上传、提交、推送和云端验证分支；本阶段不使用候选分支或 PR 流程。
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.6 / 启用 Mac Catalyst 构建
+
+日期：2026-07-04
+
+核心变更：
+
+- 启用 `MDJournal` app target 的 Mac Catalyst 支持，保留 iOS 16.0 和现有 iPhone/iPad 方向设置。
+- CI 结果包新增 Mac Catalyst Debug build、`maccatalyst-build.log`、`MDJournalMacCatalyst.xcresult` 和 manifest/JUnit 中的 Catalyst outcome。
+- 列表新增 Mac Catalyst 友好的右键删除入口，删除仍通过 `ContentView.deleteEntry(_:)` 和 `JournalStore.delete(_:)`。
+- 新建日记按钮新增 `⌘N` 快捷键，提升桌面写作入口效率。
+- 新增本轮 Agent A 提示词，并同步 README、测试规范、核心流程和流程图。
+
+关键文件：
+
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `MDJournal/Views/EntryListView.swift`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.6（启用MacCatalyst构建）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow YAML 解析。
+- 本机已通过：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -list -project MDJournal.xcodeproj`。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机 `xcodebuild` 仍输出 CoreSimulatorService 连接错误，但 Catalyst build 返回 0，且该错误与本轮 Catalyst 构建结果无关。
+- GitHub Actions artifact 验收需在本轮 commit push 到 `origin/main` 后由 Agent C 下载最新结果包复判。
+
+遗留事项：
+
+- 本轮先建立 Mac Catalyst 可构建基线，尚未新增独立 native macOS target。
+- 后续应继续优化桌面写作体验，例如更完整的菜单命令、独立统计窗口、编辑保存节流和大正文预览缓存。
+- 本轮未做真实 macOS 窗口截图或交互视觉验收。
 
 ### v0.5 / 引入 Agent X 循环迭代文档基线
 
@@ -58,6 +98,12 @@
 验证结果：
 
 - `git diff --check` 通过。
+- 已 push `d6e3ade957188e335377bf7d3b41e8ec452a31c5` 到 `origin/main`。
+- Agent C 已下载并核对最新 `origin/main` 对应 GitHub Actions 结果包：run id `28681864701`，run attempt `1`，artifact `mdjournal-ci-v0.4-main-d6e3ade-run28681864701-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28681864701/`。
+- manifest 核对通过：`branch=main`、`commitSha=d6e3ade957188e335377bf7d3b41e8ec452a31c5`、`runId=28681864701`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=3`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束，10 个测试用例均通过。
+- `MDJournal.xcresult` 和 `MDJournalTests.xcresult` 均存在。
 
 遗留事项：
 

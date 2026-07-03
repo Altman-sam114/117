@@ -10,9 +10,10 @@
 - Xcode 工程：`MDJournal.xcodeproj`。
 - Scheme：`MDJournal`。
 - 当前最低 iOS 版本：16.0。
+- 当前 Mac 版本路径：Mac Catalyst，Mac deployment target 为 13.0。
 - 当前没有第三方依赖和包管理器。
 - 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、Markdown 解析、统计和 Markdown snippet。
-- 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；最终重验证交给 GitHub Actions。
+- 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；修改 Mac Catalyst 支持时尝试本机 Catalyst build；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
 
@@ -86,6 +87,31 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 当前基线：
 
 - 输出 `yaml ok` 并返回 0。
+
+### 1.4.5 Mac Catalyst 构建检查
+
+触发条件：
+
+- 修改 Mac Catalyst 支持、Xcode target 平台、桌面入口或 `.github/workflows/ci-results.yml` 的 Catalyst 阶段。
+
+命令：
+
+```sh
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project MDJournal.xcodeproj \
+  -scheme MDJournal \
+  -configuration Debug \
+  -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+  -derivedDataPath /private/tmp/mdjournal-derived-data \
+  -resultBundlePath /private/tmp/mdjournal-derived-data/MDJournalMacCatalyst.xcresult \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+当前基线：
+
+- 应以 `** BUILD SUCCEEDED **` 结束。
+- 当前本机 CoreSimulator 服务可能仍输出无关连接错误；只要 Mac Catalyst build 返回 0 且构建成功，应记录为本轮 Catalyst 构建通过。
 
 ### 1.5 JSON 检查
 
@@ -181,16 +207,18 @@ xcrun swiftc -parse -parse-as-library $(git ls-files 'MDJournal/*.swift' 'MDJour
 - `ci-failure-summary.md`
 - `static-checks.log`
 - `xcodebuild.log`
+- `maccatalyst-build.log`
 - `xctest.log`
 - `junit.xml`
 - `MDJournal.xcresult`，如果 `xcodebuild` 成功生成
+- `MDJournalMacCatalyst.xcresult`，如果 Mac Catalyst build 成功生成
 - `MDJournalTests.xcresult`，如果 `xcodebuild test` 成功生成
 
 manifest 至少包含：
 
 ```json
 {
-  "version": "v0.4",
+  "version": "v0.6",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -202,15 +230,19 @@ manifest 至少包含：
   "scheme": "MDJournal",
   "destination": "generic/platform=iOS",
   "buildDestination": "generic/platform=iOS",
+  "macCatalystBuildDestination": "generic/platform=macOS,variant=Mac Catalyst",
   "testDestination": "platform=iOS Simulator,id=...",
   "resultBundlePath": "ci-results/MDJournal.xcresult",
+  "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
   "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
   "junitPath": "ci-results/junit.xml",
   "buildLogPath": "ci-results/xcodebuild.log",
+  "macCatalystBuildLogPath": "ci-results/maccatalyst-build.log",
   "testLogPath": "ci-results/xctest.log",
   "failureSummaryPath": "ci-results/ci-failure-summary.md",
   "staticChecksOutcome": "success/failure",
   "buildOutcome": "success/failure",
+  "macCatalystBuildOutcome": "success/failure",
   "testOutcome": "success/failure",
   "projectSpecificReports": []
 }
@@ -219,7 +251,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.4-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.6-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判
@@ -250,7 +282,9 @@ Agent C 必须核对：
 - `ci-artifact-manifest.json` 的 `branch`、`commitSha`、`runId`、`runAttempt`。
 - `junit.xml` 或等价摘要中失败数，并确认 XCTest 不是 skipped。
 - `static-checks.log`、`xcodebuild.log` 和 `xctest.log` 的关键错误。
+- `maccatalyst-build.log` 的结尾和 `macCatalystBuildOutcome`。
 - `ci-failure-summary.md` 是否与实际 outcome 一致。
+- `MDJournalMacCatalyst.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - `MDJournalTests.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - artifact 是否来自本轮最新 run，而不是旧 run 或旧输出。
 

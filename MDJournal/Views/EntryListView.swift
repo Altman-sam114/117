@@ -56,6 +56,13 @@ struct EntryListView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    onDelete(entry)
+                                } label: {
+                                    Label("删除日记", systemImage: "trash")
+                                }
+                            }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     onDelete(entry)
@@ -89,6 +96,7 @@ struct EntryListView: View {
                 Button(action: onCreate) {
                     Label("新建", systemImage: "square.and.pencil")
                 }
+                .keyboardShortcut("n", modifiers: .command)
             }
         }
         .sheet(isPresented: $isShowingStatistics) {

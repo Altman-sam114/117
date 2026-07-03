@@ -15,10 +15,11 @@ jobs:
     runs-on: macos-15
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.4
+      VERSION: v0.6
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
+      MACCATALYST_BUILD_DESTINATION: generic/platform=macOS,variant=Mac Catalyst
       TEST_DESTINATION_FALLBACK: platform=iOS Simulator,name=iPhone 16
 
     steps:
@@ -74,6 +75,22 @@ jobs:
             -resultBundlePath "$RESULT_DIR/MDJournal.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RESULT_DIR/xcodebuild.log"
+
+      - name: Mac Catalyst Debug build
+        id: maccatalyst_build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+            -project MDJournal.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$MACCATALYST_BUILD_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+            -resultBundlePath "$RESULT_DIR/MDJournalMacCatalyst.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RESULT_DIR/maccatalyst-build.log"
 
       - name: Resolve XCTest destination
         id: test_destination
@@ -149,6 +166,7 @@ jobs:
         env:
           STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
           BUILD_OUTCOME: ${{ steps.xcode_build.outcome }}
+          MACCATALYST_BUILD_OUTCOME: ${{ steps.maccatalyst_build.outcome }}
           TEST_OUTCOME: ${{ steps.xcode_test.outcome }}
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
@@ -166,11 +184,14 @@ jobs:
 
           static_outcome = os.environ["STATIC_OUTCOME"]
           build_outcome = os.environ["BUILD_OUTCOME"]
+          maccatalyst_build_outcome = os.environ["MACCATALYST_BUILD_OUTCOME"]
           failures = []
           if static_outcome != "success":
               failures.append(("static-checks", static_outcome, "See ci-results/static-checks.log."))
           if build_outcome != "success":
               failures.append(("xcodebuild", build_outcome, "See ci-results/xcodebuild.log."))
+          if maccatalyst_build_outcome != "success":
+              failures.append(("maccatalyst-build", maccatalyst_build_outcome, "See ci-results/maccatalyst-build.log."))
           test_outcome = os.environ["TEST_OUTCOME"]
           if test_outcome != "success":
               failures.append(("xctest", test_outcome, "See ci-results/xctest.log."))
@@ -190,15 +211,19 @@ jobs:
               "scheme": os.environ["SCHEME"],
               "destination": os.environ["BUILD_DESTINATION"],
               "buildDestination": os.environ["BUILD_DESTINATION"],
+              "macCatalystBuildDestination": os.environ["MACCATALYST_BUILD_DESTINATION"],
               "testDestination": test_destination,
               "resultBundlePath": "ci-results/MDJournal.xcresult",
+              "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
               "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
               "junitPath": "ci-results/junit.xml",
               "buildLogPath": "ci-results/xcodebuild.log",
+              "macCatalystBuildLogPath": "ci-results/maccatalyst-build.log",
               "testLogPath": "ci-results/xctest.log",
               "failureSummaryPath": "ci-results/ci-failure-summary.md",
               "staticChecksOutcome": static_outcome,
               "buildOutcome": build_outcome,
+              "macCatalystBuildOutcome": maccatalyst_build_outcome,
               "testOutcome": test_outcome,
               "projectSpecificReports": [],
           }
@@ -210,13 +235,14 @@ jobs:
           testsuite = ET.Element(
               "testsuite",
               name="MDJournalCI",
-              tests="3",
+              tests="4",
               failures=str(len(failures)),
               skipped="0",
           )
           for name, outcome, message in [
               ("static-checks", static_outcome, "Static checks failed."),
               ("xcodebuild", build_outcome, "Generic iOS Debug build failed."),
+              ("maccatalyst-build", maccatalyst_build_outcome, "Mac Catalyst Debug build failed."),
               ("xctest", test_outcome, "XCTest failed."),
           ]:
               case = ET.SubElement(testsuite, "testcase", name=name)
@@ -234,6 +260,8 @@ jobs:
           else:
               lines.append("All configured CI stages passed.")
           lines.append("")
+          lines.append(f"Mac Catalyst build outcome: {maccatalyst_build_outcome}.")
+          lines.append("")
           lines.append(f"XCTest outcome: {test_outcome}.")
           lines.append("")
           lines.append(f"Commit: {manifest['commitSha']}")
@@ -250,6 +278,6 @@ jobs:
           if-no-files-found: error
 
       - name: Fail workflow on failed checks
-        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.xcode_test.outcome != 'success')
+        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success')
         shell: bash
         run: exit 1

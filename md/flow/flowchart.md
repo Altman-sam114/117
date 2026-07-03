@@ -8,10 +8,11 @@
 
 ```mermaid
 flowchart TD
-  User["用户操作：新建、编辑、删除、搜索、筛选、分享"] --> CV["ContentView：维护选中日记和导航"]
+  Platform["iOS / iPadOS / Mac Catalyst"] --> User["用户操作：新建、编辑、删除、搜索、筛选、分享"]
+  User --> CV["ContentView：维护选中日记和导航"]
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
-  List --> CreateDelete["创建/删除请求：通过 closure 回到 ContentView"]
+  List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]
   CreateDelete --> Store["JournalStore：唯一日记集合修改入口"]
   Binding --> Store
@@ -101,7 +102,7 @@ flowchart TD
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
-  Actions --> Checks["静态检查 + generic iOS Debug build + XCTest"]
+  Actions --> Checks["静态检查 + generic iOS Debug build + Mac Catalyst build + XCTest"]
   Checks --> Artifact["上传未加密 CI 结果包"]
   Artifact --> AgentCDownload["Agent C：gh auth login 后下载 artifact"]
   AgentCDownload --> Verify["核对 manifest、commitSha、runId、runAttempt、JUnit、日志"]
@@ -131,15 +132,19 @@ flowchart LR
   Artifact --> Manifest["ci-artifact-manifest.json"]
   Artifact --> JUnit["junit.xml"]
   Artifact --> BuildLog["xcodebuild.log"]
+  Artifact --> CatalystLog["maccatalyst-build.log"]
   Artifact --> TestLog["xctest.log"]
   Artifact --> Summary["ci-failure-summary.md"]
   Artifact --> XCResult["MDJournal.xcresult（可用时）"]
+  Artifact --> CatalystResult["MDJournalMacCatalyst.xcresult（可用时）"]
   Artifact --> TestResult["MDJournalTests.xcresult（可用时）"]
   Manifest --> Match{"branch、commitSha、runId、runAttempt 是否匹配？"}
   JUnit --> Outcome{"检查和构建是否通过？"}
   BuildLog --> Outcome
+  CatalystLog --> Outcome
   TestLog --> Outcome
   Summary --> Outcome
+  CatalystResult --> Outcome
   Match --> Accept{"Agent C 结论"}
   Outcome --> Accept
   Accept -- "通过" --> Record["记录版本、artifact 名称和遗留事项"]

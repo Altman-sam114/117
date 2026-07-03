@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。
+MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -69,7 +69,7 @@ JournalEntry.body
 2. 搜索文本匹配标题、正文、分类、心情。
 3. 分类芯片通过 `selectedCategory` 过滤列表。
 4. `EntryRowView` 展示分类、心情、日期、摘要、词数、小节数和小节标题。
-5. 用户滑动删除时调用 `ContentView.deleteEntry(_:)`。
+5. 用户滑动删除或在 Mac Catalyst 下右键删除时调用 `ContentView.deleteEntry(_:)`。
 6. `JournalStore.delete(_:)` 从数组移除日记并保存。
 7. `ContentView.repairSelection` 确保选中项仍然有效。
 
@@ -89,6 +89,7 @@ JournalEntry.body
 3. `StatisticsDashboardView` 用当前 `entries` 构造 `JournalStatistics`。
 4. 统计计算总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
 5. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
+6. Mac Catalyst 下仍以 sheet 展示统计，后续可扩展为独立窗口。
 
 ## 3. Agent 云端协作流
 
@@ -139,17 +140,19 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ### 3.5 GitHub Actions 结果包
 
 1. `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 时运行。
-2. CI 执行静态检查、generic iOS Debug build 和 `MDJournalTests` XCTest。
+2. CI 执行静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 `MDJournalTests` XCTest。
 3. CI 上传未加密 artifact，至少包含：
    - `ci-artifact-manifest.json`
    - `ci-failure-summary.md`
    - `static-checks.log`
    - `xcodebuild.log`
+   - `maccatalyst-build.log`
    - `xctest.log`
    - `junit.xml`
    - 可用时的 `MDJournal.xcresult`
+   - 可用时的 `MDJournalMacCatalyst.xcresult`
    - 可用时的 `MDJournalTests.xcresult`
-4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、build/test destination、日志路径和各阶段 outcome，其中 `testOutcome` 是真实 `success/failure`。
+4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、iOS build destination、Mac Catalyst build destination、test destination、日志路径和各阶段 outcome，其中 `testOutcome` 和 `macCatalystBuildOutcome` 是真实 `success/failure`。
 
 ### 3.6 Agent C 结果包验收
 
@@ -216,8 +219,8 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
 - 模型/规则层：`MarkdownBlockParser`、`JournalStatistics`、日期格式化和 Markdown snippet。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
-- 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本和方向。
-- CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的云端重验证和结果包上传。
+- 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
+- CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
 - 文档与流程层：`AGENTS.md`、`update_log.md`、`md/test/test.md`、`md/flow/`、`md/prompt/`。
 - 版本提交层：Agent B 在 `main` 上提交并推送；Agent C 基于 `origin/main` 最新结果包验收。
 
@@ -228,6 +231,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 详情编辑器：修改标题、日期、分类、心情、正文，插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看。
 - 统计看板：从列表工具栏打开。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，工具栏新建支持 `⌘N`。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -235,7 +239,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、`MDJournalTests` 核心规则 XCTest 和 GitHub Actions generic iOS build/test 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
@@ -246,6 +250,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - `###` 是当前小节分组的核心标记。
 - iPhone 需要支持竖屏、横屏左、横屏右。
 - 宽屏阈值当前为 `820` pt。
+- Mac 版本当前采用 Mac Catalyst，不新增独立 native macOS target。
 - 默认云端重验证，本机只跑轻量检查，除非人工明确要求本机构建。
 - Agent C 必须核对云端未加密结果包；不得只看 Agent B 文字汇报。
 - 没有 `origin/main`、GitHub Actions 权限或 artifact 下载权限时，必须记录阻塞。

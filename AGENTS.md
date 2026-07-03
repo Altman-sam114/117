@@ -2,7 +2,7 @@
 
 本文是 MD Journal 的入口记忆、项目总览、硬规则和多 Agent 云端迭代工作流。
 
-MD Journal 是一个原生 SwiftUI iOS Markdown 日记应用，主链路是“用户编辑日记 -> `JournalEntry` 状态更新 -> `JournalStore` 本地 JSON 持久化 -> SwiftUI 列表、编辑器、预览和统计看板渲染”。
+MD Journal 是一个原生 SwiftUI Markdown 日记应用，当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。主链路是“用户编辑日记 -> `JournalEntry` 状态更新 -> `JournalStore` 本地 JSON 持久化 -> SwiftUI 列表、编辑器、预览和统计看板渲染”。
 
 ## 1. 必读文件
 
@@ -46,7 +46,7 @@ git remote -v
 ## 3. 项目基本规则
 
 - 代码以 SwiftUI 原生实现为主，不引入第三方依赖，除非人工明确要求。
-- 当前工程最低 iOS 版本为 16.0；修改 deployment target 必须同步说明影响。
+- 当前工程最低 iOS 版本为 16.0，Mac Catalyst deployment target 为 13.0；修改 deployment target 必须同步说明影响。
 - 用户数据只保存在本地 JSON，不引入服务器、账号或云同步，除非人工明确提出。
 - 保持当前安静、实用、偏工具型的中文界面风格。
 - 支持 iPhone 竖屏和横屏；新增页面必须考虑窄屏、宽屏和 Dynamic Type。
