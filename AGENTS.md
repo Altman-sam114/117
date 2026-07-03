@@ -36,10 +36,12 @@ git remote -v
 - 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
 - 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
 - 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务必须区分 A/B/C 边界，提醒用户指定角色或说明本轮按普通任务执行。
+- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
+- 没有这些前缀时，按普通 Codex 任务处理；若任务必须区分 A/B/C/X 边界，提醒用户指定角色或说明本轮按普通任务执行。
 - Agent A 最终回复第一行必须写：`我是 Agent A。`
 - Agent B 最终回复第一行必须写：`我是 Agent B。`
 - Agent C 最终回复第一行必须写：`我是 Agent C。`
+- Agent X 最终回复第一行必须写：`我是 Agent X。`
 
 ## 3. 项目基本规则
 
@@ -92,6 +94,30 @@ git push origin main
 
 人工提出目标、限制、验收标准和测试要求。人工也可以指定版本号、算法框架、UI/交互要求或禁止项。
 
+### Agent X：主控循环调度
+
+Agent X 是主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。人工使用 `agentx`、`x:` 或 `X:` 给出总目标 X 后，Agent X 负责把总目标拆成多个小轮次，并按 `Agent A -> Agent B -> Agent C -> Agent X 判断下一轮` 的顺序推进。
+
+Agent X 必须：
+
+- 阅读入口文档、更新日志、核心流程、流程图、测试规范、prompt 规则和与总目标相关的文件。
+- 将总目标拆成有限、可验收的小轮次；每轮都明确目标、非目标、影响范围、验证要求和停止条件。
+- 要求 Agent A 为每轮写版本化提示词，提示词必须进入 `md/prompt/`。
+- 确保每轮仍由 Agent B 在 `main` 上实现、轻量检查、提交并 push 到 `origin/main`。
+- 确保每轮仍由 Agent C 下载并核对最新 GitHub Actions 未加密 artifact；Agent X 不得跳过 Agent C 的云端结果包验收。
+- 根据 Agent C 结果判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+- 记录每轮版本号、关键文件、验证命令、commit SHA、run id、run attempt、artifact 名称、阻塞和遗留事项。
+
+Agent X 必须停止或暂停的条件：
+
+- 总目标已完成。
+- 连续 3 轮遇到同一阻塞。
+- 连续 2 轮没有产生有效 diff。
+- CI 连续失败且原因相同。
+- 需要账号、权限、密钥、付费服务或人工决策。
+- 当前工作区存在无法判断归属的冲突。
+- 用户要求停止或改变方向。
+
 ### Agent A：目标分析与提示词
 
 Agent A 默认不直接写代码，负责把人工目标转成给 Agent B 的实现提示词。
@@ -136,6 +162,8 @@ Agent C 必须：
 
 - 每次实现前先读 `md/test/test.md`。
 - 默认云端重验证，本机只跑轻量检查。
+- Agent X 主控循环中的每一轮也必须遵守“Agent B 本地轻量检查 + GitHub Actions artifact + Agent C 下载复判”的验证链路。
+- Agent X 不得把未经过 Agent C artifact 验收的轮次视为完成或继续下一轮的成功依据。
 - 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”“本地跑模拟器”时，才把本机完整构建或模拟器验证作为默认路径。
 - 文档-only 修改可只跑 `git diff --check`、workflow YAML 解析、Xcode project plist 解析等轻量检查，但必须说明未跑完整构建或云端验证的原因。
 - 不得用“已验证”替代具体命令和结果。
@@ -174,3 +202,8 @@ Agent C 必须：
 - 禁止用模板文档替代对当前项目真实状态的描述。
 - 禁止把旧 artifact、旧输出或本地文件冒充本轮云端结果包。
 - 禁止在没有 `origin/main` 或 GitHub Actions 权限时伪装已经完成云端验收。
+- Agent X 禁止无条件无限循环。
+- Agent X 禁止跳过 Agent C 云端 artifact 验收。
+- Agent X 禁止把旧 run、旧 artifact、本地输出冒充最新云端结果。
+- Agent X 禁止在总目标未完成时宣布完成。
+- Agent X 禁止为了循环推进扩大无关改动范围。

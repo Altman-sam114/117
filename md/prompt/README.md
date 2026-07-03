@@ -1,12 +1,13 @@
 # Prompt 目录
 
-本目录保存每轮 Agent A 写给 Agent B 的详细实现提示词。提示词必须服务于当前真实流程：Agent B 在 `main` 上实现并直推 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包复判。
+本目录保存每轮 Agent A 写给 Agent B 的详细实现提示词。提示词必须服务于当前真实流程：Agent B 在 `main` 上实现并直推 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载结果包复判。未来 Agent X 主控循环只能要求 Agent A 生成每轮版本化提示词，不能用临时口头指令替代本目录记录。
 
 ## 角色召唤
 
 - `agenta`、`a:` 或 `A:`：召唤 Agent A。
 - `agentb`、`b:` 或 `B:`：召唤 Agent B。
 - `agentc`、`c:` 或 `C:`：召唤 Agent C。
+- `agentx`、`x:` 或 `X:`：召唤 Agent X 主控循环。
 - 未带前缀时按普通 Codex 任务处理；若任务必须分角色执行，先提醒人工指定角色或说明本轮按普通任务执行。
 
 身份标识：
@@ -14,12 +15,14 @@
 - Agent A 最终回复第一行必须写：`我是 Agent A。`
 - Agent B 最终回复第一行必须写：`我是 Agent B。`
 - Agent C 最终回复第一行必须写：`我是 Agent C。`
+- Agent X 最终回复第一行必须写：`我是 Agent X。`
 
 ## 命名建议
 
 - `md/prompt/v0（项目初始化）/v0.1（建立迭代文档）.md`
 - `md/prompt/v0（项目初始化）/v0.2（优化测试规范）.md`
 - `md/prompt/v0（协作云端化）/v0.3（main直推云端验证）.md`
+- `md/prompt/v0（协作自动化）/v0.5（引入AgentX循环迭代）.md`
 - `md/prompt/v1（核心功能）/v1.0（实现主流程）.md`
 - `md/prompt/v1（核心功能）/v1.1（修复主流程问题）.md`
 
@@ -32,6 +35,7 @@
 - 大任务、架构阶段、核心功能阶段或重要里程碑新开大版本，例如 `v0.x` -> `v1.0`。
 - 同一大版本下的提示词放在同一个目录：`md/prompt/v0（简要标题）/`、`md/prompt/v1（简要标题）/`。
 - 文件名使用 `v0.1（简要说明）.md`，说明要短，能表达本轮目标。
+- Agent X 发起主控循环时，每一轮仍必须要求 Agent A 生成独立版本化提示词；轮次之间不能复用旧提示词冒充新目标。
 
 ## 每份提示词必须包含
 
@@ -49,6 +53,18 @@
 - Agent C 下载 artifact 和核对 manifest/JUnit/log 的验收要求。
 - 文档更新要求。
 - 风险和禁止项。
+
+## Agent X 循环提示词要求
+
+Agent X 可以把人工总目标 X 拆成多个轮次，并要求 Agent A 为每轮生成提示词。每轮提示词必须包含：
+
+- 本轮目标、非目标和总目标中的对应位置。
+- 本轮影响范围、关键文件和不得扩大的边界。
+- 本地轻量检查要求。
+- GitHub Actions workflow、run 和 artifact 要求。
+- Agent C 下载 artifact、核对 manifest/JUnit/log 和结果包产物的验收要求。
+- Agent X 下一步判断依据：继续下一轮、退回 Agent B 修复、暂停等待人工或宣布总目标完成。
+- 停止条件和失败处理，尤其是不能跳过 Agent C artifact 验收。
 
 ## Agent A 云端阶段提示词要求
 
@@ -71,3 +87,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - 禁止要求 Agent C 只看 Agent B 文字汇报。
 - 禁止把旧 artifact、旧 output 或 checkout 自带报告冒充本轮云端结果。
 - 禁止在没有 GitHub 权限或没有 `origin/main` 时伪装云端验收完成。
+- 禁止 Agent X 用主控循环跳过 Agent A 提示词、Agent B push 或 Agent C artifact 验收。

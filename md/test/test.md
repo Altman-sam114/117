@@ -1,6 +1,6 @@
 # 测试规范
 
-本文指导 Agent A、Agent B 和 Agent C 选择测试层级、记录命令和判断当前基线。
+本文指导 Agent A、Agent B、Agent C 和未来 Agent X 主控循环选择测试层级、记录命令和判断当前基线。
 
 ## 固定前缀 / 环境要求
 
@@ -14,6 +14,7 @@
 - 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、Markdown 解析、统计和 Markdown snippet。
 - 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
+- Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
 
 ## 1. 本地轻量检查
 
@@ -253,6 +254,28 @@ Agent C 必须核对：
 - `MDJournalTests.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - artifact 是否来自本轮最新 run，而不是旧 run 或旧输出。
 
+## 3.5 Agent X 循环下的验证规则
+
+触发条件：
+
+- 人工使用 `agentx`、`x:` 或 `X:` 提供总目标，并要求 Agent X 进入主控循环。
+- Agent X 判断总目标需要多轮 Agent A/B/C 迭代。
+
+每轮必须满足：
+
+- Agent A 先生成本轮版本化提示词，明确本轮目标、非目标、验证命令、CI 要求、artifact 要求和 Agent C 验收要求。
+- Agent B 按提示词实现，本地运行本文件要求的轻量检查，提交并 push 到 `origin/main`。
+- GitHub Actions 为该次 push 生成最新 run 和未加密 artifact。
+- Agent C 下载该最新 run 对应 artifact，并核对 manifest、JUnit 或等价摘要、主日志、失败摘要和关键结果包产物。
+- Agent X 只能基于 Agent C 的 artifact 验收结论判断继续、退回、暂停或完成。
+
+禁止：
+
+- Agent X 跳过 Agent C artifact 验收。
+- Agent X 在 Agent C 未通过时继续下一轮并伪装成功。
+- Agent X 使用旧 run、旧 artifact、本地输出或文字汇报替代本轮最新云端结果包。
+- Agent X 为了推进循环扩大无关改动范围。
+
 ## 4. 本机完整构建
 
 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”“本地跑模拟器”等，或云端环境缺失导致必须本机补证时，才默认运行本机完整构建。
@@ -314,3 +337,23 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 - 不得用“验证过”替代具体命令、run id、artifact 名称和结果。
 - 文档-only 修改可只跑本地轻量检查，但若本轮目标包含云端流程验证，必须说明是否已 push 并下载 artifact。
 - 若新增测试 target、脚本或 CI，必须同步更新本文件、`README.md` 和 `update_log.md`。
+
+## 8. 测试数据与下载容量限制
+
+本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。
+
+规则：
+
+- 测试数据必须尽量小，只覆盖必要边界。
+- CI artifact 只上传必要文件：manifest、JUnit 或测试摘要、关键日志、失败摘要、必要结果包。
+- 不上传大体积 DerivedData、完整 build cache、无关截图、视频、模型文件、历史 artifact 或重复压缩包。
+- Agent C 下载 artifact 前优先确认只下载最新 run 对应的必要结果包。
+- 下载缓存默认放在 `/private/tmp/<project>-review-<run_id>/`。
+- 下载后应检查目录大小：
+
+```sh
+du -sh /private/tmp/<project>-review-<run_id>/
+```
+
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。

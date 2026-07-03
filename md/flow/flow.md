@@ -6,6 +6,8 @@ MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
+未来可选主控链路是：人工用 `agentx:` 提供总目标 X -> Agent X 拆分小轮次 -> 每轮仍按 Agent A -> Agent B -> Agent C 执行 -> Agent X 根据 Agent C artifact 验收结果判断继续、退回、暂停或完成。
+
 ## 1. 当前核心数据流
 
 ```text
@@ -95,16 +97,37 @@ JournalEntry.body
 - `agenta`、`a:` 或 `A:` 召唤 Agent A。
 - `agentb`、`b:` 或 `B:` 召唤 Agent B。
 - `agentc`、`c:` 或 `C:` 召唤 Agent C。
-- 未带前缀时按普通 Codex 任务处理；若任务需要明确 A/B/C 边界，先要求人工指定或说明本轮按普通任务执行。
+- `agentx`、`x:` 或 `X:` 召唤 Agent X。
+- 未带前缀时按普通 Codex 任务处理；若任务需要明确 A/B/C/X 边界，先要求人工指定或说明本轮按普通任务执行。
 
-### 3.2 Agent A 输出提示词
+### 3.2 Agent X 主控循环
+
+Agent X 是未来的主控调度角色，用于围绕一个总目标 X 多轮调用现有 A/B/C 流程。Agent X 不直接替代 Agent A 的提示词设计、不替代 Agent B 的实现和 push，也不替代 Agent C 的云端结果包验收。
+
+Agent X 单轮循环：
+
+1. 接收人工总目标、限制和验收标准。
+2. 把总目标拆成当前轮次目标，明确非目标、关键文件、验证要求和退出条件。
+3. 要求 Agent A 写本轮版本化提示词。
+4. 要求 Agent B 基于提示词实现、跑本地轻量检查、commit 并 push 到 `origin/main`。
+5. 等待 GitHub Actions 生成最新 run 的未加密 artifact。
+6. 要求 Agent C 下载并核对最新 artifact 的 manifest、JUnit 或等价摘要、日志和结果包产物。
+7. 根据 Agent C 结论判断：
+   - 继续下一轮：本轮通过，且总目标仍有明确剩余任务。
+   - 退回 Agent B：本轮未通过，但问题可由追加修复 commit 解决。
+   - 暂停等待人工：需要权限、账号、密钥、付费服务、产品决策或冲突归属判断。
+   - 宣布完成：总目标已完成，且最后一轮已通过 Agent C artifact 验收。
+
+Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 轮没有有效 diff、CI 连续同因失败、用户要求停止或方向改变时，必须暂停或结束并说明原因。
+
+### 3.3 Agent A 输出提示词
 
 1. 读取入口文档、更新日志、流程、流程图、测试规范、prompt 规则和相关源码。
 2. 判断目标、非目标、架构边界、风险和验收标准。
 3. 指定本地轻量检查、云端 workflow、结果包内容和 Agent C 核对方式。
 4. 分配版本号并把提示词写入 `md/prompt/`。
 
-### 3.3 Agent B main 直推
+### 3.4 Agent B main 直推
 
 1. 确认当前分支是 `main`。
 2. 执行 `git fetch origin`、`git pull --ff-only origin main`，确保基于最新 `origin/main`。
@@ -113,7 +136,7 @@ JournalEntry.body
 5. 本地运行 `md/test/test.md` 要求的轻量检查。
 6. `git commit` 后 `git push origin main`，触发 GitHub Actions。
 
-### 3.4 GitHub Actions 结果包
+### 3.5 GitHub Actions 结果包
 
 1. `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 时运行。
 2. CI 执行静态检查、generic iOS Debug build 和 `MDJournalTests` XCTest。
@@ -128,7 +151,7 @@ JournalEntry.body
    - 可用时的 `MDJournalTests.xcresult`
 4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、build/test destination、日志路径和各阶段 outcome，其中 `testOutcome` 是真实 `success/failure`。
 
-### 3.5 Agent C 结果包验收
+### 3.6 Agent C 结果包验收
 
 1. 确认 `origin/main` 最新 commit。
 2. 使用 `gh auth login` 后下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`。

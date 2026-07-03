@@ -27,10 +27,42 @@
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
 - iPhone 支持竖屏、横屏左、横屏右；宽屏阈值当前为 `820` pt。
 - 后续迭代采用“人工 -> Agent A -> Agent B main 直推 -> GitHub Actions 结果包 -> Agent C 下载复判 -> 人工复核”的文档化流程。
+- 未来可使用 `agentx`、`x:` 或 `X:` 召唤 Agent X 主控循环；Agent X 只调度 A/B/C 多轮迭代，不替代 Agent A 提示词、Agent B 实现 push 或 Agent C artifact 验收。
 - `main` 是默认唯一上传、提交、推送和云端验证分支；本阶段不使用候选分支或 PR 流程。
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.5 / 引入 Agent X 循环迭代文档基线
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 Agent X 召唤、职责、循环判断和停止条件。
+- 将现有 Agent A/B/C 云端验证流程扩展为可被 Agent X 多轮调度。
+- 更新 flow、flowchart、test、prompt README 和 README 中的协作说明。
+- 明确本轮只做文档准备，不启动真实自动循环。
+
+关键文件：
+
+- `AGENTS.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v0（协作自动化）/v0.5（引入AgentX循环迭代）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check` 通过。
+
+遗留事项：
+
+- 后续人工可用 `agentx:` 提供总目标 X，启动 Agent X 主控循环。
+- Agent X 真正执行循环时，仍必须经过 Agent A 提示词、Agent B 实现 push、Agent C 云端 artifact 验收。
 
 ### v0.4 / 建立 XCTest 基线
 
@@ -63,13 +95,18 @@
 
 验证结果：
 
-- Agent B 本地轻量检查和本机 XCTest 尝试结果以本轮最终交付记录为准。
-- Agent B push 到 `origin/main` 后会触发 `MD Journal CI Results` workflow。
-- Agent C 仍需下载最新 run 的未加密 artifact，核对 manifest、JUnit、`static-checks.log`、`xcodebuild.log`、`xctest.log` 和结果包产物后，补充最终云端验收结论。
+- Agent B 本地轻量检查通过：`git diff --check`、`git diff --cached --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、Swift parse、workflow YAML 解析、scheme XML 解析和 `xcodebuild -list`。
+- Agent B 本机 XCTest 未运行成功：当前机器 CoreSimulatorService 连接失效且没有匹配的 iPhone 16 simulator；`build-for-testing -destination 'generic/platform=iOS Simulator'` 返回 0。
+- Agent B 已 push `d55de09a0f02421394f94003e1851f53ec02249a` 到 `origin/main`。
+- Agent C 已下载并核对最新 `origin/main` 对应 GitHub Actions 结果包：run id `28671607692`，run attempt `1`，artifact `mdjournal-ci-v0.4-main-d55de09-run28671607692-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28671607692/`。
+- manifest 核对通过：`branch=main`、`commitSha=d55de09a0f02421394f94003e1851f53ec02249a`、`runId=28671607692`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=3`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束，10 个测试用例均通过。
+- `MDJournal.xcresult` 和 `MDJournalTests.xcresult` 均存在。
 
 遗留事项：
 
-- 本机环境是否能运行 iOS Simulator XCTest 取决于当前 Xcode/CoreSimulator 状态；最终重验证仍以 GitHub Actions artifact 为准。
+- 本机环境仍未完成真实 iOS Simulator XCTest 和交互视觉验证，原因是当前机器 CoreSimulator 服务不可用；本轮最终重验证以 GitHub Actions artifact 为准。
 - 本轮未新增 UI test 或模拟器交互视觉验证。
 
 ### v0.3 / 升级 main 直推云端验证流程

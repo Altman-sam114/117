@@ -102,6 +102,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 - `agenta` / `a:` 召唤 Agent A 写版本化实现提示词。
 - `agentb` / `b:` 召唤 Agent B 在 `main` 上实现、本地轻量检查、commit 并 push 到 `origin/main`。
 - `agentc` / `c:` 召唤 Agent C 下载 GitHub Actions 未加密结果包，核对 manifest、JUnit 或等价摘要、主日志和失败摘要。
+- `agentx` / `x:` 召唤 Agent X 启动主控循环；Agent X 不直接替代 A/B/C，而是围绕总目标调度 A -> B -> C 多轮迭代。
 - 当前默认不使用候选分支或 PR；云端验证阻塞时必须记录缺少的远端、权限或 artifact，而不是伪装通过。
 
 ## 后续维护
@@ -113,6 +114,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 
 ## 完成记录
 
+- 2026-07-04：v0.5 引入 Agent X 循环迭代文档基线；更新入口规则、核心流程、流程图、测试规范、prompt 规则和协作说明。本轮只做文档准备，不启动真实 Agent X 循环，不改 Swift 源码。
 - 2026-07-03：建立 `MDJournalTests` XCTest 基线，覆盖模型兼容解码、`###` 小节、Markdown 解析、统计和片段契约；CI 结果包新增真实 `testOutcome`、`xctest.log` 和测试 `.xcresult`。验证结果见 `update_log.md`。
 - 2026-07-03：升级协作制度为 main 直推、GitHub Actions 云端重验证和 Agent C 结果包验收；新增 `MD Journal CI Results` workflow。验证结果见 `update_log.md`。
 - 2026-06-29：更新多 Agent 工作流，明确 Agent C 验收不通过时退回 Agent B，最终通过后按版本号自动提交，并用简短提交说明概括该版本工作。验证结果见 `update_log.md`。
