@@ -1,6 +1,6 @@
 # 项目流程图
 
-本文用 Mermaid 图描述 MD Journal 当前真实核心数据流、执行流和多 Agent 迭代流。每张图前都有通俗读图说明，方便人工快速判断系统怎么运转。
+本文用 Mermaid 图描述 MD Journal 当前真实核心数据流、执行流和多 Agent 云端迭代流。每张图前都有通俗读图说明，方便人工快速判断系统怎么运转。
 
 ## 核心逻辑图
 
@@ -53,8 +53,8 @@ flowchart TD
   Delete --> SortSave
   SortSave --> OK{"保存是否成功？"}
   OK -- "成功" --> Render
-  OK -- "失败" --> Error["设置 errorMessage"]
-  Error --> Alert["ContentView 弹出错误提示"]
+  OK -- "失败" --> SaveError["设置 errorMessage"]
+  SaveError --> Alert["ContentView 弹出错误提示"]
 ```
 
 ## Markdown 与统计派生图
@@ -81,23 +81,54 @@ flowchart LR
   Coverage --> Dashboard
 ```
 
-## Agent 迭代流程图
+## Agent 云端迭代流程图
 
-读图说明：人工先提出目标；Agent A 只负责分析并写给 Agent B 的实现提示词；Agent B 实现和测试；Agent C 验收并更新核心逻辑文档。若不通过，Agent C 把问题退回 Agent B；若最终通过，Agent C 按版本号自动提交，再交给人工复核和下一轮。
+读图说明：人工先提出目标；Agent A 写提示词；Agent B 在 `main` 上实现并直推 `origin/main`；GitHub Actions 生成未加密结果包；Agent C 下载并核对 manifest、日志和摘要。失败时不回滚，退回 Agent B 在 `main` 上追加修复 commit；通过后记录版本并交给人工复核。
 
 ```mermaid
 flowchart TD
-  Human["人工：提出目标、限制、验收标准"] --> Context["提供 AGENTS、update_log、flow、test 和相关上下文"]
-  Context --> AgentA["Agent A：分析目标，不默认写代码"]
-  AgentA --> Prompt["md/prompt/vX（阶段）/vX.Y（任务）.md：详细实现提示词"]
-  Prompt --> AgentB["Agent B：按提示词实现、测试、记录结果"]
-  AgentB --> Diff["实际 diff、测试命令、结果、风险说明"]
-  Diff --> AgentC["Agent C：验收实现、核对架构边界和测试"]
-  AgentC --> Decision{"Agent C 是否通过？"}
-  Decision -- "不通过" --> ReturnB["退回 Agent B：列出问题和修复要求"]
-  ReturnB --> AgentB
-  Decision -- "通过" --> FlowUpdate["更新 flow、flowchart、update_log、README"]
-  FlowUpdate --> Commit["按版本号 git commit：提交说明简要概括本版工作"]
-  Commit --> HumanReview["人工复核：确认版本或提出下一轮目标"]
+  Human["人工：提出目标、限制、验收标准"] --> Context["读取 AGENTS、update_log、flow、test、prompt README 和相关源码"]
+  Context --> AgentA["Agent A：分析目标并写版本化提示词"]
+  AgentA --> Prompt["md/prompt/vX（阶段）/vX.Y（任务）.md"]
+  Prompt --> AgentBStart["Agent B：同步最新 origin/main"]
+  AgentBStart --> MainOK{"当前是否为 main 且可同步 origin/main？"}
+  MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
+  MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
+  AgentBWork --> Commit["git commit：只提交本轮相关文件"]
+  Commit --> Push["git push origin main"]
+  Push --> Actions["GitHub Actions：ci-results workflow"]
+  Actions --> Checks["静态检查 + generic iOS Debug build"]
+  Checks --> Artifact["上传未加密 CI 结果包"]
+  Artifact --> AgentCDownload["Agent C：gh auth login 后下载 artifact"]
+  AgentCDownload --> Verify["核对 manifest、commitSha、runId、runAttempt、JUnit、日志"]
+  Verify --> Decision{"Agent C 是否通过？"}
+  Decision -- "不通过" --> ReturnB["退回 Agent B：列出问题"]
+  ReturnB --> FixCommit["Agent B 在 main 上追加修复 commit"]
+  FixCommit --> Push
+  Decision -- "通过" --> UpdateDocs["确认 flow、flowchart、test、README、update_log 已同步"]
+  UpdateDocs --> HumanReview["人工复核并进入下一轮"]
   HumanReview --> Human
+```
+
+## CI 结果包验收图
+
+读图说明：Agent C 不能只看文字汇报，必须下载最新 `origin/main` 对应 run 的 artifact，并核对结果包里的机器可读信息。
+
+```mermaid
+flowchart LR
+  OriginMain["origin/main 最新 commit"] --> Run["GitHub Actions 最新 run"]
+  Run --> Artifact["未加密 artifact"]
+  Artifact --> Manifest["ci-artifact-manifest.json"]
+  Artifact --> JUnit["junit.xml"]
+  Artifact --> BuildLog["xcodebuild.log"]
+  Artifact --> Summary["ci-failure-summary.md"]
+  Artifact --> XCResult["MDJournal.xcresult（可用时）"]
+  Manifest --> Match{"branch、commitSha、runId、runAttempt 是否匹配？"}
+  JUnit --> Outcome{"检查和构建是否通过？"}
+  BuildLog --> Outcome
+  Summary --> Outcome
+  Match --> Accept{"Agent C 结论"}
+  Outcome --> Accept
+  Accept -- "通过" --> Record["记录版本、artifact 名称和遗留事项"]
+  Accept -- "不通过" --> Repair["退回 Agent B 追加修复 commit"]
 ```

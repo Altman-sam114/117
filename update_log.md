@@ -14,8 +14,9 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI iOS Markdown 日记应用。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：项目文件 lint、Swift 解析、generic iOS Debug 构建；尚未建立正式 XCTest target。
+- 当前测试基线：本地轻量检查 + GitHub Actions 云端重验证；尚未建立正式 XCTest target。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
+- 当前远端状态：本地仓库当前未配置 `origin` 远端，真实 `main` push、Actions run 和 artifact 下载会被阻塞，直到人工配置远端和权限。
 
 ## 关键决策
 
@@ -25,10 +26,55 @@
 - Markdown 预览采用轻量自研解析器，不承诺完整 CommonMark 支持。
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
 - iPhone 支持竖屏、横屏左、横屏右；宽屏阈值当前为 `820` pt。
-- 后续迭代采用“人工 -> Agent A -> Agent B -> Agent C -> 自动版本提交 -> 人工复核”的文档化流程。
-- Agent C 不通过时退回 Agent B 修复，不得提交；最终通过后按版本号提交，提交说明简要概括本版本工作。
+- 后续迭代采用“人工 -> Agent A -> Agent B main 直推 -> GitHub Actions 结果包 -> Agent C 下载复判 -> 人工复核”的文档化流程。
+- `main` 是默认唯一上传、提交、推送和云端验证分支；本阶段不使用候选分支或 PR 流程。
+- Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.3 / 升级 main 直推云端验证流程
+
+日期：2026-07-03
+
+核心变更：
+
+- 将协作制度从“Agent C 本地验收后提交”升级为“Agent B main 直推、GitHub Actions 云端重验证、Agent C 下载未加密结果包复判”。
+- 新增 Agent A/B/C 召唤前缀和最终回复身份标识规则。
+- 明确 `main` 是默认唯一上传、提交、推送和云端验证分支；本阶段不设计 `smalldata_test`、`develop`、`codeb/...` 或 PR 流程。
+- 新增 `.github/workflows/ci-results.yml`，在 `main` push 和手动触发时运行静态检查、generic iOS Debug build，并上传 manifest、failure summary、日志、JUnit 和 `.xcresult`。
+- 更新测试规范为“本地轻量检查 + 云端重验证”默认策略，保留人工明确要求时的本机完整 build 命令。
+- README 仅新增简短“协作与云端验证”说明，不替代入口规则。
+
+对比判断：
+
+- 可复用 AITRANS 的制度骨架：main 直推、CI 结果包、manifest 可追溯、Agent C 下载复判、失败后追加修复 commit。
+- 不照搬 AITRANS 的项目特例：漫画探针、GGUF、模型 Release、`test/1.png`、`smalldata_test`、候选分支和 PR 合并流。
+- MD Journal 是 SwiftUI iOS / Xcode 项目，结果包重点是 project lint、Swift parse、generic iOS build 日志、JUnit 摘要和 `.xcresult`。
+
+关键文件：
+
+- `AGENTS.md`
+- `.github/workflows/ci-results.yml`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `README.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check` 通过。
+- `plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 通过。
+- 未运行本机完整 Xcode build：本轮是流程和 CI 改造，且新规范默认由云端重验证承担完整 build。
+- 未完成真实 `main` push、GitHub Actions run 和 artifact 下载：当前 `git remote -v` 无输出，仓库未配置 `origin` 远端。
+
+遗留事项：
+
+- 人工需要配置 `origin` 远端和 GitHub Actions 权限后，执行首次 `git push origin main`。
+- Agent C 需要在可访问仓库的环境中 `gh auth login`，下载 `/private/tmp/mdjournal-c-review-<run_id>/` 缓存并核对结果包。
+- 项目仍未建立 XCTest target；CI 结果包中的 XCTest 当前标记为 `skipped`。
 
 ### v0.2 / 更新 Agent C 验收提交规则
 

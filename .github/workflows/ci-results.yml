@@ -1,0 +1,176 @@
+name: MD Journal CI Results
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci-results:
+    name: Build and Package Results
+    runs-on: macos-15
+    env:
+      RESULT_DIR: ci-results
+      VERSION: v0.3
+      PROJECT_NAME: MD Journal
+      SCHEME: MDJournal
+      DESTINATION: generic/platform=iOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          short_sha="${GITHUB_SHA::7}"
+          echo "branch_slug=${branch_slug}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare result directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RESULT_DIR"
+
+      - name: Static checks
+        id: static_checks
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## git diff --check"
+            git diff --check
+            echo
+            echo "## plutil -lint MDJournal.xcodeproj/project.pbxproj"
+            plutil -lint MDJournal.xcodeproj/project.pbxproj
+            echo
+            echo "## xcrun swiftc -parse"
+            swift_files=$(git ls-files 'MDJournal/*.swift' 'MDJournal/**/*.swift')
+            xcrun swiftc -parse -parse-as-library $swift_files
+          } 2>&1 | tee "$RESULT_DIR/static-checks.log"
+
+      - name: Generic iOS Debug build
+        id: xcode_build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+            -project MDJournal.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+            -resultBundlePath "$RESULT_DIR/MDJournal.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RESULT_DIR/xcodebuild.log"
+
+      - name: Write manifest and summaries
+        if: always()
+        shell: bash
+        env:
+          STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
+          BUILD_OUTCOME: ${{ steps.xcode_build.outcome }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+          from datetime import datetime, timezone
+
+          result_dir = pathlib.Path(os.environ["RESULT_DIR"])
+          result_dir.mkdir(parents=True, exist_ok=True)
+
+          static_outcome = os.environ["STATIC_OUTCOME"]
+          build_outcome = os.environ["BUILD_OUTCOME"]
+          failures = []
+          if static_outcome != "success":
+              failures.append(("static-checks", static_outcome, "See ci-results/static-checks.log."))
+          if build_outcome != "success":
+              failures.append(("xcodebuild", build_outcome, "See ci-results/xcodebuild.log."))
+
+          manifest = {
+              "version": os.environ["VERSION"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commitSha": os.environ["GITHUB_SHA"],
+              "shortSha": os.environ["SHORT_SHA"],
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowName": os.environ["GITHUB_WORKFLOW"],
+              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "projectName": os.environ["PROJECT_NAME"],
+              "scheme": os.environ["SCHEME"],
+              "destination": os.environ["DESTINATION"],
+              "resultBundlePath": "ci-results/MDJournal.xcresult",
+              "junitPath": "ci-results/junit.xml",
+              "buildLogPath": "ci-results/xcodebuild.log",
+              "failureSummaryPath": "ci-results/ci-failure-summary.md",
+              "staticChecksOutcome": static_outcome,
+              "buildOutcome": build_outcome,
+              "testOutcome": "skipped",
+              "projectSpecificReports": [],
+          }
+          (result_dir / "ci-artifact-manifest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          testsuite = ET.Element(
+              "testsuite",
+              name="MDJournalCI",
+              tests="3",
+              failures=str(len(failures)),
+              skipped="1",
+          )
+          for name, outcome, message in [
+              ("static-checks", static_outcome, "Static checks failed."),
+              ("xcodebuild", build_outcome, "Generic iOS Debug build failed."),
+          ]:
+              case = ET.SubElement(testsuite, "testcase", name=name)
+              if outcome != "success":
+                  failure = ET.SubElement(case, "failure", message=message)
+                  failure.text = f"Outcome: {outcome}"
+          skipped_case = ET.SubElement(testsuite, "testcase", name="xctest")
+          ET.SubElement(skipped_case, "skipped", message="No XCTest target is configured.")
+          ET.ElementTree(testsuite).write(result_dir / "junit.xml", encoding="utf-8", xml_declaration=True)
+
+          lines = ["# CI Failure Summary", ""]
+          if failures:
+              lines.append("One or more CI stages failed:")
+              lines.append("")
+              for name, outcome, hint in failures:
+                  lines.append(f"- {name}: {outcome}. {hint}")
+          else:
+              lines.append("All configured CI stages passed.")
+          lines.append("")
+          lines.append("XCTest is skipped because the project has no XCTest target yet.")
+          lines.append("")
+          lines.append(f"Commit: {manifest['commitSha']}")
+          lines.append(f"Run: {manifest['runId']} attempt {manifest['runAttempt']}")
+          (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload CI result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdjournal-ci-${{ env.VERSION }}-${{ steps.meta.outputs.branch_slug }}-${{ steps.meta.outputs.short_sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: ci-results
+          if-no-files-found: error
+
+      - name: Fail workflow on failed checks
+        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success')
+        shell: bash
+        run: exit 1
