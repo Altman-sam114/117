@@ -58,7 +58,8 @@ enum MarkdownBlockParser {
         }
 
         for rawLine in lines {
-            let trimmedLine = rawLine.trimmingCharacters(in: .whitespaces)
+            let isBlankLine = rawLine.trimmingCharacters(in: .whitespaces).isEmpty
+            let trimmedLine = rawLine.trimmingLeadingWhitespace()
 
             if isReadingCode {
                 if trimmedLine.hasPrefix("```") {
@@ -77,7 +78,7 @@ enum MarkdownBlockParser {
                 continue
             }
 
-            if trimmedLine.isEmpty {
+            if isBlankLine {
                 flushInlineBlocks()
                 continue
             }
@@ -197,5 +198,11 @@ enum MarkdownBlockParser {
         }
 
         return nil
+    }
+}
+
+private extension String {
+    func trimmingLeadingWhitespace() -> String {
+        String(drop(while: { $0 == " " || $0 == "\t" }))
     }
 }

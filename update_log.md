@@ -14,9 +14,9 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI iOS Markdown 日记应用。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：本地轻量检查 + GitHub Actions 云端重验证；尚未建立正式 XCTest target。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 build/test 重验证。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
-- 当前远端状态：本地仓库当前未配置 `origin` 远端，真实 `main` push、Actions run 和 artifact 下载会被阻塞，直到人工配置远端和权限。
+- 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
 ## 关键决策
 
@@ -31,6 +31,46 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.4 / 建立 XCTest 基线
+
+日期：2026-07-03
+
+核心变更：
+
+- 新增 `MDJournalTests` XCTest target，并通过共享 `MDJournal` scheme 纳入测试。
+- 新增第一批核心规则单元测试，覆盖 `JournalEntry` 旧 JSON 兼容解码、空标题展示、starter `###` 模板、`JournalSection` 小节抽取、`MarkdownBlockParser` 块解析与 `###` 分组、`JournalStatistics` 固定日期统计口径和 `MarkdownSnippet` 工具栏片段契约。
+- 修正 `JournalSection.extract` 与 `MarkdownBlockParser` 对 `### ` 空标题的识别，确保回退为“未命名小节”。
+- 更新 `MD Journal CI Results` workflow：保留静态检查和 generic iOS Debug build，新增 simulator XCTest，artifact 增加 `xctest.log` 和 `MDJournalTests.xcresult`，manifest 的 `testOutcome` 改为真实 `success/failure`。
+- 同步更新 README、测试规范、核心流程和流程图中的测试基线、CI 结果包内容和远端状态。
+
+关键文件：
+
+- `MDJournal.xcodeproj/project.pbxproj`
+- `MDJournal.xcodeproj/xcshareddata/xcschemes/MDJournal.xcscheme`
+- `.github/workflows/ci-results.yml`
+- `MDJournalTests/JournalEntryTests.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `README.md`
+- `update_log.md`
+
+验证结果：
+
+- Agent B 本地轻量检查和本机 XCTest 尝试结果以本轮最终交付记录为准。
+- Agent B push 到 `origin/main` 后会触发 `MD Journal CI Results` workflow。
+- Agent C 仍需下载最新 run 的未加密 artifact，核对 manifest、JUnit、`static-checks.log`、`xcodebuild.log`、`xctest.log` 和结果包产物后，补充最终云端验收结论。
+
+遗留事项：
+
+- 本机环境是否能运行 iOS Simulator XCTest 取决于当前 Xcode/CoreSimulator 状态；最终重验证仍以 GitHub Actions artifact 为准。
+- 本轮未新增 UI test 或模拟器交互视觉验证。
 
 ### v0.3 / 升级 main 直推云端验证流程
 

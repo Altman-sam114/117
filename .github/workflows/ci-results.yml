@@ -15,10 +15,11 @@ jobs:
     runs-on: macos-15
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.3
+      VERSION: v0.4
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
-      DESTINATION: generic/platform=iOS
+      BUILD_DESTINATION: generic/platform=iOS
+      TEST_DESTINATION_FALLBACK: platform=iOS Simulator,name=iPhone 16
 
     steps:
       - name: Checkout
@@ -68,11 +69,79 @@ jobs:
             -project MDJournal.xcodeproj \
             -scheme "$SCHEME" \
             -configuration Debug \
-            -destination "$DESTINATION" \
+            -destination "$BUILD_DESTINATION" \
             -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
             -resultBundlePath "$RESULT_DIR/MDJournal.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RESULT_DIR/xcodebuild.log"
+
+      - name: Resolve XCTest destination
+        id: test_destination
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          destination=$(python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          fallback = os.environ["TEST_DESTINATION_FALLBACK"]
+          try:
+              result = subprocess.run(
+                  [
+                      "/Applications/Xcode.app/Contents/Developer/usr/bin/simctl",
+                      "list",
+                      "devices",
+                      "available",
+                      "--json",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              data = json.loads(result.stdout)
+              for runtime, devices in data.get("devices", {}).items():
+                  if "iOS" not in runtime:
+                      continue
+                  for device in devices:
+                      name = device.get("name", "")
+                      udid = device.get("udid")
+                      if device.get("isAvailable") and udid and "iPhone" in name:
+                          print(f"platform=iOS Simulator,id={udid}")
+                          raise SystemExit
+          except Exception:
+              pass
+
+          print(fallback)
+          PY
+          )
+          echo "destination=${destination}" >> "$GITHUB_OUTPUT"
+          echo "Resolved XCTest destination: ${destination}" | tee "$RESULT_DIR/xctest-destination.log"
+
+      - name: XCTest
+        id: xcode_test
+        continue-on-error: true
+        shell: bash
+        env:
+          RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
+        run: |
+          set -euo pipefail
+          destination="${RESOLVED_TEST_DESTINATION:-$TEST_DESTINATION_FALLBACK}"
+          {
+            echo "## XCTest destination"
+            echo "$destination"
+            echo
+            /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+              -project MDJournal.xcodeproj \
+              -scheme "$SCHEME" \
+              -configuration Debug \
+              -destination "$destination" \
+              -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+              -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
+              CODE_SIGNING_ALLOWED=NO \
+              test
+          } 2>&1 | tee "$RESULT_DIR/xctest.log"
 
       - name: Write manifest and summaries
         if: always()
@@ -80,6 +149,8 @@ jobs:
         env:
           STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
           BUILD_OUTCOME: ${{ steps.xcode_build.outcome }}
+          TEST_OUTCOME: ${{ steps.xcode_test.outcome }}
+          RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         run: |
           set -euo pipefail
@@ -100,6 +171,11 @@ jobs:
               failures.append(("static-checks", static_outcome, "See ci-results/static-checks.log."))
           if build_outcome != "success":
               failures.append(("xcodebuild", build_outcome, "See ci-results/xcodebuild.log."))
+          test_outcome = os.environ["TEST_OUTCOME"]
+          if test_outcome != "success":
+              failures.append(("xctest", test_outcome, "See ci-results/xctest.log."))
+
+          test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or os.environ["TEST_DESTINATION_FALLBACK"]
 
           manifest = {
               "version": os.environ["VERSION"],
@@ -112,14 +188,18 @@ jobs:
               "createdAt": datetime.now(timezone.utc).isoformat(),
               "projectName": os.environ["PROJECT_NAME"],
               "scheme": os.environ["SCHEME"],
-              "destination": os.environ["DESTINATION"],
+              "destination": os.environ["BUILD_DESTINATION"],
+              "buildDestination": os.environ["BUILD_DESTINATION"],
+              "testDestination": test_destination,
               "resultBundlePath": "ci-results/MDJournal.xcresult",
+              "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
               "junitPath": "ci-results/junit.xml",
               "buildLogPath": "ci-results/xcodebuild.log",
+              "testLogPath": "ci-results/xctest.log",
               "failureSummaryPath": "ci-results/ci-failure-summary.md",
               "staticChecksOutcome": static_outcome,
               "buildOutcome": build_outcome,
-              "testOutcome": "skipped",
+              "testOutcome": test_outcome,
               "projectSpecificReports": [],
           }
           (result_dir / "ci-artifact-manifest.json").write_text(
@@ -132,18 +212,17 @@ jobs:
               name="MDJournalCI",
               tests="3",
               failures=str(len(failures)),
-              skipped="1",
+              skipped="0",
           )
           for name, outcome, message in [
               ("static-checks", static_outcome, "Static checks failed."),
               ("xcodebuild", build_outcome, "Generic iOS Debug build failed."),
+              ("xctest", test_outcome, "XCTest failed."),
           ]:
               case = ET.SubElement(testsuite, "testcase", name=name)
               if outcome != "success":
                   failure = ET.SubElement(case, "failure", message=message)
                   failure.text = f"Outcome: {outcome}"
-          skipped_case = ET.SubElement(testsuite, "testcase", name="xctest")
-          ET.SubElement(skipped_case, "skipped", message="No XCTest target is configured.")
           ET.ElementTree(testsuite).write(result_dir / "junit.xml", encoding="utf-8", xml_declaration=True)
 
           lines = ["# CI Failure Summary", ""]
@@ -155,7 +234,7 @@ jobs:
           else:
               lines.append("All configured CI stages passed.")
           lines.append("")
-          lines.append("XCTest is skipped because the project has no XCTest target yet.")
+          lines.append(f"XCTest outcome: {test_outcome}.")
           lines.append("")
           lines.append(f"Commit: {manifest['commitSha']}")
           lines.append(f"Run: {manifest['runId']} attempt {manifest['runAttempt']}")
@@ -171,6 +250,6 @@ jobs:
           if-no-files-found: error
 
       - name: Fail workflow on failed checks
-        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success')
+        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.xcode_test.outcome != 'success')
         shell: bash
         run: exit 1

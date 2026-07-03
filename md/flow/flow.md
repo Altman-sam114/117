@@ -116,15 +116,17 @@ JournalEntry.body
 ### 3.4 GitHub Actions 结果包
 
 1. `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 时运行。
-2. CI 执行静态检查和 generic iOS Debug build。
+2. CI 执行静态检查、generic iOS Debug build 和 `MDJournalTests` XCTest。
 3. CI 上传未加密 artifact，至少包含：
    - `ci-artifact-manifest.json`
    - `ci-failure-summary.md`
    - `static-checks.log`
    - `xcodebuild.log`
+   - `xctest.log`
    - `junit.xml`
    - 可用时的 `MDJournal.xcresult`
-4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、destination、日志路径和各阶段 outcome。
+   - 可用时的 `MDJournalTests.xcresult`
+4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、build/test destination、日志路径和各阶段 outcome，其中 `testOutcome` 是真实 `success/failure`。
 
 ### 3.5 Agent C 结果包验收
 
@@ -210,7 +212,7 @@ JournalEntry.body
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前以本地轻量检查和 GitHub Actions generic iOS build 为主，未来应为解析、统计、兼容解码补充 XCTest。
+- 测试层当前包含本地轻量检查、`MDJournalTests` 核心规则 XCTest 和 GitHub Actions generic iOS build/test 重验证。
 
 ## 8. 已确认的铁律
 
@@ -227,13 +229,13 @@ JournalEntry.body
 
 ## 9. 未来扩展点
 
-- 为 `MarkdownBlockParser`、`JournalStatistics`、`JournalEntry` 解码兼容补充 XCTest。
+- 扩展 `MDJournalTests` 覆盖 `JournalStore` 可测试性、更多 Markdown 边界和数据迁移风险。
 - 增强 Markdown 预览语法，但保持轻量并同步测试。
 - 改善插入片段后的光标位置。
 - 增加导入/导出或备份功能。
 - 增加更可靠的模拟器或真机视觉验证流程。
 - 为文档增加 markdown lint。
-- 在 GitHub Actions 中补充 XCTest、覆盖率或 UI 截图产物。
+- 在 GitHub Actions 中补充覆盖率或 UI 截图产物。
 
 ## 10. 不允许破坏的行为
 
@@ -248,9 +250,9 @@ JournalEntry.body
 
 ## 11. 测试映射
 
-- `JournalEntry` 改动：本地轻量检查 + 云端 CI；未来补兼容解码 XCTest。
+- `JournalEntry` 改动：本地轻量检查 + `MDJournalTests` 兼容解码 XCTest + 云端 CI。
 - `JournalStore` 改动：本地轻量检查 + 云端 CI；涉及数据迁移时需人工确认更高等级验证。
-- `MarkdownBlockParser` 改动：本地轻量检查 + 云端 CI；未来补解析 XCTest。
-- `JournalStatistics` 改动：本地轻量检查 + 云端 CI；未来补统计 XCTest。
+- `MarkdownBlockParser` 改动：本地轻量检查 + `MDJournalTests` 解析 XCTest + 云端 CI。
+- `JournalStatistics` 改动：本地轻量检查 + `MDJournalTests` 统计 XCTest + 云端 CI。
 - UI 视图改动：本地轻量检查 + 云端 CI；涉及横屏和布局时补手动视觉验证。
 - 文档-only 改动：`git diff --check`、workflow YAML 解析、必要时补 `plutil`。

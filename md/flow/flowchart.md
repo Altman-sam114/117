@@ -94,10 +94,11 @@ flowchart TD
   AgentBStart --> MainOK{"当前是否为 main 且可同步 origin/main？"}
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> Commit["git commit：只提交本轮相关文件"]
+  AgentBWork --> LocalTests["本地轻量检查 + 可用时 XCTest 尝试"]
+  LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
-  Actions --> Checks["静态检查 + generic iOS Debug build"]
+  Actions --> Checks["静态检查 + generic iOS Debug build + XCTest"]
   Checks --> Artifact["上传未加密 CI 结果包"]
   Artifact --> AgentCDownload["Agent C：gh auth login 后下载 artifact"]
   AgentCDownload --> Verify["核对 manifest、commitSha、runId、runAttempt、JUnit、日志"]
@@ -121,11 +122,14 @@ flowchart LR
   Artifact --> Manifest["ci-artifact-manifest.json"]
   Artifact --> JUnit["junit.xml"]
   Artifact --> BuildLog["xcodebuild.log"]
+  Artifact --> TestLog["xctest.log"]
   Artifact --> Summary["ci-failure-summary.md"]
   Artifact --> XCResult["MDJournal.xcresult（可用时）"]
+  Artifact --> TestResult["MDJournalTests.xcresult（可用时）"]
   Manifest --> Match{"branch、commitSha、runId、runAttempt 是否匹配？"}
   JUnit --> Outcome{"检查和构建是否通过？"}
   BuildLog --> Outcome
+  TestLog --> Outcome
   Summary --> Outcome
   Match --> Accept{"Agent C 结论"}
   Outcome --> Accept

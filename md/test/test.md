@@ -11,8 +11,8 @@
 - Scheme：`MDJournal`。
 - 当前最低 iOS 版本：16.0。
 - 当前没有第三方依赖和包管理器。
-- 当前没有正式 XCTest target。
-- 当前默认策略：本机只跑轻量检查，重验证交给 GitHub Actions。
+- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、Markdown 解析、统计和 Markdown snippet。
+- 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 
 ## 1. 本地轻量检查
@@ -102,6 +102,33 @@ python3 -m json.tool path/to/file.json >/dev/null
 
 - 返回 0。
 
+### 1.6 本机 XCTest 尝试
+
+触发条件：
+
+- 新增或修改 `MDJournalTests`。
+- 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics` 或 `MarkdownSnippet` 等已有 XCTest 覆盖的核心规则。
+- 修改 Xcode scheme、target 或 CI test 命令。
+
+命令：
+
+```sh
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project MDJournal.xcodeproj \
+  -scheme MDJournal \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -derivedDataPath /private/tmp/mdjournal-derived-data \
+  CODE_SIGNING_ALLOWED=NO \
+  test
+```
+
+当前基线：
+
+- 可用 Xcode/CoreSimulator 环境下应以 `** TEST SUCCEEDED **` 结束。
+- 若当前机器没有 `iPhone 16`，先用 `xcrun simctl list devices available` 查找可用 iPhone simulator。
+- 若 Xcode 或 CoreSimulator 不可用，必须记录关键错误；最终仍以 GitHub Actions artifact 为准。
+
 ## 2. 云端重验证
 
 云端重验证是默认主验证路径。Agent B push 到 `origin/main` 后，GitHub Actions 运行 `.github/workflows/ci-results.yml` 并上传未加密结果包。
@@ -135,20 +162,34 @@ xcrun swiftc -parse -parse-as-library $(git ls-files 'MDJournal/*.swift' 'MDJour
   build
 ```
 
+```sh
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project MDJournal.xcodeproj \
+  -scheme MDJournal \
+  -configuration Debug \
+  -destination "$RESOLVED_IOS_SIMULATOR_DESTINATION" \
+  -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+  -resultBundlePath ci-results/MDJournalTests.xcresult \
+  CODE_SIGNING_ALLOWED=NO \
+  test
+```
+
 云端结果包至少包含：
 
 - `ci-artifact-manifest.json`
 - `ci-failure-summary.md`
 - `static-checks.log`
 - `xcodebuild.log`
+- `xctest.log`
 - `junit.xml`
 - `MDJournal.xcresult`，如果 `xcodebuild` 成功生成
+- `MDJournalTests.xcresult`，如果 `xcodebuild test` 成功生成
 
 manifest 至少包含：
 
 ```json
 {
-  "version": "v0.3",
+  "version": "v0.4",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -159,13 +200,17 @@ manifest 至少包含：
   "projectName": "MD Journal",
   "scheme": "MDJournal",
   "destination": "generic/platform=iOS",
+  "buildDestination": "generic/platform=iOS",
+  "testDestination": "platform=iOS Simulator,id=...",
   "resultBundlePath": "ci-results/MDJournal.xcresult",
+  "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
   "junitPath": "ci-results/junit.xml",
   "buildLogPath": "ci-results/xcodebuild.log",
+  "testLogPath": "ci-results/xctest.log",
   "failureSummaryPath": "ci-results/ci-failure-summary.md",
   "staticChecksOutcome": "success/failure",
   "buildOutcome": "success/failure",
-  "testOutcome": "skipped",
+  "testOutcome": "success/failure",
   "projectSpecificReports": []
 }
 ```
@@ -173,7 +218,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.3-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.4-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判
@@ -202,9 +247,10 @@ Agent C 必须核对：
 - `origin/main` 最新 commit SHA。
 - GitHub Actions run id 和 run attempt。
 - `ci-artifact-manifest.json` 的 `branch`、`commitSha`、`runId`、`runAttempt`。
-- `junit.xml` 或等价摘要中失败数。
-- `static-checks.log` 和 `xcodebuild.log` 的关键错误。
+- `junit.xml` 或等价摘要中失败数，并确认 XCTest 不是 skipped。
+- `static-checks.log`、`xcodebuild.log` 和 `xctest.log` 的关键错误。
 - `ci-failure-summary.md` 是否与实际 outcome 一致。
+- `MDJournalTests.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - artifact 是否来自本轮最新 run，而不是旧 run 或旧输出。
 
 ## 4. 本机完整构建
@@ -255,16 +301,10 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 4. Agent C 下载并核对结果包。
 5. 必要时补本机完整构建或人工交互验证。
 
-如未来新增 XCTest target，再补充：
-
-```sh
-xcodebuild test ...
-```
-
 当前基线：
 
-- 当前仓库还没有可执行 XCTest 基线。
-- 自动化重验证由 `MD Journal CI Results` workflow 承担。
+- 当前仓库已有 `MDJournalTests` 单元测试基线。
+- 自动化重验证由 `MD Journal CI Results` workflow 承担，包含静态检查、generic iOS Debug build 和 XCTest。
 
 ## 7. 规则
 

@@ -22,7 +22,21 @@
 		A1000000000000000000000D /* MarkdownToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* MarkdownToolbar.swift */; };
 		A1000000000000000000000E /* JournalStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* JournalStatistics.swift */; };
 		A1000000000000000000000F /* StatisticsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* StatisticsDashboardView.swift */; };
+		B10000000000000000000001 /* JournalEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* JournalEntryTests.swift */; };
+		B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* MarkdownBlockParserTests.swift */; };
+		B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* JournalStatisticsTests.swift */; };
+		B10000000000000000000004 /* MarkdownSnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* MarkdownSnippetTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B90000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A60000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A50000000000000000000001;
+			remoteInfo = MDJournal;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* MDJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MDJournalApp.swift; sourceTree = "<group>"; };
@@ -41,10 +55,22 @@
 		A2000000000000000000000F /* MDJournal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MDJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000010 /* JournalStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatistics.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* StatisticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsDashboardView.swift; sourceTree = "<group>"; };
+		B20000000000000000000001 /* JournalEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000002 /* MarkdownBlockParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockParserTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000003 /* JournalStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatisticsTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000004 /* MarkdownSnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSnippetTests.swift; sourceTree = "<group>"; };
+		B2000000000000000000000F /* MDJournalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDJournalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -58,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				A40000000000000000000002 /* MDJournal */,
+				B40000000000000000000001 /* MDJournalTests */,
 				A40000000000000000000008 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -120,8 +147,20 @@
 			isa = PBXGroup;
 			children = (
 				A2000000000000000000000F /* MDJournal.app */,
+				B2000000000000000000000F /* MDJournalTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B40000000000000000000001 /* MDJournalTests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000001 /* JournalEntryTests.swift */,
+				B20000000000000000000002 /* MarkdownBlockParserTests.swift */,
+				B20000000000000000000003 /* JournalStatisticsTests.swift */,
+				B20000000000000000000004 /* MarkdownSnippetTests.swift */,
+			);
+			path = MDJournalTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -144,6 +183,24 @@
 			productReference = A2000000000000000000000F /* MDJournal.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B50000000000000000000001 /* MDJournalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B80000000000000000000001 /* Build configuration list for PBXNativeTarget "MDJournalTests" */;
+			buildPhases = (
+				B30000000000000000000002 /* Sources */,
+				B30000000000000000000001 /* Frameworks */,
+				B30000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B90000000000000000000002 /* PBXTargetDependency */,
+			);
+			name = MDJournalTests;
+			productName = MDJournalTests;
+			productReference = B2000000000000000000000F /* MDJournalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -156,6 +213,10 @@
 				TargetAttributes = {
 					A50000000000000000000001 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					B50000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = A50000000000000000000001;
 					};
 				};
 			};
@@ -174,12 +235,20 @@
 			projectRoot = "";
 			targets = (
 				A50000000000000000000001 /* MDJournal */,
+				B50000000000000000000001 /* MDJournalTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A30000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -211,7 +280,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B30000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000001 /* JournalEntryTests.swift in Sources */,
+				B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */,
+				B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */,
+				B10000000000000000000004 /* MarkdownSnippetTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B90000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A50000000000000000000001 /* MDJournal */;
+			targetProxy = B90000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A70000000000000000000001 /* Debug */ = {
@@ -390,6 +478,58 @@
 			};
 			name = Release;
 		};
+		B70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.codex.mdjournal.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MDJournal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MDJournal";
+			};
+			name = Debug;
+		};
+		B70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.codex.mdjournal.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MDJournal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MDJournal";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -407,6 +547,15 @@
 			buildConfigurations = (
 				A70000000000000000000003 /* Debug */,
 				A70000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B80000000000000000000001 /* Build configuration list for PBXNativeTarget "MDJournalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B70000000000000000000001 /* Debug */,
+				B70000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

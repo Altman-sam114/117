@@ -237,7 +237,7 @@ struct JournalSection: Identifiable, Hashable {
         }
 
         for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            let trimmedLine = line.trimmingLeadingWhitespace()
 
             if trimmedLine.hasPrefix("### ") {
                 flushSection()
@@ -253,5 +253,11 @@ struct JournalSection: Identifiable, Hashable {
 
         flushSection()
         return sections
+    }
+}
+
+private extension String {
+    func trimmingLeadingWhitespace() -> String {
+        String(drop(while: { $0 == " " || $0 == "\t" }))
     }
 }
