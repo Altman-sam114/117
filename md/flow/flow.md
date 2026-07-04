@@ -23,10 +23,10 @@ Markdown 与统计派生数据流：
 
 ```text
 JournalEntry.body
-  -> MarkdownBlockParser.parse
-  -> MarkdownPreviewView 渲染块级 Markdown
-  -> MarkdownBlockParser.groupedByLevelThree
-  -> ### 小节分组预览、日记卡片小节摘要、统计小节覆盖率
+  -> MarkdownBlockParser.parseDocument
+  -> MarkdownParseResult.blocks / sectionGroups
+  -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览
+  -> 日记卡片小节摘要、统计小节覆盖率继续由 JournalEntry.sections 派生
 
 [JournalEntry]
   -> JournalStatistics
@@ -79,8 +79,8 @@ JournalEntry.body
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览。
 2. 宽度大于等于 `820` pt 时，编辑和预览左右分栏同时展示。
-3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parse` 获取块级内容。
-4. 如果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
+3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果。
+4. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
 5. 否则按普通块序列渲染。
 6. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
 
@@ -192,7 +192,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 输入：`JournalEntry.body`。
 
-输出：`[MarkdownBlock]`、`[MarkdownSectionGroup]`。
+输出：`MarkdownParseResult`、`[MarkdownBlock]`、`[MarkdownSectionGroup]`。
 
 禁止：在未更新 README、测试规范和 flow 文档的情况下改变现有语法含义。
 
@@ -247,6 +247,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
+- Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。

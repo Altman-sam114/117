@@ -19,8 +19,8 @@ flowchart TD
   Store --> Model["JournalEntry：日记模型、兼容解码、派生标题/摘要/词数/小节"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
-  Model --> Parser["MarkdownBlockParser：解析块级 Markdown 和 ### 小节"]
-  Parser --> Preview["MarkdownPreviewView：渲染普通预览或小节分组预览"]
+  Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
+  Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
   Store --> Stats["JournalStatistics：计算总量、连续天数、分布、7天趋势"]
   Stats --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Model --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
@@ -66,11 +66,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  Body["JournalEntry.body 正文"] --> Parse["MarkdownBlockParser.parse"]
-  Parse --> Blocks["MarkdownBlock：标题、段落、引用、列表、待办、代码、分割线"]
+  Body["JournalEntry.body 正文"] --> Parse["MarkdownBlockParser.parseDocument"]
+  Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
+  Result --> Blocks["MarkdownBlock：标题、段落、引用、列表、待办、代码、分割线"]
   Blocks --> Preview["MarkdownPreviewView 普通块渲染"]
-  Body --> Group["MarkdownBlockParser.groupedByLevelThree"]
-  Group --> Sections["MarkdownSectionGroup：### 小节分组"]
+  Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Sections --> SectionSummary["列表小节摘要和小节数"]
   Entries["[JournalEntry] 日记数组"] --> Statistics["JournalStatistics"]

@@ -23,7 +23,24 @@ struct MarkdownSectionGroup: Identifiable, Equatable {
     var isIntro: Bool
 }
 
+struct MarkdownParseResult: Equatable {
+    let blocks: [MarkdownBlock]
+    let sectionGroups: [MarkdownSectionGroup]
+
+    var shouldUseSectionGroups: Bool {
+        sectionGroups.contains { !$0.isIntro }
+    }
+}
+
 enum MarkdownBlockParser {
+    static func parseDocument(_ markdown: String) -> MarkdownParseResult {
+        let blocks = parse(markdown)
+        return MarkdownParseResult(
+            blocks: blocks,
+            sectionGroups: groupedByLevelThree(from: blocks)
+        )
+    }
+
     static func parse(_ markdown: String) -> [MarkdownBlock] {
         let lines = markdown.components(separatedBy: .newlines)
         var blocks: [MarkdownBlock] = []
@@ -129,7 +146,10 @@ enum MarkdownBlockParser {
     }
 
     static func groupedByLevelThree(_ markdown: String) -> [MarkdownSectionGroup] {
-        let blocks = parse(markdown)
+        groupedByLevelThree(from: parse(markdown))
+    }
+
+    private static func groupedByLevelThree(from blocks: [MarkdownBlock]) -> [MarkdownSectionGroup] {
         var groups: [MarkdownSectionGroup] = []
         var currentTitle = "开篇"
         var currentBlocks: [MarkdownBlock] = []

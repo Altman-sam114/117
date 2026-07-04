@@ -34,6 +34,48 @@
 
 ## 历史记录
 
+### v0.8 / Markdown 预览解析单次化
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `MarkdownParseResult` 和 `MarkdownBlockParser.parseDocument(_:)`，用同一次块级解析结果派生普通块和 `###` 小节分组。
+- `MarkdownPreviewView` 改为在单次 body 渲染中只解析一次正文，再复用 `blocks`、`sectionGroups` 和 `shouldUseSectionGroups`。
+- 新增 `MarkdownBlockParserTests` 覆盖 `parseDocument(_:)` 的块解析、小节分组和 `shouldUseSectionGroups` 语义。
+- GitHub Actions 结果包版本更新为 `v0.8`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步更新 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.8（Markdown预览解析单次化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束；首次运行因临时 `.xcresult` 路径已存在未进入编译，换新路径后通过。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS Simulator `build-for-testing`，第二次 `-quiet` 重跑返回 0；首次尝试日志已输出 `** TEST BUILD SUCCEEDED **`，但进程返回 133，未作为通过依据。
+- 本机 iOS Simulator XCTest 未运行成功：当前机器 CoreSimulatorService 不可用，且没有可匹配的 `iPhone 16` simulator；命令返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端 artifact 验收需在本轮 commit push 到 `origin/main` 后由 Agent C 下载最新结果包复判。
+
+遗留事项：
+
+- 本轮只优化 Markdown 预览在单次渲染中的重复解析，尚未缓存列表卡片 `JournalEntry.sections` 或统计派生计算。
+- 后续可继续做列表小节摘要缓存、统计计算去重和更完整的 Mac 菜单命令。
+
 ### v0.7 / 编辑写入节流
 
 日期：2026-07-04

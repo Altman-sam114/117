@@ -5,32 +5,22 @@ struct MarkdownPreviewView: View {
     var accent: Color = .teal
     var maxContentWidth: CGFloat = 720
 
-    private var blocks: [MarkdownBlock] {
-        MarkdownBlockParser.parse(markdown)
-    }
-
-    private var sectionGroups: [MarkdownSectionGroup] {
-        MarkdownBlockParser.groupedByLevelThree(markdown)
-    }
-
-    private var shouldUseSectionGroups: Bool {
-        sectionGroups.contains { !$0.isIntro }
-    }
-
     var body: some View {
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: shouldUseSectionGroups ? 14 : 12) {
-                if blocks.isEmpty {
+            LazyVStack(alignment: .leading, spacing: document.shouldUseSectionGroups ? 14 : 12) {
+                if document.blocks.isEmpty {
                     Text("暂无内容")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 60)
-                } else if shouldUseSectionGroups {
-                    ForEach(sectionGroups) { group in
+                } else if document.shouldUseSectionGroups {
+                    ForEach(document.sectionGroups) { group in
                         sectionGroupView(group)
                     }
                 } else {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                    ForEach(Array(document.blocks.enumerated()), id: \.offset) { _, block in
                         blockView(block)
                     }
                 }

@@ -67,4 +67,81 @@ final class MarkdownBlockParserTests: XCTestCase {
         XCTAssertEqual(groups[1], MarkdownSectionGroup(order: 1, title: "第一节", blocks: [.paragraph("内容一")], isIntro: false))
         XCTAssertEqual(groups[2], MarkdownSectionGroup(order: 2, title: "未命名小节", blocks: [.paragraph("空标题内容")], isIntro: false))
     }
+
+    func testParseDocumentReturnsBlocksAndSectionGroupsFromSameMarkdown() {
+        let markdown = [
+            "# 标题",
+            "开篇说明",
+            "",
+            "### 第一节",
+            "- [ ] 待办",
+            "",
+            "### 第二节",
+            "内容二"
+        ].joined(separator: "\n")
+
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
+        XCTAssertEqual(document.blocks, MarkdownBlockParser.parse(markdown))
+        XCTAssertEqual(document.sectionGroups, MarkdownBlockParser.groupedByLevelThree(markdown))
+        XCTAssertTrue(document.shouldUseSectionGroups)
+        XCTAssertEqual(
+            document.sectionGroups,
+            [
+                MarkdownSectionGroup(
+                    order: 0,
+                    title: "开篇",
+                    blocks: [
+                        .heading(level: 1, text: "标题"),
+                        .paragraph("开篇说明")
+                    ],
+                    isIntro: true
+                ),
+                MarkdownSectionGroup(
+                    order: 1,
+                    title: "第一节",
+                    blocks: [
+                        .checklist([ChecklistItem(isChecked: false, text: "待办")])
+                    ],
+                    isIntro: false
+                ),
+                MarkdownSectionGroup(
+                    order: 2,
+                    title: "第二节",
+                    blocks: [
+                        .paragraph("内容二")
+                    ],
+                    isIntro: false
+                )
+            ]
+        )
+    }
+
+    func testParseDocumentDoesNotTreatLevelThreeHeadingInsideCodeAsSection() {
+        let markdown = [
+            "开篇说明",
+            "",
+            "```",
+            "### 这不是小节",
+            "```"
+        ].joined(separator: "\n")
+
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
+        XCTAssertFalse(document.shouldUseSectionGroups)
+        XCTAssertEqual(
+            document.sectionGroups,
+            [
+                MarkdownSectionGroup(
+                    order: 0,
+                    title: "开篇",
+                    blocks: [
+                        .paragraph("开篇说明"),
+                        .code("### 这不是小节")
+                    ],
+                    isIntro: true
+                )
+            ]
+        )
+    }
 }
