@@ -73,7 +73,13 @@
 - 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
 - 本机已通过：iOS Simulator `build-for-testing`，`MarkdownSnippetTests.swift` 已重新编译进 `MDJournalTests`，以 `** TEST BUILD SUCCEEDED **` 结束。
 - 本机 iOS XCTest 已尝试，未启动；`CoreSimulatorService connection became invalid`，且当前无可用 `iPhone 16` simulator，`xcodebuild test` 返回 70。
-- 云端 artifact 验收待本轮提交并 push 后补充。
+- 已 push 实现 commit `f84ef49abc5eabd44edf37482764f9354fcab831` 到 `origin/main`。
+- Agent C 已下载并核对实现 commit 对应 GitHub Actions 结果包：run id `28711523685`，run attempt `1`，artifact `mdjournal-ci-v0.14-main-f84ef49-run28711523685-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28711523685/`，目录大小 `768K`。
+- manifest 核对通过：`version=v0.14`、`branch=main`、`commitSha=f84ef49abc5eabd44edf37482764f9354fcab831`、`runId=28711523685`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=4`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`maccatalyst-build.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 和 Mac Catalyst build 均以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束。
+- `xctest.log` 确认 `JournalEntryTests`、`JournalStatisticsTests`、`MarkdownBlockParserTests`、`JournalStoreTests`、`MarkdownSnippetTests` 和 `JournalEntryListSnapshotTests` 共 28 个测试用例通过，其中写作命令新增 2 个用例。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均存在，且各自 `Info.plist` 可正常解析。
 
 遗留事项：
 
