@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,48 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.16 / JournalStore 更新跳过重复排序
+
+日期：2026-07-05
+
+核心变更：
+
+- `JournalStore.update(_:)` 继续即时替换内存中的日记并安排 debounced save，但仅当 `createdAt` 改变时才重新排序。
+- 正文、标题、分类、心情等非日期更新不再触发无效 `entries` 重排，减少长文本输入时的主线程排序成本。
+- 日期被编辑后仍保持 `createdAt` 倒序，`createEntry()`、`delete(_:)` 和 `load()` 的排序/保存语义不变。
+- `JournalStoreTests` 补充正文更新不重排、日期更新会重排两个回归用例。
+- GitHub Actions 结果包版本更新为 `v0.16`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Stores/JournalStore.swift`
+- `MDJournalTests/JournalStoreTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.16（JournalStore更新跳过重复排序）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`，输出 `MDJournal.xcodeproj/project.pbxproj: OK`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：iOS Simulator `build-for-testing`，以 `** TEST BUILD SUCCEEDED **` 结束。
+- 本机 iOS XCTest 已尝试，未启动；当前 CoreSimulatorService 无效且无匹配 `iPhone 16` simulator，`xcodebuild test` 返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮不实现“本地正文草稿 + 延迟提交”方案，避免改变 `JournalStore.entries` 即时内存更新时序。
+- 尚未做本机模拟器交互验证；当前环境 CoreSimulator 服务不可用，最终以 GitHub Actions 和后续可用设备人工体验为准。
 
 ### v0.15 / 光标选区插入 Markdown 片段
 

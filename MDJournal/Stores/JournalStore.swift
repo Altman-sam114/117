@@ -57,10 +57,13 @@ final class JournalStore: ObservableObject {
     func update(_ entry: JournalEntry) {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
+        let shouldSortEntries = entries[index].createdAt != entry.createdAt
         var updatedEntry = entry
         updatedEntry.updatedAt = Date()
         entries[index] = updatedEntry
-        sortEntries()
+        if shouldSortEntries {
+            sortEntries()
+        }
         scheduleSave()
     }
 

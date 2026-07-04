@@ -25,7 +25,7 @@ flowchart TD
   PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]
-  CreateDelete --> Store["JournalStore：唯一日记集合修改入口"]
+  CreateDelete --> Store["JournalStore：唯一日记集合修改入口，按 createdAt 变化排序"]
   Binding --> Store
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
@@ -69,7 +69,7 @@ flowchart TD
   Edit -- "编辑" --> Update["JournalStore.update 更新时间并替换日记"]
   Edit -- "删除" --> Delete["JournalStore.delete 移除日记"]
   Create --> SortSave["排序并立即保存 JSON"]
-  Update --> DebouncedSave["排序并安排短延迟保存"]
+  Update --> DebouncedSave["仅 createdAt 改变时排序，并安排短延迟保存"]
   DebouncedSave --> Flush["连续编辑合并写盘；inactive/background 时 flush"]
   Flush --> SortSave
   Delete --> SortSave

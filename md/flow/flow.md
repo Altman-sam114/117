@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -72,7 +72,7 @@ JournalEntry.body
 5. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本。
 6. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
 7. binding setter 调用 `JournalStore.update(_:)`。
-8. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序，并安排短延迟保存。
+8. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
 9. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
 10. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
 11. 保存失败时设置 `errorMessage`。
@@ -228,7 +228,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.4 `JournalStore`
 
-职责：加载、保存、创建、更新、删除和排序日记。
+职责：加载、保存、创建、更新、删除和按需排序日记。
 
 输入：用户操作产生的日记变更。
 
@@ -321,12 +321,12 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、Markdown 片段插入规则、写作命令快捷键与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、Markdown 片段插入规则、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
-- 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
+- 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
