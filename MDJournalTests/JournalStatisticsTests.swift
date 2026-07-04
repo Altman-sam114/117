@@ -113,7 +113,7 @@ final class JournalStatisticsTests: XCTestCase {
 
         XCTAssertEqual(stats.dominantCategory?.category, .daily)
         XCTAssertEqual(stats.dominantMood?.mood, .happy)
-        XCTAssertTrue(stats.insightText.contains("日常"))
+        XCTAssertTrue(stats.insightText.contains("###"))
     }
 
     private func fixedCalendar() -> Calendar {
