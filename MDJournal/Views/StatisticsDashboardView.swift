@@ -2,7 +2,13 @@ import SwiftUI
 
 struct StatisticsDashboardView: View {
     let entries: [JournalEntry]
+    let showsCloseButton: Bool
     @Environment(\.dismiss) private var dismiss
+
+    init(entries: [JournalEntry], showsCloseButton: Bool = true) {
+        self.entries = entries
+        self.showsCloseButton = showsCloseButton
+    }
 
     var body: some View {
         let stats = JournalStatistics(entries: entries)
@@ -50,11 +56,13 @@ struct StatisticsDashboardView: View {
             .navigationTitle("统计")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Label("关闭", systemImage: "xmark")
+                if showsCloseButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Label("关闭", systemImage: "xmark")
+                        }
                     }
                 }
             }

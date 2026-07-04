@@ -220,7 +220,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.10",
+  "version": "v0.11",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -253,7 +253,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.10-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.11-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判

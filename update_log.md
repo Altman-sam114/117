@@ -34,6 +34,48 @@
 
 ## 历史记录
 
+### v0.11 / Mac Catalyst 统计独立窗口
+
+日期：2026-07-04
+
+核心变更：
+
+- `JournalStore` 所有权从 `ContentView` 上移到 `MDJournalApp`，主窗口和 Mac Catalyst 统计窗口共享同一个本地日记状态。
+- Mac Catalyst 下新增“统计”窗口 scene；列表工具栏和“日记”菜单的“显示统计”入口会打开独立统计窗口。
+- iOS/iPadOS 继续使用现有统计 sheet，不改变移动端入口和展示路径。
+- `StatisticsDashboardView` 增加 `showsCloseButton` 参数，sheet 保留关闭按钮，独立窗口依赖桌面窗口 chrome。
+- GitHub Actions 结果包版本更新为 `v0.11`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/ContentView.swift`
+- `MDJournal/Views/StatisticsDashboardView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.11（MacCatalyst统计独立窗口）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机未运行 iOS Simulator XCTest：本轮未改 XCTest 或模型规则，且当前机器 CoreSimulatorService 不可用；最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端 artifact 验收待本轮实现 commit push 后补充。
+
+遗留事项：
+
+- 本轮只做 Mac Catalyst 统计独立窗口，不新增 native macOS target，不改变 JSON schema、统计口径或 Markdown 解析语义。
+- 后续可继续做 Markdown 片段键盘命令，或把列表搜索/分类筛选派生抽成可测试快照。
+
 ### v0.10 / 正文派生与统计单次化
 
 日期：2026-07-04

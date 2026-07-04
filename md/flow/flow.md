@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -42,13 +42,14 @@ JournalEntry.body
 
 ### 2.1 启动与加载
 
-1. `MDJournalApp` 创建 `ContentView`。
-2. `ContentView` 通过 `@StateObject` 初始化 `JournalStore`。
-3. `JournalStore.init` 定位 Documents 目录下的 `md-journal-entries.json`。
-4. 若文件不存在，创建 `JournalEntry.starterEntry()` 并保存。
-5. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
-6. 解码后按 `createdAt` 倒序排序。
-7. `ContentView.onAppear` 选择第一篇日记。
+1. `MDJournalApp` 通过 App 级 `@StateObject` 初始化共享 `JournalStore`。
+2. `MDJournalApp` 创建主 `WindowGroup` 并把 `JournalStore` 注入 `ContentView`。
+3. Mac Catalyst 下额外注册“统计”窗口 scene，读取同一个 `JournalStore.entries`。
+4. `JournalStore.init` 定位 Documents 目录下的 `md-journal-entries.json`。
+5. 若文件不存在，创建 `JournalEntry.starterEntry()` 并保存。
+6. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
+7. 解码后按 `createdAt` 倒序排序。
+8. `ContentView.onAppear` 选择第一篇日记。
 
 ### 2.2 创建日记
 
@@ -92,18 +93,19 @@ JournalEntry.body
 
 1. 用户点击列表工具栏“统计”。
 2. `EntryListView` 通过 closure 请求 `ContentView` 显示统计，Mac Catalyst 下也可从“日记”菜单触发。
-3. `ContentView` 以 sheet 形式打开 `StatisticsDashboardView`。
-4. `StatisticsDashboardView` 用当前 `entries` 构造一次 `JournalStatistics` 并传给子视图。
-5. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodySummary`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
-6. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
-7. Mac Catalyst 下仍以 sheet 展示统计，后续可扩展为独立窗口。
+3. iOS/iPadOS 下，`ContentView` 以 sheet 形式打开 `StatisticsDashboardView`。
+4. Mac Catalyst 下，`ContentView` 调用 `openWindow(id:)` 打开独立“统计”窗口。
+5. `StatisticsDashboardView` 用当前 `entries` 构造一次 `JournalStatistics` 并传给子视图。
+6. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodySummary`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
+7. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
+8. 独立统计窗口复用 App 级 `JournalStore`，只读展示当前日记数组，不新增第二套加载或保存路径。
 
 ### 2.7 Mac Catalyst 菜单命令
 
 1. `MDJournalApp` 在 scene level 注册“日记”菜单。
 2. `ContentView` 通过 focused scene value 暴露新建日记和显示统计两个动作。
 3. 菜单“新建日记”调用 `ContentView.createEntry()`，并承载 `⌘N` 快捷键。
-4. 菜单“显示统计”调用 `ContentView.showStatistics()`，复用与列表工具栏相同的统计 sheet。
+4. 菜单“显示统计”调用 `ContentView.showStatistics()`；Mac Catalyst 下打开独立统计窗口，iOS/iPadOS 下复用统计 sheet。
 5. 工具栏新建和统计按钮继续保留，作为非菜单的可见入口。
 
 ## 3. Agent 云端协作流
@@ -235,7 +237,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 输入：`entries`、`Binding<JournalEntry>`、筛选状态、布局宽度。
 
-输出：界面、用户事件、分享 sheet、统计 sheet。
+输出：界面、用户事件、分享 sheet、iOS/iPadOS 统计 sheet、Mac Catalyst 统计窗口。
 
 禁止：把持久化、复杂统计或 Markdown 解析业务塞进视图。
 
@@ -256,7 +258,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 详情编辑器：修改标题、日期、分类、心情、正文，插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，`⌘N` 新建由菜单命令承载。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，`⌘N` 新建由菜单命令承载，统计以独立窗口展示。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -272,7 +274,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用，但它只能是非持久化快照，不能改变 JSON schema。
-- Mac Catalyst 的核心创建和统计动作应同时有工具栏与菜单入口，重要快捷键不能重复注册。
+- Mac Catalyst 的核心创建和统计动作应同时有工具栏与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。

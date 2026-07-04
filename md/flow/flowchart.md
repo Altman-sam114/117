@@ -25,8 +25,8 @@ flowchart TD
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
   Store --> Stats["JournalStatistics：每篇一次正文派生并单轮聚合统计"]
-  CV --> StatsSheet["统计 sheet：列表工具栏或菜单命令打开"]
-  StatsSheet --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
+  CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
+  StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Summary --> EditorStats["EntryEditorView：头部词数和小节概览"]
@@ -41,8 +41,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  App["MDJournalApp 启动"] --> Content["创建 ContentView"]
-  Content --> InitStore["初始化 @StateObject JournalStore"]
+  App["MDJournalApp 启动"] --> InitStore["初始化 App 级 @StateObject JournalStore"]
+  InitStore --> Scenes["创建主窗口；Mac Catalyst 额外注册统计窗口"]
+  Scenes --> Content["创建 ContentView 并注入 JournalStore"]
   InitStore --> Locate["定位 Documents/md-journal-entries.json"]
   Locate --> Exists{"本地 JSON 是否存在？"}
   Exists -- "不存在" --> Starter["创建 starterEntry 默认日记"]

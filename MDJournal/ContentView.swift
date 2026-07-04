@@ -2,7 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var store = JournalStore()
+    #if targetEnvironment(macCatalyst)
+    @Environment(\.openWindow) private var openWindow
+    #endif
+
+    @ObservedObject var store: JournalStore
     @State private var selectedEntryID: JournalEntry.ID?
     @State private var isShowingStatistics = false
 
@@ -77,7 +81,11 @@ struct ContentView: View {
     }
 
     private func showStatistics() {
+        #if targetEnvironment(macCatalyst)
+        openWindow(id: JournalSceneID.statistics)
+        #else
         isShowingStatistics = true
+        #endif
     }
 
     private func deleteEntry(_ entry: JournalEntry) {

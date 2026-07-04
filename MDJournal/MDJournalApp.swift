@@ -2,14 +2,27 @@ import SwiftUI
 
 @main
 struct MDJournalApp: App {
+    @StateObject private var store = JournalStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(store: store)
         }
         .commands {
             JournalCommands()
         }
+
+        #if targetEnvironment(macCatalyst)
+        WindowGroup("统计", id: JournalSceneID.statistics) {
+            StatisticsDashboardView(entries: store.entries, showsCloseButton: false)
+                .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
+        }
+        #endif
     }
+}
+
+enum JournalSceneID {
+    static let statistics = "journal-statistics"
 }
 
 private struct JournalCommands: Commands {
