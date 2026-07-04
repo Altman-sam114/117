@@ -12,7 +12,7 @@
 - 当前最低 iOS 版本：16.0。
 - 当前 Mac 版本路径：Mac Catalyst，Mac deployment target 为 13.0。
 - 当前没有第三方依赖和包管理器。
-- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文派生、列表派生快照、Markdown 解析、统计、Markdown snippet 和 `JournalStore` 写入节流。
+- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文派生、列表派生快照、Markdown 解析、统计、Markdown snippet、写作命令快捷键和 `JournalStore` 写入节流。
 - 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；修改 Mac Catalyst 支持时尝试本机 Catalyst build；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
@@ -135,7 +135,7 @@ python3 -m json.tool path/to/file.json >/dev/null
 触发条件：
 
 - 新增或修改 `MDJournalTests`。
-- 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics` 或 `MarkdownSnippet` 等已有 XCTest 覆盖的核心规则。
+- 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics`、`MarkdownSnippet` 或 `EditorWritingCommand` 等已有 XCTest 覆盖的核心规则。
 - 修改 `JournalStore` 加载、创建、更新、删除、保存、节流或 flush 行为。
 - 修改 Xcode scheme、target 或 CI test 命令。
 
@@ -220,7 +220,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.13",
+  "version": "v0.14",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -253,7 +253,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.13-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.14-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判

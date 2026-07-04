@@ -67,7 +67,7 @@ JournalEntry.body
 
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
-3. `MarkdownToolbar` 或“插入 Markdown”菜单触发 `EntryEditorView.insertSnippet(_:)`，按当前追加式规则把片段追加到正文末尾。
+3. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，按当前追加式规则把片段追加到正文末尾。
 4. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
 5. binding setter 调用 `JournalStore.update(_:)`。
 6. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序，并安排短延迟保存。
@@ -91,7 +91,7 @@ JournalEntry.body
 ### 2.5 Markdown 预览
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览。
-2. 宽度大于等于 `820` pt 时，编辑和预览左右分栏同时展示。
+2. 宽度大于等于 `820` pt 时，编辑和预览左右分栏展示；Mac Catalyst 写作工具栏可隐藏或显示右侧预览栏，让正文编辑区获得更宽空间。
 3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果。
 4. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
 5. 否则按普通块序列渲染。
@@ -110,13 +110,16 @@ JournalEntry.body
 
 ### 2.7 Mac Catalyst 菜单命令
 
-1. `MDJournalApp` 在 scene level 注册“日记”和“插入 Markdown”菜单。
+1. `MDJournalApp` 在 scene level 注册“日记”、“写作”和“插入 Markdown”菜单。
 2. `ContentView` 通过 focused scene value 暴露新建日记和显示统计两个动作。
 3. 菜单“新建日记”调用 `ContentView.createEntry()`，并承载 `⌘N` 快捷键。
 4. 菜单“显示统计”调用 `ContentView.showStatistics()`；Mac Catalyst 下打开独立统计窗口，iOS/iPadOS 下复用统计 sheet。
 5. `EntryEditorView` 通过 focused scene value 暴露 Markdown 片段插入动作。
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键追加对应片段。
-7. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
+7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文和显示/隐藏预览动作。
+8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文和显示/隐藏预览提供桌面菜单与快捷键入口。
+9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口。
+10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ## 3. Agent 云端协作流
 
@@ -251,7 +254,17 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在视图层复制统计逻辑。
 
-### 4.7 SwiftUI Views
+### 4.7 `EditorWritingCommand`
+
+职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标和快捷键映射。
+
+输入：写作命令枚举值。
+
+输出：菜单标题、系统图标、键盘快捷键。
+
+禁止：直接修改日记正文、持久化数据或 Markdown 片段内容；与已有新建和 Markdown 片段快捷键重复。
+
+### 4.8 SwiftUI Views
 
 职责：展示状态、收集用户输入、调用上层 closure 或 binding。
 
@@ -264,7 +277,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ## 5. 关键边界
 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
-- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化和 Markdown snippet。
+- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet 和 `EditorWritingCommand`。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
@@ -276,9 +289,9 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - App 启动后进入 `ContentView`。
 - 左侧/主列表：查看、搜索、筛选、新建、删除、打开统计。
 - 详情编辑器：修改标题、日期、分类、心情、正文，插入 Markdown 片段，分享文档。
-- 预览：窄屏切换查看，宽屏与编辑器并排查看。
+- 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单支持追加常用 Markdown 片段。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持追加常用 Markdown 片段。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -286,7 +299,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、写作命令快捷键与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
@@ -294,7 +307,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
-- Mac Catalyst 的核心创建、统计和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册。
+- Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。

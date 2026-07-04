@@ -10,6 +10,8 @@ struct EntryEditorView: View {
 
     @Binding var entry: JournalEntry
     @State private var mode: Mode = .edit
+    @State private var isPreviewColumnVisible = true
+    @State private var isWideLayoutActive = false
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -26,10 +28,46 @@ struct EntryEditorView: View {
                     compactEditor
                 }
             }
+            .onAppear {
+                isWideLayoutActive = isWideLayout
+            }
+            .onChange(of: isWideLayout) { isWideLayoutActive in
+                self.isWideLayoutActive = isWideLayoutActive
+            }
         }
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            #if targetEnvironment(macCatalyst)
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: focusBody) {
+                    Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
+                }
+                .help(EditorWritingCommand.focusBody.title)
+
+                Menu {
+                    ForEach(MarkdownSnippet.allCases) { snippet in
+                        Button {
+                            insertSnippet(snippet)
+                        } label: {
+                            Label(snippet.title, systemImage: snippet.systemImage)
+                        }
+                    }
+                } label: {
+                    Label("插入", systemImage: "plus.rectangle.on.rectangle")
+                }
+                .help("插入 Markdown")
+
+                Button(action: togglePreviewVisibility) {
+                    Label(
+                        previewToggleTitle,
+                        systemImage: EditorWritingCommand.togglePreview.systemImage
+                    )
+                }
+                .help(EditorWritingCommand.togglePreview.title)
+            }
+            #endif
+
             ToolbarItem(placement: .primaryAction) {
                 ShareLink(item: entry.markdownDocument, subject: Text(entry.displayTitle)) {
                     Label("分享", systemImage: "square.and.arrow.up")
@@ -44,6 +82,8 @@ struct EntryEditorView: View {
         }
         .background(Color(.systemBackground))
         .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
+        .focusedSceneValue(\.focusEditorBodyAction, focusBody)
+        .focusedSceneValue(\.toggleEditorPreviewAction, togglePreviewVisibility)
     }
 
     private func header(isWideLayout: Bool, bodySummary: JournalEntryBodySummary) -> some View {
@@ -195,26 +235,48 @@ struct EntryEditorView: View {
             }
             .frame(maxWidth: .infinity)
 
-            Divider()
+            if isPreviewColumnVisible {
+                Divider()
 
-            VStack(spacing: 0) {
-                WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
-                MarkdownPreviewView(markdown: entry.body, accent: entry.category.tint, maxContentWidth: 560)
+                VStack(spacing: 0) {
+                    WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
+                    MarkdownPreviewView(markdown: entry.body, accent: entry.category.tint, maxContentWidth: 560)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
         }
         .background(Color(.secondarySystemGroupedBackground))
     }
 
-    private func insertSnippet(_ snippet: MarkdownSnippet) {
+    private var previewToggleTitle: String {
+        if isWideLayoutActive {
+            return isPreviewColumnVisible ? "隐藏预览" : "显示预览"
+        }
+
+        return mode == .preview ? "回到编辑" : "显示预览"
+    }
+
+    private func focusBody() {
         mode = .edit
+        editorFocused = true
+    }
+
+    private func togglePreviewVisibility() {
+        if isWideLayoutActive {
+            isPreviewColumnVisible.toggle()
+        } else {
+            mode = mode == .preview ? .edit : .preview
+        }
+    }
+
+    private func insertSnippet(_ snippet: MarkdownSnippet) {
+        focusBody()
 
         if !entry.body.isEmpty, !entry.body.hasSuffix("\n") {
             entry.body += "\n"
         }
 
         entry.body += snippet.markdown
-        editorFocused = true
     }
 }
 

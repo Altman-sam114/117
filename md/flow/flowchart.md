@@ -9,13 +9,17 @@
 ```mermaid
 flowchart TD
   Platform["iOS / iPadOS / Mac Catalyst"] --> User["用户操作：新建、编辑、删除、搜索、筛选、分享"]
-  Platform --> Menu["Mac Catalyst 菜单：新建日记、显示统计、插入 Markdown"]
+  Platform --> Menu["Mac Catalyst 菜单：新建日记、显示统计、写作、插入 Markdown"]
   User --> CV["ContentView：维护选中日记和导航"]
   Menu --> CV
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
+  Menu --> WritingCommand["写作命令：聚焦正文、显示/隐藏预览"]
+  WritingCommand --> Editor
+  Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏"]
+  PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]
   CreateDelete --> Store["JournalStore：唯一日记集合修改入口"]

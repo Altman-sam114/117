@@ -34,6 +34,52 @@
 
 ## 历史记录
 
+### v0.14 / Mac 写作工具栏 polish
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `EditorWritingCommand`，集中定义 Mac Catalyst 写作命令、图标和快捷键映射。
+- `MDJournalApp` 新增“写作”菜单，提供聚焦正文和显示/隐藏预览命令。
+- `EntryEditorView` 在 Mac Catalyst 下新增顶部写作工具栏，提供聚焦正文、插入 Markdown 和显示/隐藏预览入口。
+- 宽屏编辑器支持隐藏右侧预览栏，让正文编辑区获得更宽写作空间；iPhone/iPad 窄屏编辑/预览模式保持不变。
+- `MarkdownSnippetTests` 补充写作命令元数据、快捷键唯一性和不与 Markdown 片段快捷键冲突的测试。
+- GitHub Actions 结果包版本更新为 `v0.14`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournal/Utilities/EditorWritingCommand.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.14（Mac写作工具栏polish）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`，输出 `MDJournal.xcodeproj/project.pbxproj: OK`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：iOS Simulator `build-for-testing`，`MarkdownSnippetTests.swift` 已重新编译进 `MDJournalTests`，以 `** TEST BUILD SUCCEEDED **` 结束。
+- 本机 iOS XCTest 已尝试，未启动；`CoreSimulatorService connection became invalid`，且当前无可用 `iPhone 16` simulator，`xcodebuild test` 返回 70。
+- 云端 artifact 验收待本轮提交并 push 后补充。
+
+遗留事项：
+
+- 本轮只做 Mac Catalyst 写作工具栏和菜单 polish，不实现光标位置插入或选中文本包裹。
+- 后续可单独评估 `UITextView` bridge，以支持光标/选区插入 Markdown 片段。
+
 ### v0.13 / 列表派生快照
 
 日期：2026-07-04

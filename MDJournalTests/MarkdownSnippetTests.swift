@@ -25,6 +25,33 @@ final class MarkdownSnippetTests: XCTestCase {
         }
     }
 
+    func testEditorWritingCommandsHaveVisibleMetadata() {
+        XCTAssertEqual(EditorWritingCommand.allCases, [.focusBody, .togglePreview])
+
+        for command in EditorWritingCommand.allCases {
+            XCTAssertFalse(command.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertFalse(command.systemImage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    func testEditorWritingCommandShortcutsDoNotCollideWithSnippetShortcuts() {
+        let writingShortcuts = EditorWritingCommand.allCases.map(EditorWritingCommandShortcut.init(command:))
+        let writingIdentifiers = Set(writingShortcuts.map(\.identifier))
+        let snippetIdentifiers = Set(
+            MarkdownSnippet.allCases
+                .map(MarkdownSnippetCommandShortcut.init(snippet:))
+                .map(\.identifier)
+        )
+
+        XCTAssertEqual(writingIdentifiers.count, EditorWritingCommand.allCases.count)
+        XCTAssertTrue(writingIdentifiers.isDisjoint(with: snippetIdentifiers))
+        XCTAssertFalse(writingShortcuts.map(\.key).contains("n"), "Command-N is reserved for creating a new journal entry.")
+
+        for shortcut in writingShortcuts {
+            XCTAssertEqual(shortcut.modifiers, [.command, .option])
+        }
+    }
+
     func testSnippetOrderMatchesToolbarAndMenuOrder() {
         XCTAssertEqual(
             MarkdownSnippet.allCases,
