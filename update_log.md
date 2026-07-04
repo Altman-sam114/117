@@ -78,7 +78,16 @@
 
 云端验证：
 
-- 待 push 后由 GitHub Actions `MD Journal CI Results` 生成 v0.12 artifact，再由 Agent C 下载复判。
+- 实现提交：`7c25d5b99bfbeded5c84816adbe6b5494cf28e0a`
+- GitHub Actions：`MD Journal CI Results`
+- run id：`28709069066`
+- run attempt：`1`
+- artifact：`mdjournal-ci-v0.12-main-7c25d5b-run28709069066-attempt1`
+- 下载缓存：`/private/tmp/mdjournal-c-review-28709069066`
+- Agent C 复判：通过。manifest 中 `version=v0.12`、`branch=main`、`commitSha=7c25d5b99bfbeded5c84816adbe6b5494cf28e0a`、`runId=28709069066`、`runAttempt=1` 与最新实现提交一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 阶段摘要 `failures=0`、`skipped=0`；`xctest.log` 显示 `** TEST SUCCEEDED **`，20 个 XCTest 用例通过。
+- `xcodebuild.log` 和 `maccatalyst-build.log` 均以 `** BUILD SUCCEEDED **` 结束。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均存在。
 
 遗留事项：
 
