@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -67,14 +67,16 @@ JournalEntry.body
 
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
-3. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，按当前追加式规则把片段追加到正文末尾。
-4. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
-5. binding setter 调用 `JournalStore.update(_:)`。
-6. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序，并安排短延迟保存。
-7. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
-8. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
-9. 保存失败时设置 `errorMessage`。
-10. `ContentView` 通过 alert 展示保存或读取错误。
+3. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区。
+4. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`。
+5. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本。
+6. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
+7. binding setter 调用 `JournalStore.update(_:)`。
+8. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序，并安排短延迟保存。
+9. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
+10. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
+11. 保存失败时设置 `errorMessage`。
+12. `ContentView` 通过 alert 展示保存或读取错误。
 
 ### 2.4 列表、筛选与删除
 
@@ -115,10 +117,10 @@ JournalEntry.body
 3. 菜单“新建日记”调用 `ContentView.createEntry()`，并承载 `⌘N` 快捷键。
 4. 菜单“显示统计”调用 `ContentView.showStatistics()`；Mac Catalyst 下打开独立统计窗口，iOS/iPadOS 下复用统计 sheet。
 5. `EntryEditorView` 通过 focused scene value 暴露 Markdown 片段插入动作。
-6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键追加对应片段。
+6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口。
+9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口；插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ## 3. Agent 云端协作流
@@ -264,7 +266,27 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：直接修改日记正文、持久化数据或 Markdown 片段内容；与已有新建和 Markdown 片段快捷键重复。
 
-### 4.8 SwiftUI Views
+### 4.8 `MarkdownSnippetInsertion`
+
+职责：根据正文、Markdown 片段和 UTF-16 选区生成新的正文和插入后的选区。
+
+输入：`JournalEntry.body`、`MarkdownSnippet`、正文 `NSRange` 光标/选区。
+
+输出：更新后的正文和新的 `NSRange`。
+
+禁止：访问视图状态、读写 JSON、改变 `JournalStore` 保存链路或承担 Markdown 预览解析。
+
+### 4.9 `MarkdownBodyTextView`
+
+职责：用最小 `UITextView` bridge 提供正文编辑、光标/选区同步和焦点同步。
+
+输入：正文 binding、选区 binding、焦点 binding。
+
+输出：用户输入后的正文、当前光标/选区和焦点状态。
+
+禁止：持有第二套正文状态；实现 Markdown 插入规则；绕过 `EntryEditorView` 或 `JournalStore`。
+
+### 4.10 SwiftUI Views
 
 职责：展示状态、收集用户输入、调用上层 closure 或 binding。
 
@@ -277,7 +299,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ## 5. 关键边界
 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
-- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet 和 `EditorWritingCommand`。
+- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet、`MarkdownSnippetInsertion` 和 `EditorWritingCommand`。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
@@ -288,10 +310,10 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 - App 启动后进入 `ContentView`。
 - 左侧/主列表：查看、搜索、筛选、新建、删除、打开统计。
-- 详情编辑器：修改标题、日期、分类、心情、正文，插入 Markdown 片段，分享文档。
+- 详情编辑器：修改标题、日期、分类、心情、正文，按光标/选区插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持追加常用 Markdown 片段。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -299,7 +321,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、写作命令快捷键与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、Markdown 片段插入规则、写作命令快捷键与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
@@ -307,7 +329,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
-- Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册。
+- Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。
@@ -323,7 +345,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 - 扩展 `MDJournalTests` 覆盖更多 Markdown 边界、列表派生边界和数据迁移风险。
 - 增强 Markdown 预览语法，但保持轻量并同步测试。
-- 改善插入片段后的光标位置，目前菜单和工具栏都采用末尾追加式插入。
+- 继续改善编辑器体验，例如更细的选区保持、自动缩进或更多 Markdown 边界规则。
 - 增加导入/导出或备份功能。
 - 增加更可靠的模拟器或真机视觉验证流程。
 - 为文档增加 markdown lint。

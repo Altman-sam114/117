@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-15
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.14
+      VERSION: v0.15
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS

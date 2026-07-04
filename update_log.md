@@ -34,6 +34,52 @@
 
 ## 历史记录
 
+### v0.15 / 光标选区插入 Markdown 片段
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `MarkdownSnippetInsertion`，把 Markdown 片段插入、选区包裹、多行前缀和 UTF-16 `NSRange` clamp 规则集中为可测试纯规则。
+- 新增 `MarkdownBodyTextView`，用最小 `UITextView` bridge 同步正文、光标/选区和焦点，替换正文区域原有 `TextEditor`。
+- `EntryEditorView.insertSnippet(_:)` 改为按当前光标或选区应用片段；正文工具栏、Mac Catalyst “插入 Markdown”菜单、写作工具栏和键盘快捷键继续复用同一路径。
+- 加粗、斜体、代码块支持包裹选中文本；引用、列表和待办支持对多行选区逐行加前缀；空选区插入后光标或占位选区落在自然继续编辑的位置。
+- `MarkdownSnippetTests` 补充光标中间插入、选区包裹、多行前缀、代码块、emoji UTF-16 选区和非法 range clamp 用例。
+- GitHub Actions 结果包版本更新为 `v0.15`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournal/Utilities/MarkdownSnippetInsertion.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.15（光标选区插入Markdown片段）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`，输出 `MDJournal.xcodeproj/project.pbxproj: OK`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：iOS Simulator `build-for-testing`，以 `** TEST BUILD SUCCEEDED **` 结束。
+- 本机 iOS XCTest 已尝试，未启动；当前 CoreSimulatorService 无效且无匹配 `iPhone 16` simulator，`xcodebuild test` 返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮只实现 Mac Catalyst/iOS 共用的 `UITextView` bridge 与片段插入规则，不新增独立 native macOS target。
+- 尚未做本机模拟器交互验证；当前环境 CoreSimulator 服务不可用，最终以 GitHub Actions 和后续可用设备人工体验为准。
+
 ### v0.14 / Mac 写作工具栏 polish
 
 日期：2026-07-04

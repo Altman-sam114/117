@@ -12,7 +12,8 @@ struct EntryEditorView: View {
     @State private var mode: Mode = .edit
     @State private var isPreviewColumnVisible = true
     @State private var isWideLayoutActive = false
-    @FocusState private var editorFocused: Bool
+    @State private var editorFocused = false
+    @State private var bodySelectedRange = NSRange(location: NSNotFound, length: 0)
 
     var body: some View {
         GeometryReader { proxy in
@@ -84,6 +85,9 @@ struct EntryEditorView: View {
         .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
         .focusedSceneValue(\.focusEditorBodyAction, focusBody)
         .focusedSceneValue(\.toggleEditorPreviewAction, togglePreviewVisibility)
+        .onChange(of: entry.id) { _ in
+            resetBodySelectionToEnd()
+        }
     }
 
     private func header(isWideLayout: Bool, bodySummary: JournalEntryBodySummary) -> some View {
@@ -196,13 +200,12 @@ struct EntryEditorView: View {
                         .padding(.vertical, 18)
                 }
 
-                TextEditor(text: $entry.body)
-                    .focused($editorFocused)
-                    .font(.system(.body, design: .rounded))
-                    .lineSpacing(5)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .scrollContentBackground(.hidden)
+                MarkdownBodyTextView(
+                    text: $entry.body,
+                    selectedRange: $bodySelectedRange,
+                    isFocused: $editorFocused
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color(.systemBackground))
         }
@@ -261,6 +264,10 @@ struct EntryEditorView: View {
         editorFocused = true
     }
 
+    private func resetBodySelectionToEnd() {
+        bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
+    }
+
     private func togglePreviewVisibility() {
         if isWideLayoutActive {
             isPreviewColumnVisible.toggle()
@@ -271,12 +278,14 @@ struct EntryEditorView: View {
 
     private func insertSnippet(_ snippet: MarkdownSnippet) {
         focusBody()
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: snippet,
+            to: entry.body,
+            selectedRange: bodySelectedRange
+        )
 
-        if !entry.body.isEmpty, !entry.body.hasSuffix("\n") {
-            entry.body += "\n"
-        }
-
-        entry.body += snippet.markdown
+        entry.body = result.body
+        bodySelectedRange = result.selectedRange
     }
 }
 

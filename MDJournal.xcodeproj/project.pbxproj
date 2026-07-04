@@ -25,6 +25,8 @@
 		A10000000000000000000010 /* MarkdownSnippetCommandShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */; };
 		A10000000000000000000011 /* JournalEntryListSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* JournalEntryListSnapshot.swift */; };
 		A10000000000000000000012 /* EditorWritingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* EditorWritingCommand.swift */; };
+		A10000000000000000000013 /* MarkdownSnippetInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* MarkdownSnippetInsertion.swift */; };
+		A10000000000000000000014 /* MarkdownBodyTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MarkdownBodyTextView.swift */; };
 		B10000000000000000000001 /* JournalEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* JournalEntryTests.swift */; };
 		B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* MarkdownBlockParserTests.swift */; };
 		B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* JournalStatisticsTests.swift */; };
@@ -63,6 +65,8 @@
 		A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSnippetCommandShortcut.swift; sourceTree = "<group>"; };
 		A20000000000000000000013 /* JournalEntryListSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryListSnapshot.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* EditorWritingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorWritingCommand.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* MarkdownSnippetInsertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSnippetInsertion.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* MarkdownBodyTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBodyTextView.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* JournalEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* MarkdownBlockParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* JournalStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatisticsTests.swift; sourceTree = "<group>"; };
@@ -135,6 +139,7 @@
 				A20000000000000000000009 /* EntryListView.swift */,
 				A2000000000000000000000A /* EntryRowView.swift */,
 				A2000000000000000000000B /* EmptyStateView.swift */,
+				A20000000000000000000016 /* MarkdownBodyTextView.swift */,
 				A2000000000000000000000C /* MarkdownPreviewView.swift */,
 				A2000000000000000000000D /* MarkdownToolbar.swift */,
 				A20000000000000000000011 /* StatisticsDashboardView.swift */,
@@ -152,6 +157,7 @@
 				A20000000000000000000006 /* MarkdownBlockParser.swift */,
 				A20000000000000000000007 /* MarkdownSnippet.swift */,
 				A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */,
+				A20000000000000000000015 /* MarkdownSnippetInsertion.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -295,6 +301,8 @@
 				A10000000000000000000010 /* MarkdownSnippetCommandShortcut.swift in Sources */,
 				A10000000000000000000011 /* JournalEntryListSnapshot.swift in Sources */,
 				A10000000000000000000012 /* EditorWritingCommand.swift in Sources */,
+				A10000000000000000000013 /* MarkdownSnippetInsertion.swift in Sources */,
+				A10000000000000000000014 /* MarkdownBodyTextView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

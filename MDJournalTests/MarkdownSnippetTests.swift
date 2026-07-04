@@ -69,4 +69,121 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(MarkdownSnippet.code.markdown, "```\n\n```\n")
         XCTAssertEqual(MarkdownSnippet.divider.markdown, "---\n")
     }
+
+    func testSnippetInsertionUsesCursorRangeInsteadOfAppending() {
+        let body = "早上\n晚上"
+        let cursor = NSRange(location: "早上\n".utf16.count, length: 0)
+
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .bullet,
+            to: body,
+            selectedRange: cursor
+        )
+
+        XCTAssertEqual(result.body, "早上\n- 晚上")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "早上\n- ".utf16.count, length: 0))
+    }
+
+    func testSnippetInsertionWrapsSelectedText() {
+        let body = "今天很好"
+        let selectedRange = (body as NSString).range(of: "很好")
+
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .bold,
+            to: body,
+            selectedRange: selectedRange
+        )
+
+        XCTAssertEqual(result.body, "今天**很好**")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "今天**".utf16.count, length: "很好".utf16.count))
+    }
+
+    func testSnippetInsertionPrefixesEverySelectedLine() {
+        let body = "第一行\n第二行"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .quote,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+
+        XCTAssertEqual(result.body, "> 第一行\n> 第二行")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
+    func testSnippetInsertionPreservesTrailingNewlineWithoutExtraEmptyBullet() {
+        let selectedText = "第一行\n第二行\n"
+        let body = "\(selectedText)未选"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .checklist,
+            to: body,
+            selectedRange: NSRange(location: 0, length: selectedText.utf16.count)
+        )
+
+        let expectedReplacement = "- [ ] 第一行\n- [ ] 第二行\n"
+        XCTAssertEqual(result.body, "\(expectedReplacement)未选")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionWrapsSelectedTextInCodeBlock() {
+        let body = "片段"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .code,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+
+        XCTAssertEqual(result.body, "```\n片段\n```\n")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "```\n".utf16.count, length: body.utf16.count))
+    }
+
+    func testSnippetInsertionPlacesCursorInsideEmptyCodeBlock() {
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .code,
+            to: "",
+            selectedRange: NSRange(location: 0, length: 0)
+        )
+
+        XCTAssertEqual(result.body, MarkdownSnippet.code.markdown)
+        XCTAssertEqual(result.selectedRange, NSRange(location: "```\n".utf16.count, length: 0))
+    }
+
+    func testSnippetInsertionHandlesEmojiUTF16Selection() {
+        let body = "早安😀今天"
+        let selectedRange = (body as NSString).range(of: "😀")
+
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .italic,
+            to: body,
+            selectedRange: selectedRange
+        )
+
+        XCTAssertEqual(result.body, "早安*😀*今天")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "早安*".utf16.count, length: "😀".utf16.count))
+    }
+
+    func testSnippetInsertionExpandsInvalidUTF16RangeInsideEmoji() {
+        let body = "早安😀今天"
+        let invalidRange = NSRange(location: "早安".utf16.count + 1, length: 1)
+
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .italic,
+            to: body,
+            selectedRange: invalidRange
+        )
+
+        XCTAssertEqual(result.body, "早安*😀*今天")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "早安*".utf16.count, length: "😀".utf16.count))
+    }
+
+    func testSnippetInsertionClampsInvalidRangeToEnd() {
+        let body = "今天"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .heading,
+            to: body,
+            selectedRange: NSRange(location: NSNotFound, length: 0)
+        )
+
+        XCTAssertEqual(result.body, "今天### 小节标题\n")
+        XCTAssertEqual(result.selectedRange, NSRange(location: "今天### ".utf16.count, length: "小节标题".utf16.count))
+    }
 }

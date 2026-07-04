@@ -18,6 +18,9 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、显示/隐藏预览"]
   WritingCommand --> Editor
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，同步正文、光标/选区和焦点"]
+  BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果"]
+  SnippetInsertion --> Binding
   Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏"]
   PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
@@ -83,6 +86,9 @@ flowchart TD
 ```mermaid
 flowchart LR
   Body["JournalEntry.body 正文"] --> Summary["JournalEntryBodySummary：非持久化单次正文派生"]
+  Body --> BodyText["MarkdownBodyTextView：正文编辑和 UTF-16 光标/选区同步"]
+  BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀"]
+  InsertRule --> Body
   Summary --> Excerpt["摘要、词数、### 小节、小节数"]
   Excerpt --> RowEditor["列表卡片和编辑器头部复用"]
   Summary --> Statistics["JournalStatistics：每篇一次 summary，单轮聚合"]
