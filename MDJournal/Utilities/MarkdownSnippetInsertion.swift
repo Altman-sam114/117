@@ -141,11 +141,6 @@ struct MarkdownSnippetInsertion {
 
     private static func clampedRange(for nsRange: NSRange, in text: String) -> Range<String.Index> {
         let normalizedRange = clampedNSRange(nsRange, in: text)
-
-        if let exactRange = Range(normalizedRange, in: text) {
-            return exactRange
-        }
-
         let startIndex = index(atOrBeforeUTF16Offset: normalizedRange.location, in: text)
         let endIndex = index(
             atOrBeforeUTF16Offset: normalizedRange.location + normalizedRange.length,
