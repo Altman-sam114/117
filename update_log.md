@@ -77,7 +77,17 @@
 - 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
 - 本机 `build-for-testing` 尝试已编译到 `** TEST BUILD SUCCEEDED **`，但 xcodebuild 进程返回 133；静默重跑仍因 CoreSimulatorService 连接异常提前失败，未把本机测试编译作为通过依据。
 - 本机 iOS Simulator XCTest 未运行成功：当前机器没有可匹配的 `iPhone 16` simulator，CoreSimulatorService 不可用，命令返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
-- 云端结果包验收待本轮实现 commit push 到 `origin/main` 后由 Agent C 下载并复判。
+- 已 push 实现 commit `96568553c3af6dbef19135db9b423bd801047456` 到 `origin/main`。
+- Agent C 已下载并核对实现 commit 对应 GitHub Actions 结果包：run id `28704631669`，run attempt `1`，artifact `mdjournal-ci-v0.10-main-9656855-run28704631669-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28704631669/`。
+- 该 run manifest 核对通过：`version=v0.10`、`branch=main`、`commitSha=96568553c3af6dbef19135db9b423bd801047456`、`runId=28704631669`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`testOutcome=failure`。
+- 失败原因已确认：`JournalStatisticsTests.testStatisticsAreDeterministicWithFixedCalendarAndNow()` 的洞察文案断言仍期待“日常”，但本轮新增低小节覆盖率样本后正确文案应优先提示 `###` 小节结构。
+- 已 push 修复 commit `1c111582b83c2cd6e71a957f80ffab6ae2ccae25` 到 `origin/main`。
+- Agent C 已下载并核对修复 commit 对应 GitHub Actions 结果包：run id `28704878607`，run attempt `1`，artifact `mdjournal-ci-v0.10-main-1c11158-run28704878607-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28704878607/`。
+- manifest 核对通过：`version=v0.10`、`branch=main`、`commitSha=1c111582b83c2cd6e71a957f80ffab6ae2ccae25`、`runId=28704878607`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=4`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`maccatalyst-build.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 和 Mac Catalyst build 均以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束。
+- `xctest.log` 确认 `JournalEntryTests`、`JournalStatisticsTests`、`MarkdownBlockParserTests`、`JournalStoreTests` 和 `MarkdownSnippetTests` 共 18 个测试用例通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均存在。
 
 遗留事项：
 
