@@ -15,9 +15,10 @@ struct EntryEditorView: View {
     var body: some View {
         GeometryReader { proxy in
             let isWideLayout = proxy.size.width >= 820
+            let bodySummary = entry.bodySummary
 
             VStack(spacing: 0) {
-                header(isWideLayout: isWideLayout)
+                header(isWideLayout: isWideLayout, bodySummary: bodySummary)
 
                 if isWideLayout {
                     wideEditor
@@ -44,7 +45,7 @@ struct EntryEditorView: View {
         .background(Color(.systemBackground))
     }
 
-    private func header(isWideLayout: Bool) -> some View {
+    private func header(isWideLayout: Bool, bodySummary: JournalEntryBodySummary) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 categoryPicker
@@ -64,15 +65,15 @@ struct EntryEditorView: View {
 
             if isWideLayout {
                 HStack(alignment: .top, spacing: 12) {
-                    statPills
+                    statPills(bodySummary)
                         .frame(width: 270, alignment: .leading)
 
-                    JournalSectionOverview(sections: entry.sections, accent: entry.category.tint)
+                    JournalSectionOverview(sections: bodySummary.sections, accent: entry.category.tint)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    statPills
-                    JournalSectionOverview(sections: entry.sections, accent: entry.category.tint)
+                    statPills(bodySummary)
+                    JournalSectionOverview(sections: bodySummary.sections, accent: entry.category.tint)
                 }
             }
         }
@@ -93,10 +94,10 @@ struct EntryEditorView: View {
         )
     }
 
-    private var statPills: some View {
+    private func statPills(_ bodySummary: JournalEntryBodySummary) -> some View {
         HStack(spacing: 8) {
-            EditorStatPill(value: "\(entry.wordCount)", title: "词", systemImage: "text.word.spacing")
-            EditorStatPill(value: "\(entry.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
+            EditorStatPill(value: "\(bodySummary.wordCount)", title: "词", systemImage: "text.word.spacing")
+            EditorStatPill(value: "\(bodySummary.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
             EditorStatPill(value: entry.updatedAt.journalRelativeUpdateText, title: "更新", systemImage: "clock")
         }
     }

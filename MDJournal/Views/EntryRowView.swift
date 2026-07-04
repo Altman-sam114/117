@@ -5,6 +5,8 @@ struct EntryRowView: View {
     var isSelected = false
 
     var body: some View {
+        let bodySummary = entry.bodySummary
+
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 8) {
                 Label(entry.category.rawValue, systemImage: entry.category.systemImage)
@@ -33,18 +35,18 @@ struct EntryRowView: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            Text(entry.excerpt)
+            Text(bodySummary.excerpt)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            sectionStrip
+            sectionStrip(bodySummary)
 
             HStack(spacing: 8) {
-                Label("\(entry.wordCount) 词", systemImage: "text.word.spacing")
+                Label("\(bodySummary.wordCount) 词", systemImage: "text.word.spacing")
                 Text("·")
-                Label("\(entry.sectionCount) 小节", systemImage: "list.bullet.rectangle")
+                Label("\(bodySummary.sectionCount) 小节", systemImage: "list.bullet.rectangle")
                 Text("·")
                 Text("更新于 \(entry.updatedAt.journalRelativeUpdateText)")
             }
@@ -64,10 +66,10 @@ struct EntryRowView: View {
         .contentShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private var sectionStrip: some View {
+    private func sectionStrip(_ bodySummary: JournalEntryBodySummary) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                if entry.sections.isEmpty {
+                if bodySummary.sections.isEmpty {
                     Label("未添加 ### 小节", systemImage: "number")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
@@ -75,7 +77,7 @@ struct EntryRowView: View {
                         .padding(.vertical, 5)
                         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
                 } else {
-                    ForEach(entry.sections.prefix(3)) { section in
+                    ForEach(bodySummary.sections.prefix(3)) { section in
                         Text(section.title)
                             .font(.caption2.weight(.semibold))
                             .lineLimit(1)
@@ -85,8 +87,8 @@ struct EntryRowView: View {
                             .background(entry.category.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
                     }
 
-                    if entry.sections.count > 3 {
-                        Text("+\(entry.sections.count - 3)")
+                    if bodySummary.sectionCount > 3 {
+                        Text("+\(bodySummary.sectionCount - 3)")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }

@@ -12,7 +12,7 @@
 - 当前最低 iOS 版本：16.0。
 - 当前 Mac 版本路径：Mac Catalyst，Mac deployment target 为 13.0。
 - 当前没有第三方依赖和包管理器。
-- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、Markdown 解析、统计、Markdown snippet 和 `JournalStore` 写入节流。
+- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文派生、Markdown 解析、统计、Markdown snippet 和 `JournalStore` 写入节流。
 - 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；修改 Mac Catalyst 支持时尝试本机 Catalyst build；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
@@ -220,7 +220,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.9",
+  "version": "v0.10",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -253,7 +253,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.9-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.10-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判
@@ -363,7 +363,7 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 当前基线：
 
 - 当前仓库已有 `MDJournalTests` 单元测试基线。
-- 自动化重验证由 `MD Journal CI Results` workflow 承担，包含静态检查、generic iOS Debug build 和 XCTest。
+- 自动化重验证由 `MD Journal CI Results` workflow 承担，包含静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 XCTest。
 
 ## 7. 规则
 

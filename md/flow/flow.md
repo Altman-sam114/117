@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -23,13 +23,17 @@ Markdown 与统计派生数据流：
 
 ```text
 JournalEntry.body
+  -> JournalEntryBodySummary
+  -> excerpt / wordCount / sections / sectionCount
+  -> 列表卡片、编辑器头部和统计器复用同一次正文派生结果
+
+JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
   -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览
-  -> 日记卡片小节摘要、统计小节覆盖率继续由 JournalEntry.sections 派生
 
 [JournalEntry]
-  -> JournalStatistics
+  -> JournalStatistics 每篇日记构造一次 JournalEntryBodySummary 并单轮聚合
   -> 总篇数、总词数、连续天数、7 天趋势、分类分布、心情分布、小节覆盖率
   -> EntryListView 概览卡片 / StatisticsDashboardView
 ```
@@ -70,7 +74,7 @@ JournalEntry.body
 1. `EntryListView` 接收 `entries` 和 `selection`。
 2. 搜索文本匹配标题、正文、分类、心情。
 3. 分类芯片通过 `selectedCategory` 过滤列表。
-4. `EntryRowView` 展示分类、心情、日期、摘要、词数、小节数和小节标题。
+4. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
 5. 用户滑动删除或在 Mac Catalyst 下右键删除时调用 `ContentView.deleteEntry(_:)`。
 6. `JournalStore.delete(_:)` 从数组移除日记并保存。
 7. `ContentView.repairSelection` 确保选中项仍然有效。
@@ -89,8 +93,8 @@ JournalEntry.body
 1. 用户点击列表工具栏“统计”。
 2. `EntryListView` 通过 closure 请求 `ContentView` 显示统计，Mac Catalyst 下也可从“日记”菜单触发。
 3. `ContentView` 以 sheet 形式打开 `StatisticsDashboardView`。
-4. `StatisticsDashboardView` 用当前 `entries` 构造 `JournalStatistics`。
-5. 统计计算总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
+4. `StatisticsDashboardView` 用当前 `entries` 构造一次 `JournalStatistics` 并传给子视图。
+5. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodySummary`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
 6. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
 7. Mac Catalyst 下仍以 sheet 展示统计，后续可扩展为独立窗口。
 
@@ -181,11 +185,21 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 输入：标题、正文、创建时间、更新时间、分类、心情。
 
-输出：展示标题、摘要、词数、`###` 小节、Markdown 分享文档。
+输出：展示标题、正文派生摘要、词数、`###` 小节、Markdown 分享文档。
 
-禁止：新增字段时破坏旧 JSON 解码；随意改变分类、心情 rawValue。
+禁止：新增字段时破坏旧 JSON 解码；随意改变分类、心情 rawValue；把临时派生摘要写入 JSON。
 
-### 4.2 `JournalStore`
+### 4.2 `JournalEntryBodySummary`
+
+职责：在内存中把正文单次派生为摘要、词数、`###` 小节和小节数。
+
+输入：`JournalEntry.body`。
+
+输出：`excerpt`、`wordCount`、`sections`、`sectionCount`。
+
+禁止：作为 `JournalEntry` 的持久化字段写入 JSON；改变旧有摘要、词数或小节识别语义。
+
+### 4.3 `JournalStore`
 
 职责：加载、保存、创建、更新、删除和排序日记。
 
@@ -195,7 +209,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在其他模块绕过它直接改写日记集合或本地文件。
 
-### 4.3 `MarkdownBlockParser`
+### 4.4 `MarkdownBlockParser`
 
 职责：把轻量 Markdown 字符串解析成块和 `###` 小节组。
 
@@ -205,7 +219,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在未更新 README、测试规范和 flow 文档的情况下改变现有语法含义。
 
-### 4.4 `JournalStatistics`
+### 4.5 `JournalStatistics`
 
 职责：把 `[JournalEntry]` 转成统计看板所需数据。
 
@@ -215,7 +229,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在视图层复制统计逻辑。
 
-### 4.5 SwiftUI Views
+### 4.6 SwiftUI Views
 
 职责：展示状态、收集用户输入、调用上层 closure 或 binding。
 
@@ -257,6 +271,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
+- 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用，但它只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建和统计动作应同时有工具栏与菜单入口，重要快捷键不能重复注册。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。

@@ -118,32 +118,24 @@ struct JournalEntry: Identifiable, Codable, Hashable {
         return trimmedTitle
     }
 
-    var excerpt: String {
-        let plainText = body
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: ">", with: "")
-            .split(separator: "\n")
-            .map(String.init)
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    var bodySummary: JournalEntryBodySummary {
+        JournalEntryBodySummary(body: body)
+    }
 
-        return plainText.isEmpty ? "还没有正文" : plainText
+    var excerpt: String {
+        bodySummary.excerpt
     }
 
     var wordCount: Int {
-        body
-            .split { $0.isWhitespace || $0.isNewline }
-            .count
+        bodySummary.wordCount
     }
 
     var sections: [JournalSection] {
-        JournalSection.extract(from: body)
+        bodySummary.sections
     }
 
     var sectionCount: Int {
-        sections.count
+        bodySummary.sectionCount
     }
 
     var sectionSummaryText: String {
@@ -188,6 +180,34 @@ struct JournalEntry: Identifiable, Codable, Hashable {
             category: .daily,
             mood: .calm
         )
+    }
+}
+
+struct JournalEntryBodySummary: Equatable {
+    let excerpt: String
+    let wordCount: Int
+    let sections: [JournalSection]
+
+    var sectionCount: Int {
+        sections.count
+    }
+
+    init(body: String) {
+        let plainText = body
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: ">", with: "")
+            .split(separator: "\n")
+            .map(String.init)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        excerpt = plainText.isEmpty ? "还没有正文" : plainText
+        wordCount = body
+            .split { $0.isWhitespace || $0.isNewline }
+            .count
+        sections = JournalSection.extract(from: body)
     }
 }
 

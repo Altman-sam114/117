@@ -10,10 +10,6 @@ struct EntryListView: View {
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
 
-    private var stats: JournalStatistics {
-        JournalStatistics(entries: entries)
-    }
-
     private var filteredEntries: [JournalEntry] {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let categoryEntries = entries.filter { entry in
@@ -31,9 +27,11 @@ struct EntryListView: View {
     }
 
     var body: some View {
+        let stats = JournalStatistics(entries: entries)
+
         List(selection: $selection) {
             Section {
-                overviewCard
+                overviewCard(stats)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
@@ -119,7 +117,7 @@ struct EntryListView: View {
         .ignoresSafeArea()
     }
 
-    private var overviewCard: some View {
+    private func overviewCard(_ stats: JournalStatistics) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {

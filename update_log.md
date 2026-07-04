@@ -34,6 +34,56 @@
 
 ## 历史记录
 
+### v0.10 / 正文派生与统计单次化
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增非持久化 `JournalEntryBodySummary`，把正文摘要、词数、`###` 小节和小节数聚合为一次内存派生结果。
+- `JournalEntry.excerpt`、`wordCount`、`sections`、`sectionCount` 保持旧 API，但委托给 `bodySummary`，不改变 JSON schema。
+- `EntryRowView` 和 `EntryEditorView` 在单次渲染中构造一次 `JournalEntryBodySummary`，复用摘要、词数和小节数据。
+- `JournalStatistics` 改为每篇日记只构造一次 `JournalEntryBodySummary`，并用单轮聚合生成总量、本周数据、分类分布、心情分布和 7 天趋势。
+- `EntryListView` 和 `StatisticsDashboardView` 在 body 内构造一次 `JournalStatistics` 并传给子视图，避免同一渲染周期重复统计。
+- 新增单元测试覆盖正文派生兼容、空统计、同一天多篇日记聚合和本周边界排除。
+- GitHub Actions 结果包版本更新为 `v0.10`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/Utilities/JournalStatistics.swift`
+- `MDJournal/Views/EntryRowView.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournal/Views/StatisticsDashboardView.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.10（正文派生与统计单次化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机 `build-for-testing` 尝试已编译到 `** TEST BUILD SUCCEEDED **`，但 xcodebuild 进程返回 133；静默重跑仍因 CoreSimulatorService 连接异常提前失败，未把本机测试编译作为通过依据。
+- 本机 iOS Simulator XCTest 未运行成功：当前机器没有可匹配的 `iPhone 16` simulator，CoreSimulatorService 不可用，命令返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端结果包验收待本轮实现 commit push 到 `origin/main` 后由 Agent C 下载并复判。
+
+遗留事项：
+
+- 本轮只做非持久化派生和统计聚合性能优化，不引入持久化缓存、不改变本地 JSON、不改变 Markdown 和统计语义。
+- 后续可继续检查更大的列表数据量下是否需要搜索/筛选派生缓存，前提是有明确失效策略。
+
 ### v0.9 / Mac Catalyst 菜单命令入口
 
 日期：2026-07-04

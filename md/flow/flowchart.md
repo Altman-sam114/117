@@ -18,16 +18,19 @@ flowchart TD
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]
   CreateDelete --> Store["JournalStore：唯一日记集合修改入口"]
   Binding --> Store
-  Store --> Model["JournalEntry：日记模型、兼容解码、派生标题/摘要/词数/小节"]
+  Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
+  Model --> Summary["JournalEntryBodySummary：非持久化摘要、词数、### 小节"]
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
-  Store --> Stats["JournalStatistics：计算总量、连续天数、分布、7天趋势"]
+  Store --> Stats["JournalStatistics：每篇一次正文派生并单轮聚合统计"]
   CV --> StatsSheet["统计 sheet：列表工具栏或菜单命令打开"]
   StatsSheet --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
-  Model --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
+  Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
+  Summary --> EditorStats["EntryEditorView：头部词数和小节概览"]
+  Summary --> Stats
   Store --> Error["errorMessage：读取/保存失败"]
   Error --> Alert["ContentView Alert：展示本地数据错误"]
 ```
@@ -70,14 +73,17 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  Body["JournalEntry.body 正文"] --> Parse["MarkdownBlockParser.parseDocument"]
+  Body["JournalEntry.body 正文"] --> Summary["JournalEntryBodySummary：非持久化单次正文派生"]
+  Summary --> Excerpt["摘要、词数、### 小节、小节数"]
+  Excerpt --> RowEditor["列表卡片和编辑器头部复用"]
+  Summary --> Statistics["JournalStatistics：每篇一次 summary，单轮聚合"]
+  Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、列表、待办、代码、分割线"]
   Blocks --> Preview["MarkdownPreviewView 普通块渲染"]
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
-  Sections --> SectionSummary["列表小节摘要和小节数"]
-  Entries["[JournalEntry] 日记数组"] --> Statistics["JournalStatistics"]
+  Entries["[JournalEntry] 日记数组"] --> Statistics
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布"]
   Statistics --> Trend["最近 7 天趋势"]

@@ -43,6 +43,41 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(entry.displayTitle, createdAt.journalTitleText)
     }
 
+    func testBodySummaryMatchesCurrentDerivedTextMetricsAndSections() {
+        let body = [
+            "alpha beta",
+            "### Plan",
+            "four five"
+        ].joined(separator: "\n")
+
+        let summary = JournalEntryBodySummary(body: body)
+
+        XCTAssertEqual(summary.excerpt, "alpha beta  Plan four five")
+        XCTAssertEqual(summary.wordCount, 6)
+        XCTAssertEqual(summary.sectionCount, 1)
+        XCTAssertEqual(summary.sections.map(\.title), ["Plan"])
+        XCTAssertEqual(summary.sections.first?.markdown, "four five")
+    }
+
+    func testEntryDerivedPropertiesDelegateToBodySummary() throws {
+        let createdAt = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-04-05T12:00:00Z"))
+        let entryID = try XCTUnwrap(UUID(uuidString: "66666666-6666-6666-6666-666666666666"))
+        let entry = JournalEntry(
+            id: entryID,
+            title: "派生数据",
+            body: "alpha beta\n### Plan\nfour five",
+            createdAt: createdAt,
+            updatedAt: createdAt
+        )
+
+        let summary = entry.bodySummary
+
+        XCTAssertEqual(entry.excerpt, summary.excerpt)
+        XCTAssertEqual(entry.wordCount, summary.wordCount)
+        XCTAssertEqual(entry.sections, summary.sections)
+        XCTAssertEqual(entry.sectionCount, summary.sectionCount)
+    }
+
     func testStarterEntryContainsDefaultLevelThreeSections() throws {
         let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-05-06T12:00:00Z"))
         let entry = JournalEntry.starterEntry(now: now)

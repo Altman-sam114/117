@@ -4,11 +4,9 @@ struct StatisticsDashboardView: View {
     let entries: [JournalEntry]
     @Environment(\.dismiss) private var dismiss
 
-    private var stats: JournalStatistics {
-        JournalStatistics(entries: entries)
-    }
-
     var body: some View {
+        let stats = JournalStatistics(entries: entries)
+
         NavigationStack {
             GeometryReader { proxy in
                 let isWideLayout = proxy.size.width >= 820
@@ -17,16 +15,16 @@ struct StatisticsDashboardView: View {
                     if isWideLayout {
                         HStack(alignment: .top, spacing: 14) {
                             VStack(alignment: .leading, spacing: 14) {
-                                hero(isWideLayout: true)
-                                sevenDayTrend
-                                sectionHealth
+                                hero(isWideLayout: true, stats: stats)
+                                sevenDayTrend(stats)
+                                sectionHealth(stats)
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
 
                             VStack(alignment: .leading, spacing: 14) {
-                                categoryBreakdown
-                                moodBreakdown
-                                writingRhythm
+                                categoryBreakdown(stats)
+                                moodBreakdown(stats)
+                                writingRhythm(stats)
                             }
                             .frame(maxWidth: .infinity, alignment: .top)
                         }
@@ -35,12 +33,12 @@ struct StatisticsDashboardView: View {
                         .frame(maxWidth: .infinity)
                     } else {
                         LazyVStack(alignment: .leading, spacing: 14) {
-                            hero(isWideLayout: false)
-                            sevenDayTrend
-                            sectionHealth
-                            categoryBreakdown
-                            moodBreakdown
-                            writingRhythm
+                            hero(isWideLayout: false, stats: stats)
+                            sevenDayTrend(stats)
+                            sectionHealth(stats)
+                            categoryBreakdown(stats)
+                            moodBreakdown(stats)
+                            writingRhythm(stats)
                         }
                         .padding(16)
                         .frame(maxWidth: 760, alignment: .leading)
@@ -77,7 +75,7 @@ struct StatisticsDashboardView: View {
         .ignoresSafeArea()
     }
 
-    private func hero(isWideLayout: Bool) -> some View {
+    private func hero(isWideLayout: Bool, stats: JournalStatistics) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -117,7 +115,7 @@ struct StatisticsDashboardView: View {
         return Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
     }
 
-    private var sevenDayTrend: some View {
+    private func sevenDayTrend(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "最近 7 天", systemImage: "calendar") {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
@@ -131,7 +129,7 @@ struct StatisticsDashboardView: View {
         }
     }
 
-    private var sectionHealth: some View {
+    private func sectionHealth(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "小节结构", systemImage: "number") {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
@@ -157,7 +155,7 @@ struct StatisticsDashboardView: View {
         }
     }
 
-    private var categoryBreakdown: some View {
+    private func categoryBreakdown(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "分类分布", systemImage: "square.grid.2x2") {
             VStack(spacing: 10) {
                 ForEach(stats.categoryBreakdown) { item in
@@ -166,7 +164,7 @@ struct StatisticsDashboardView: View {
                         detail: "\(item.entryCount) 篇 · \(item.wordCount) 词",
                         systemImage: item.category.systemImage,
                         value: item.entryCount,
-                        maxValue: maxCategoryCount,
+                        maxValue: maxCategoryCount(stats),
                         tint: item.category.tint
                     )
                 }
@@ -174,7 +172,7 @@ struct StatisticsDashboardView: View {
         }
     }
 
-    private var moodBreakdown: some View {
+    private func moodBreakdown(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "心情分布", systemImage: "face.smiling") {
             VStack(spacing: 10) {
                 ForEach(stats.moodBreakdown) { item in
@@ -183,7 +181,7 @@ struct StatisticsDashboardView: View {
                         detail: "\(item.entryCount) 篇",
                         systemImage: item.mood.systemImage,
                         value: item.entryCount,
-                        maxValue: maxMoodCount,
+                        maxValue: maxMoodCount(stats),
                         tint: .teal
                     )
                 }
@@ -191,7 +189,7 @@ struct StatisticsDashboardView: View {
         }
     }
 
-    private var writingRhythm: some View {
+    private func writingRhythm(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "写作节奏", systemImage: "waveform.path.ecg") {
             VStack(alignment: .leading, spacing: 12) {
                 InsightRow(
@@ -220,11 +218,11 @@ struct StatisticsDashboardView: View {
             .stroke(Color.white.opacity(0.55), lineWidth: 1)
     }
 
-    private var maxCategoryCount: Int {
+    private func maxCategoryCount(_ stats: JournalStatistics) -> Int {
         max(stats.categoryBreakdown.map(\.entryCount).max() ?? 0, 1)
     }
 
-    private var maxMoodCount: Int {
+    private func maxMoodCount(_ stats: JournalStatistics) -> Int {
         max(stats.moodBreakdown.map(\.entryCount).max() ?? 0, 1)
     }
 }

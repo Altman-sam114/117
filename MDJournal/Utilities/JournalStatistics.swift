@@ -41,59 +41,103 @@ struct JournalStatistics {
     let lastSevenDays: [DailyWriting]
     let latestEntryDate: Date?
 
+    private struct EntryAggregate {
+        var entryCount = 0
+        var wordCount = 0
+    }
+
     init(entries: [JournalEntry], calendar: Calendar = .current, now: Date = Date()) {
         let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
         self.entries = sortedEntries
 
         totalEntries = sortedEntries.count
-        totalWords = sortedEntries.reduce(0) { $0 + $1.wordCount }
-        totalSections = sortedEntries.reduce(0) { $0 + $1.sectionCount }
-        averageWords = totalEntries == 0 ? 0 : totalWords / totalEntries
-        averageSections = totalEntries == 0 ? 0 : Double(totalSections) / Double(totalEntries)
-        entriesWithSections = sortedEntries.filter { !$0.sections.isEmpty }.count
-        sectionCoverage = totalEntries == 0 ? 0 : Double(entriesWithSections) / Double(totalEntries)
         latestEntryDate = sortedEntries.first?.createdAt
 
-        let dayStarts = Set(sortedEntries.map { calendar.startOfDay(for: $0.createdAt) })
+        let today = calendar.startOfDay(for: now)
+        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start
+            ?? today
+
+        var totalWordsValue = 0
+        var totalSectionsValue = 0
+        var entriesWithSectionsValue = 0
+        var entriesThisWeekValue = 0
+        var wordsThisWeekValue = 0
+        var dayStarts = Set<Date>()
+        var dayTotals: [Date: EntryAggregate] = [:]
+        var categoryTotals: [JournalEntry.Category: EntryAggregate] = [:]
+        var moodTotals: [JournalEntry.Mood: Int] = [:]
+
+        for entry in sortedEntries {
+            let bodySummary = entry.bodySummary
+            let day = calendar.startOfDay(for: entry.createdAt)
+
+            totalWordsValue += bodySummary.wordCount
+            totalSectionsValue += bodySummary.sectionCount
+
+            if !bodySummary.sections.isEmpty {
+                entriesWithSectionsValue += 1
+            }
+
+            dayStarts.insert(day)
+
+            var dayTotal = dayTotals[day] ?? EntryAggregate()
+            dayTotal.entryCount += 1
+            dayTotal.wordCount += bodySummary.wordCount
+            dayTotals[day] = dayTotal
+
+            if entry.createdAt >= weekStart {
+                entriesThisWeekValue += 1
+                wordsThisWeekValue += bodySummary.wordCount
+            }
+
+            var categoryTotal = categoryTotals[entry.category] ?? EntryAggregate()
+            categoryTotal.entryCount += 1
+            categoryTotal.wordCount += bodySummary.wordCount
+            categoryTotals[entry.category] = categoryTotal
+
+            moodTotals[entry.mood, default: 0] += 1
+        }
+
+        totalWords = totalWordsValue
+        totalSections = totalSectionsValue
+        averageWords = totalEntries == 0 ? 0 : totalWords / totalEntries
+        averageSections = totalEntries == 0 ? 0 : Double(totalSections) / Double(totalEntries)
+        entriesWithSections = entriesWithSectionsValue
+        sectionCoverage = totalEntries == 0 ? 0 : Double(entriesWithSections) / Double(totalEntries)
+
         recentStreak = Self.streak(endingAtLatestDayIn: dayStarts, calendar: calendar)
         longestStreak = Self.longestStreak(in: dayStarts, calendar: calendar)
 
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start
-            ?? calendar.startOfDay(for: now)
-        let weekEntries = sortedEntries.filter { $0.createdAt >= weekStart }
-        entriesThisWeek = weekEntries.count
-        wordsThisWeek = weekEntries.reduce(0) { $0 + $1.wordCount }
+        entriesThisWeek = entriesThisWeekValue
+        wordsThisWeek = wordsThisWeekValue
 
         categoryBreakdown = JournalEntry.Category.allCases.map { category in
-            let matches = sortedEntries.filter { $0.category == category }
+            let total = categoryTotals[category] ?? EntryAggregate()
             return CategoryBreakdown(
                 category: category,
-                entryCount: matches.count,
-                wordCount: matches.reduce(0) { $0 + $1.wordCount }
+                entryCount: total.entryCount,
+                wordCount: total.wordCount
             )
         }
 
         moodBreakdown = JournalEntry.Mood.allCases.map { mood in
             MoodBreakdown(
                 mood: mood,
-                entryCount: sortedEntries.filter { $0.mood == mood }.count
+                entryCount: moodTotals[mood] ?? 0
             )
         }
 
-        let today = calendar.startOfDay(for: now)
         lastSevenDays = (0..<7).reversed().compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else {
                 return nil
             }
 
-            let matches = sortedEntries.filter {
-                calendar.isDate($0.createdAt, inSameDayAs: date)
-            }
+            let total = dayTotals[date] ?? EntryAggregate()
 
             return DailyWriting(
                 date: date,
-                entryCount: matches.count,
-                wordCount: matches.reduce(0) { $0 + $1.wordCount }
+                entryCount: total.entryCount,
+                wordCount: total.wordCount
             )
         }
     }
