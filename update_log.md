@@ -69,11 +69,19 @@
 - 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
 - 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
 - 本机未运行 iOS Simulator XCTest：本轮未改 XCTest 或模型规则，且当前机器 CoreSimulatorService 不可用；最终 XCTest 结果以 GitHub Actions artifact 为准。
-- 云端 artifact 验收待本轮实现 commit push 后补充。
+- 本机额外尝试过 SwiftUI `Window` 单例统计窗口方案，但 Mac Catalyst Debug build 返回 65，确认当前 Catalyst 目标下不采用该方案；最终实现使用已通过构建的 `WindowGroup("统计", id:)`。
+- 已 push 实现 commit `d81d23e1d9ae80f453010d52658b4eb138f1ccfd` 到 `origin/main`。
+- Agent C 已下载并核对实现 commit 对应 GitHub Actions 结果包：run id `28706172797`，run attempt `1`，artifact `mdjournal-ci-v0.11-main-d81d23e-run28706172797-attempt1`，缓存目录 `/private/tmp/mdjournal-c-review-28706172797/`，目录大小 `672K`。
+- manifest 核对通过：`version=v0.11`、`branch=main`、`commitSha=d81d23e1d9ae80f453010d52658b4eb138f1ccfd`、`runId=28706172797`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=4`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`maccatalyst-build.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 和 Mac Catalyst build 均以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束。
+- `xctest.log` 确认 `JournalEntryTests`、`JournalStatisticsTests`、`MarkdownBlockParserTests`、`JournalStoreTests` 和 `MarkdownSnippetTests` 共 18 个测试用例通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均存在，且各自 `Info.plist` 可正常解析。
 
 遗留事项：
 
 - 本轮只做 Mac Catalyst 统计独立窗口，不新增 native macOS target，不改变 JSON schema、统计口径或 Markdown 解析语义。
+- 统计窗口当前采用 Mac Catalyst 可构建的 `WindowGroup` scene；如后续要求严格单例窗口，需要另行评估更高版本 SwiftUI 或 AppKit 窗口控制。
 - 后续可继续做 Markdown 片段键盘命令，或把列表搜索/分类筛选派生抽成可测试快照。
 
 ### v0.10 / 正文派生与统计单次化
