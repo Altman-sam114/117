@@ -7,11 +7,23 @@ final class JournalStore: ObservableObject {
     @Published var errorMessage: String?
 
     private let storageURL: URL
+    private let saveDebounceNanoseconds: UInt64
+    private var pendingSaveTask: Task<Void, Never>?
 
-    init(fileManager: FileManager = .default) {
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-            ?? fileManager.temporaryDirectory
-        storageURL = documentsURL.appendingPathComponent("md-journal-entries.json")
+    init(
+        fileManager: FileManager = .default,
+        storageURL: URL? = nil,
+        saveDebounceNanoseconds: UInt64 = 450_000_000
+    ) {
+        if let storageURL {
+            self.storageURL = storageURL
+        } else {
+            let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+                ?? fileManager.temporaryDirectory
+            self.storageURL = documentsURL.appendingPathComponent("md-journal-entries.json")
+        }
+
+        self.saveDebounceNanoseconds = saveDebounceNanoseconds
         load()
     }
 
@@ -38,7 +50,7 @@ final class JournalStore: ObservableObject {
         )
 
         entries.insert(entry, at: 0)
-        save()
+        saveImmediately()
         return entry.id
     }
 
@@ -49,11 +61,19 @@ final class JournalStore: ObservableObject {
         updatedEntry.updatedAt = Date()
         entries[index] = updatedEntry
         sortEntries()
-        save()
+        scheduleSave()
     }
 
     func delete(_ entry: JournalEntry) {
         entries.removeAll { $0.id == entry.id }
+        saveImmediately()
+    }
+
+    func flushPendingSave() {
+        guard pendingSaveTask != nil else { return }
+
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
         save()
     }
 
@@ -76,6 +96,33 @@ final class JournalStore: ObservableObject {
         }
     }
 
+    private func scheduleSave() {
+        pendingSaveTask?.cancel()
+
+        let delay = Duration.nanoseconds(Int64(saveDebounceNanoseconds))
+        pendingSaveTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+            self?.saveScheduledChanges()
+        }
+    }
+
+    private func saveScheduledChanges() {
+        pendingSaveTask = nil
+        save()
+    }
+
+    private func saveImmediately() {
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
+        save()
+    }
+
     private func save() {
         do {
             let encoder = JSONEncoder()
@@ -92,5 +139,9 @@ final class JournalStore: ObservableObject {
         entries.sort { lhs, rhs in
             lhs.createdAt > rhs.createdAt
         }
+    }
+
+    deinit {
+        pendingSaveTask?.cancel()
     }
 }

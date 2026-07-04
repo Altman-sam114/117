@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = JournalStore()
     @State private var selectedEntryID: JournalEntry.ID?
 
@@ -23,6 +24,11 @@ struct ContentView: View {
         .onAppear(perform: selectInitialEntry)
         .onChange(of: store.entries) { entries in
             repairSelection(with: entries)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active {
+                store.flushPendingSave()
+            }
         }
         .alert("无法保存日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {

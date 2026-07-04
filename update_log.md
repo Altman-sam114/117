@@ -34,6 +34,51 @@
 
 ## 历史记录
 
+### v0.7 / 编辑写入节流
+
+日期：2026-07-04
+
+核心变更：
+
+- `JournalStore.update(_:)` 改为内存即时更新、短延迟合并保存，减少正文连续输入时的 JSON 编码和原子写盘次数。
+- `JournalStore.createEntry()` 和 `delete(_:)` 仍立即保存，避免创建和删除丢失。
+- 新增 `JournalStore.flushPendingSave()`，`ContentView` 在 scene phase 进入 inactive/background 时立即写入待保存变更。
+- 新增 `JournalStoreTests`，覆盖创建立即写盘、编辑延迟写盘和 flush 立即写盘。
+- GitHub Actions 结果包版本更新为 `v0.7`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步更新 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Stores/JournalStore.swift`
+- `MDJournal/ContentView.swift`
+- `MDJournalTests/JournalStoreTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.7（编辑写入节流）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -list -project MDJournal.xcodeproj`，返回 0；当前机器仍输出 CoreSimulatorService 连接错误。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：generic iOS 目的地 `build-for-testing`，`MDJournalTests` 编译通过并以 `** TEST BUILD SUCCEEDED **` 结束。
+- 本机 iOS Simulator XCTest 未运行成功：当前机器 CoreSimulatorService 不可用，且没有可匹配的 `iPhone 16` simulator；命令返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
+- GitHub Actions artifact 验收需在本轮 commit push 到 `origin/main` 后由 Agent C 下载最新结果包复判。
+
+遗留事项：
+
+- 本轮只优化写入节流，尚未缓存 Markdown 预览解析或统计派生计算。
+- 后续可继续做大正文预览缓存、列表小节摘要缓存和更完整的 Mac 菜单命令。
+
 ### v0.6 / 启用 Mac Catalyst 构建
 
 日期：2026-07-04

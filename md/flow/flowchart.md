@@ -49,8 +49,10 @@ flowchart TD
   Edit -- "新建" --> Create["JournalStore.createEntry 插入默认 ### 模板"]
   Edit -- "编辑" --> Update["JournalStore.update 更新时间并替换日记"]
   Edit -- "删除" --> Delete["JournalStore.delete 移除日记"]
-  Create --> SortSave["排序并保存 JSON"]
-  Update --> SortSave
+  Create --> SortSave["排序并立即保存 JSON"]
+  Update --> DebouncedSave["排序并安排短延迟保存"]
+  DebouncedSave --> Flush["连续编辑合并写盘；inactive/background 时 flush"]
+  Flush --> SortSave
   Delete --> SortSave
   SortSave --> OK{"保存是否成功？"}
   OK -- "成功" --> Render

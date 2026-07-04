@@ -59,9 +59,11 @@ JournalEntry.body
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
 3. binding setter 调用 `JournalStore.update(_:)`。
-4. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序并保存。
-5. 保存失败时设置 `errorMessage`。
-6. `ContentView` 通过 alert 展示保存或读取错误。
+4. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记、重新排序，并安排短延迟保存。
+5. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
+6. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
+7. 保存失败时设置 `errorMessage`。
+8. `ContentView` 通过 alert 展示保存或读取错误。
 
 ### 2.4 列表、筛选与删除
 
@@ -239,11 +241,12 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则与 `JournalStore` 写入节流 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
+- 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。
