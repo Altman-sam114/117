@@ -5,10 +5,10 @@ struct EntryListView: View {
     @Binding var selection: JournalEntry.ID?
     let onCreate: () -> Void
     let onDelete: (JournalEntry) -> Void
+    let onShowStatistics: () -> Void
 
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
-    @State private var isShowingStatistics = false
 
     private var stats: JournalStatistics {
         JournalStatistics(entries: entries)
@@ -85,9 +85,7 @@ struct EntryListView: View {
         .searchable(text: $searchText, prompt: "搜索标题、正文、分类或心情")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isShowingStatistics = true
-                } label: {
+                Button(action: onShowStatistics) {
                     Label("统计", systemImage: "chart.bar.xaxis")
                 }
             }
@@ -96,11 +94,7 @@ struct EntryListView: View {
                 Button(action: onCreate) {
                     Label("新建", systemImage: "square.and.pencil")
                 }
-                .keyboardShortcut("n", modifiers: .command)
             }
-        }
-        .sheet(isPresented: $isShowingStatistics) {
-            StatisticsDashboardView(entries: entries)
         }
     }
 

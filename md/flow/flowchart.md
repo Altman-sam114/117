@@ -9,7 +9,9 @@
 ```mermaid
 flowchart TD
   Platform["iOS / iPadOS / Mac Catalyst"] --> User["用户操作：新建、编辑、删除、搜索、筛选、分享"]
+  Platform --> Menu["Mac Catalyst 日记菜单：新建日记、显示统计"]
   User --> CV["ContentView：维护选中日记和导航"]
+  Menu --> CV
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
@@ -22,7 +24,9 @@ flowchart TD
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
   Store --> Stats["JournalStatistics：计算总量、连续天数、分布、7天趋势"]
-  Stats --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
+  CV --> StatsSheet["统计 sheet：列表工具栏或菜单命令打开"]
+  StatsSheet --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
+  Stats --> Dashboard
   Model --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Store --> Error["errorMessage：读取/保存失败"]
   Error --> Alert["ContentView Alert：展示本地数据错误"]

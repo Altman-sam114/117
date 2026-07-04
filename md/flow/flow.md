@@ -87,11 +87,20 @@ JournalEntry.body
 ### 2.6 统计看板
 
 1. 用户点击列表工具栏“统计”。
-2. `EntryListView` 以 sheet 形式打开 `StatisticsDashboardView`。
-3. `StatisticsDashboardView` 用当前 `entries` 构造 `JournalStatistics`。
-4. 统计计算总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
-5. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
-6. Mac Catalyst 下仍以 sheet 展示统计，后续可扩展为独立窗口。
+2. `EntryListView` 通过 closure 请求 `ContentView` 显示统计，Mac Catalyst 下也可从“日记”菜单触发。
+3. `ContentView` 以 sheet 形式打开 `StatisticsDashboardView`。
+4. `StatisticsDashboardView` 用当前 `entries` 构造 `JournalStatistics`。
+5. 统计计算总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布和最近 7 天趋势。
+6. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
+7. Mac Catalyst 下仍以 sheet 展示统计，后续可扩展为独立窗口。
+
+### 2.7 Mac Catalyst 菜单命令
+
+1. `MDJournalApp` 在 scene level 注册“日记”菜单。
+2. `ContentView` 通过 focused scene value 暴露新建日记和显示统计两个动作。
+3. 菜单“新建日记”调用 `ContentView.createEntry()`，并承载 `⌘N` 快捷键。
+4. 菜单“显示统计”调用 `ContentView.showStatistics()`，复用与列表工具栏相同的统计 sheet。
+5. 工具栏新建和统计按钮继续保留，作为非菜单的可见入口。
 
 ## 3. Agent 云端协作流
 
@@ -233,7 +242,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 详情编辑器：修改标题、日期、分类、心情、正文，插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，工具栏新建支持 `⌘N`。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，`⌘N` 新建由菜单命令承载。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -248,6 +257,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
+- Mac Catalyst 的核心创建和统计动作应同时有工具栏与菜单入口，重要快捷键不能重复注册。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
 - 新建日记必须包含默认 `###` 小节模板。

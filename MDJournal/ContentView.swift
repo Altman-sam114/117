@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = JournalStore()
     @State private var selectedEntryID: JournalEntry.ID?
+    @State private var isShowingStatistics = false
 
     var body: some View {
         NavigationSplitView {
@@ -11,7 +12,8 @@ struct ContentView: View {
                 entries: store.entries,
                 selection: $selectedEntryID,
                 onCreate: createEntry,
-                onDelete: deleteEntry
+                onDelete: deleteEntry,
+                onShowStatistics: showStatistics
             )
         } detail: {
             if let entryBinding = selectedEntryBinding {
@@ -30,6 +32,11 @@ struct ContentView: View {
                 store.flushPendingSave()
             }
         }
+        .sheet(isPresented: $isShowingStatistics) {
+            StatisticsDashboardView(entries: store.entries)
+        }
+        .focusedSceneValue(\.createJournalEntryAction, createEntry)
+        .focusedSceneValue(\.showJournalStatisticsAction, showStatistics)
         .alert("无法保存日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {
                 store.errorMessage = nil
@@ -67,6 +74,10 @@ struct ContentView: View {
 
     private func createEntry() {
         selectedEntryID = store.createEntry()
+    }
+
+    private func showStatistics() {
+        isShowingStatistics = true
     }
 
     private func deleteEntry(_ entry: JournalEntry) {

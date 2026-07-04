@@ -34,6 +34,48 @@
 
 ## 历史记录
 
+### v0.9 / Mac Catalyst 菜单命令入口
+
+日期：2026-07-04
+
+核心变更：
+
+- `MDJournalApp` 新增 scene-level “日记”菜单，提供“新建日记”和“显示统计”命令。
+- `ContentView` 通过 focused scene value 暴露创建日记和显示统计动作，菜单与列表工具栏复用同一套入口。
+- 统计 sheet 状态从 `EntryListView` 上移到 `ContentView`，为菜单命令和列表按钮提供统一展示路径。
+- `⌘N` 快捷键改由菜单命令承载，工具栏新建按钮保留可见入口但不重复注册快捷键。
+- GitHub Actions 结果包版本更新为 `v0.9`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/ContentView.swift`
+- `MDJournal/Views/EntryListView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.9（MacCatalyst菜单命令入口）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机未运行 iOS Simulator XCTest：本轮未改 XCTest 或模型规则，且当前机器 CoreSimulatorService 不可用；最终 XCTest 结果以 GitHub Actions artifact 为准。
+- 云端 artifact 验收需在本轮 commit push 到 `origin/main` 后由 Agent C 下载最新结果包复判。
+
+遗留事项：
+
+- 本轮只新增菜单命令入口，尚未做独立统计窗口、多窗口同步或 native macOS target。
+- 后续可继续做正文派生快照与统计计算单次化。
+
 ### v0.8 / Markdown 预览解析单次化
 
 日期：2026-07-04

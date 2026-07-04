@@ -93,6 +93,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 触发条件：
 
 - 修改 Mac Catalyst 支持、Xcode target 平台、桌面入口或 `.github/workflows/ci-results.yml` 的 Catalyst 阶段。
+- 修改 SwiftUI scene commands、菜单命令或 Mac Catalyst 专属交互入口。
 
 命令：
 
@@ -219,7 +220,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.8",
+  "version": "v0.9",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -252,7 +253,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.8-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.9-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判
