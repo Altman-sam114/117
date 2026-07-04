@@ -73,7 +73,13 @@
 - 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
 - 本机已通过：iOS Simulator `build-for-testing`，以 `** TEST BUILD SUCCEEDED **` 结束。
 - 本机 iOS XCTest 已尝试，未启动；当前 CoreSimulatorService 无效且无匹配 `iPhone 16` simulator，`xcodebuild test` 返回 70。最终 XCTest 结果以 GitHub Actions artifact 为准。
-- 云端实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+- 已 push 首个实现 commit `807e64d831e66ec984a024054dc0eb15657de5ed` 到 `origin/main`；对应 GitHub Actions run id `28712905174`、run attempt `1`、artifact `mdjournal-ci-v0.15-main-807e64d-run28712905174-attempt1` 已下载到 `/private/tmp/mdjournal-c-review-28712905174/`。Agent C 复判确认 manifest 对应 `main` 和该 commit，static/build/Mac Catalyst 阶段通过，但 XCTest 在 `MarkdownSnippetTests.testSnippetInsertionExpandsInvalidUTF16RangeInsideEmoji` 失败，因此退回 Agent B 追加修复。
+- 已 push 修复 commit `682fc5c7a9a2951d37a4aafe08ce4ea2e197ada7` 到 `origin/main`；对应 GitHub Actions run id `28713235836`、run attempt `1`、artifact `mdjournal-ci-v0.15-main-682fc5c-run28713235836-attempt1` 已下载到 `/private/tmp/mdjournal-c-review-28713235836/`，目录大小 `848K`。
+- Agent C 已核对修复 commit 的 manifest：`version=v0.15`、`branch=main`、`commitSha=682fc5c7a9a2951d37a4aafe08ce4ea2e197ada7`、`runId=28713235836`、`runAttempt=1`、`staticChecksOutcome=success`、`buildOutcome=success`、`macCatalystBuildOutcome=success`、`testOutcome=success`。
+- `junit.xml` 核对通过：`tests=4`、`failures=0`、`skipped=0`。
+- `static-checks.log`、`xcodebuild.log`、`maccatalyst-build.log`、`xctest.log` 和 `ci-failure-summary.md` 核对通过；云端 generic iOS build 和 Mac Catalyst build 均以 `** BUILD SUCCEEDED **` 结束，XCTest 以 `** TEST SUCCEEDED **` 结束。
+- `xctest.log` 确认 37 个 XCTest 用例通过，其中 `MarkdownSnippetTests.testSnippetInsertionExpandsInvalidUTF16RangeInsideEmoji()` 已通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均存在，且各自 `Info.plist` 可正常解析。
 
 遗留事项：
 
