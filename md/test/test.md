@@ -94,6 +94,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 
 - 修改 Mac Catalyst 支持、Xcode target 平台、桌面入口或 `.github/workflows/ci-results.yml` 的 Catalyst 阶段。
 - 修改 SwiftUI scene commands、菜单命令或 Mac Catalyst 专属交互入口。
+- 修改 `script/build_and_run.sh` 或 `.codex/environments/environment.toml`。
 
 命令：
 
@@ -113,6 +114,28 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 
 - 应以 `** BUILD SUCCEEDED **` 结束。
 - 当前本机 CoreSimulator 服务可能仍输出无关连接错误；只要 Mac Catalyst build 返回 0 且构建成功，应记录为本轮 Catalyst 构建通过。
+
+### 1.4.6 Mac Catalyst 一键运行入口检查
+
+触发条件：
+
+- 修改 `script/build_and_run.sh`。
+- 修改 `.codex/environments/environment.toml`。
+- 修改本地 Mac Catalyst 运行入口说明。
+
+默认命令：
+
+```sh
+bash -n script/build_and_run.sh
+test -x script/build_and_run.sh
+```
+
+当前基线：
+
+- `bash -n` 返回 0。
+- `test -x` 返回 0。
+- 不把本机 GUI 启动作为默认验收路径；Mac Catalyst build、XCTest 和 artifact manifest 以 GitHub Actions 回传结果包为准。
+- 只有人工明确要求本机运行时，才执行 `./script/build_and_run.sh --verify` 并记录结果。
 
 ### 1.5 JSON 检查
 
@@ -221,7 +244,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.16",
+  "version": "v0.17",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -254,7 +277,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.16-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.17-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判

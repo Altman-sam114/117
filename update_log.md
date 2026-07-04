@@ -34,6 +34,41 @@
 
 ## 历史记录
 
+### v0.17 / Mac Catalyst 一键构建运行入口
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `script/build_and_run.sh`，作为 Mac Catalyst 本地一键构建/运行入口。
+- 脚本默认会停止已有 `MDJournal` 进程，构建 `MDJournal` scheme 的 Mac Catalyst Debug app，并用 `/usr/bin/open -n` 启动最新构建产物。
+- 脚本固定使用 `/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 和 `/private/tmp/mdjournal-build-and-run`，避免默认 home DerivedData 权限噪声。
+- 脚本支持 `run`、`--verify`、`--debug`、`--logs` 和 `--telemetry` 模式；`--verify` 会用 `pgrep -x MDJournal` 确认 app 进程存在。
+- 新增 `.codex/environments/environment.toml`，让 Codex 桌面 `Run` action 指向 `./script/build_and_run.sh`。
+- GitHub Actions 结果包版本更新为 `v0.17`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `script/build_and_run.sh`
+- `.codex/environments/environment.toml`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.17（MacCatalyst一键构建运行入口）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮最终验收只以 GitHub Actions 回传结果包为准；实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮不新增 native macOS target，Mac 版本仍走 Mac Catalyst。
+- `--telemetry` 目前按 bundle id 过滤 unified logging；源码尚未接入专用 `Logger` subsystem，因此日志可能为空。
+
 ### v0.16 / JournalStore 更新跳过重复排序
 
 日期：2026-07-05

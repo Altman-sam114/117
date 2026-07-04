@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -122,6 +122,18 @@ JournalEntry.body
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文和显示/隐藏预览提供桌面菜单与快捷键入口。
 9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口；插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
+
+### 2.8 Mac Catalyst 本地构建运行入口
+
+1. 人工或 Codex 桌面点击 `Run` action 时，执行 `./script/build_and_run.sh`。
+2. 脚本先停止已有 `MDJournal` 进程，避免旧 app 继续占用前台。
+3. 脚本用 `/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 构建 `MDJournal.xcodeproj` 的 `MDJournal` scheme。
+4. 构建目标固定为 `generic/platform=macOS,variant=Mac Catalyst`。
+5. DerivedData 固定写入 `/private/tmp/mdjournal-build-and-run`，不依赖默认 home DerivedData。
+6. 构建成功后脚本确认 `MDJournal.app` 和 `Contents/MacOS/MDJournal` 存在。
+7. 默认模式用 `/usr/bin/open -n` 启动最新 Mac Catalyst app。
+8. `--verify` 模式启动后用 `pgrep -x MDJournal` 确认进程存在；`--debug`、`--logs`、`--telemetry` 分别提供 lldb 和 unified logging 入口。
+9. 该脚本只负责本地构建与运行，不读写日记 JSON，不改变 SwiftUI 状态流或持久化规则。
 
 ## 3. Agent 云端协作流
 
@@ -303,6 +315,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
+- 本地运行辅助层：`script/build_and_run.sh` 和 `.codex/environments/environment.toml` 负责 Mac Catalyst 一键构建/运行。
 - 文档与流程层：`AGENTS.md`、`update_log.md`、`md/test/test.md`、`md/flow/`、`md/prompt/`。
 - 版本提交层：Agent B 在 `main` 上提交并推送；Agent C 基于 `origin/main` 最新结果包验收。
 
@@ -314,6 +327,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏。
 - 统计看板：从列表工具栏打开。
 - Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段。
+- 本地 Mac 运行：使用 `./script/build_and_run.sh` 或 Codex `Run` action 构建并启动 Mac Catalyst app。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
 

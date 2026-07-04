@@ -10,6 +10,9 @@
 flowchart TD
   Platform["iOS / iPadOS / Mac Catalyst"] --> User["用户操作：新建、编辑、删除、搜索、筛选、分享"]
   Platform --> Menu["Mac Catalyst 菜单：新建日记、显示统计、写作、插入 Markdown"]
+  Platform --> LocalRun["本地 Mac 运行：Codex Run action / script/build_and_run.sh"]
+  LocalRun --> CatalystBuild["xcodebuild：构建 Mac Catalyst Debug app"]
+  CatalystBuild --> Platform
   User --> CV["ContentView：维护选中日记和导航"]
   Menu --> CV
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
@@ -77,6 +80,28 @@ flowchart TD
   OK -- "成功" --> Render
   OK -- "失败" --> SaveError["设置 errorMessage"]
   SaveError --> Alert["ContentView 弹出错误提示"]
+```
+
+## 本地 Mac 运行图
+
+读图说明：这张图展示 Codex Run action 和 `script/build_and_run.sh` 如何构建并启动现有 Mac Catalyst app。它是本地运行辅助链路，不改变 app 内部数据流。
+
+```mermaid
+flowchart TD
+  RunAction["Codex Run action"] --> Script["script/build_and_run.sh"]
+  Terminal["终端执行脚本"] --> Script
+  Script --> KillOld["pkill -x MDJournal：停止旧进程"]
+  KillOld --> Xcodebuild["xcodebuild：MDJournal scheme / Mac Catalyst Debug"]
+  Xcodebuild --> DerivedData["/private/tmp/mdjournal-build-and-run"]
+  DerivedData --> Bundle["MDJournal.app"]
+  Bundle --> Open["open -n MDJournal.app"]
+  Open --> Verify{"--verify 模式？"}
+  Verify -- "是" --> Pgrep["pgrep -x MDJournal"]
+  Verify -- "否" --> App["Mac Catalyst app 启动"]
+  Pgrep --> App
+  Script --> Debug["--debug：lldb app binary"]
+  Script --> Logs["--logs：log stream process == MDJournal"]
+  Script --> Telemetry["--telemetry：log stream subsystem == com.codex.mdjournal.mac"]
 ```
 
 ## Markdown 与统计派生图
