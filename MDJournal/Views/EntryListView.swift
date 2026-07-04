@@ -10,24 +10,13 @@ struct EntryListView: View {
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
 
-    private var filteredEntries: [JournalEntry] {
-        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let categoryEntries = entries.filter { entry in
-            selectedCategory == nil || entry.category == selectedCategory
-        }
-
-        guard !trimmedSearch.isEmpty else { return categoryEntries }
-
-        return categoryEntries.filter { entry in
-            entry.displayTitle.localizedCaseInsensitiveContains(trimmedSearch)
-                || entry.body.localizedCaseInsensitiveContains(trimmedSearch)
-                || entry.category.rawValue.localizedCaseInsensitiveContains(trimmedSearch)
-                || entry.mood.rawValue.localizedCaseInsensitiveContains(trimmedSearch)
-        }
-    }
-
     var body: some View {
         let stats = JournalStatistics(entries: entries)
+        let listSnapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: searchText,
+            selectedCategory: selectedCategory
+        )
 
         List(selection: $selection) {
             Section {
@@ -36,19 +25,19 @@ struct EntryListView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
-                categoryFilter
+                categoryFilter(listSnapshot)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
             }
 
             Section {
-                if filteredEntries.isEmpty {
+                if listSnapshot.filteredEntries.isEmpty {
                     listEmptyState
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(filteredEntries) { entry in
+                    ForEach(listSnapshot.filteredEntries) { entry in
                         EntryRowView(entry: entry, isSelected: selection == entry.id)
                             .tag(entry.id)
                             .listRowSeparator(.hidden)
@@ -71,7 +60,7 @@ struct EntryListView: View {
                         }
                 }
             } header: {
-                Text(sectionTitle)
+                Text(listSnapshot.sectionTitle)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
@@ -94,14 +83,6 @@ struct EntryListView: View {
                 }
             }
         }
-    }
-
-    private var sectionTitle: String {
-        if let selectedCategory {
-            return "\(selectedCategory.rawValue) · \(filteredEntries.count) 篇"
-        }
-
-        return "最近记录 · \(filteredEntries.count) 篇"
     }
 
     private var listBackground: some View {
@@ -151,12 +132,12 @@ struct EntryListView: View {
         )
     }
 
-    private var categoryFilter: some View {
+    private func categoryFilter(_ listSnapshot: JournalEntryListSnapshot) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 CategoryFilterChip(
                     title: "全部",
-                    count: entries.count,
+                    count: listSnapshot.totalCount,
                     systemImage: "tray.full",
                     tint: .teal,
                     isSelected: selectedCategory == nil
@@ -167,7 +148,7 @@ struct EntryListView: View {
                 ForEach(JournalEntry.Category.allCases) { category in
                     CategoryFilterChip(
                         title: category.rawValue,
-                        count: count(for: category),
+                        count: listSnapshot.count(for: category),
                         systemImage: category.systemImage,
                         tint: category.tint,
                         isSelected: selectedCategory == category
@@ -202,9 +183,6 @@ struct EntryListView: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    private func count(for category: JournalEntry.Category) -> Int {
-        entries.filter { $0.category == category }.count
-    }
 }
 
 private struct SummaryBadge: View {

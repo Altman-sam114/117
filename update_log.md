@@ -34,6 +34,51 @@
 
 ## 历史记录
 
+### v0.13 / 列表派生快照
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `JournalEntryListSnapshot`，用单次遍历派生列表过滤结果、总数和分类计数。
+- `EntryListView` 改为在 `body` 中构造一次列表快照，并复用到过滤列表、section 标题和分类 chip。
+- 搜索语义保持不变：trim 后匹配标题、正文、分类和心情；分类筛选仍先限制候选集。
+- 分类 chip 数量保持基于全部日记，不受搜索文本影响。
+- 新增 `JournalEntryListSnapshotTests` 覆盖空白搜索、大小写搜索、trim 后查询、空标题 fallback、分类筛选、分类计数和 section 标题。
+- GitHub Actions 结果包版本更新为 `v0.13`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournal/Utilities/JournalEntryListSnapshot.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `MDJournalTests/JournalEntryListSnapshotTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.13（列表派生快照）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本机已通过：`git diff --check`。
+- 本机已通过：`plutil -lint MDJournal.xcodeproj/project.pbxproj`，输出 `MDJournal.xcodeproj/project.pbxproj: OK`。
+- 本机已通过：`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 本机已通过：`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`。
+- 本机已通过：generic iOS Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：Mac Catalyst Debug build，以 `** BUILD SUCCEEDED **` 结束。
+- 本机已通过：iOS Simulator `build-for-testing`，`JournalEntryListSnapshotTests.swift` 已编译进 `MDJournalTests`，以 `** TEST BUILD SUCCEEDED **` 结束。
+- 本机 iOS XCTest 已尝试，未启动；`CoreSimulatorService connection became invalid`，且当前无可用 `iPhone 16` simulator，`xcodebuild test` 返回 70。
+- 云端 artifact 验收待本轮提交并 push 后补充。
+
+遗留事项：
+
+- 本轮只优化列表派生遍历，不新增后台索引或持久化缓存。
+- 后续可继续做光标位置插入、Mac 工具栏 polish 或更细的编辑器输入性能优化。
+
 ### v0.12 / Markdown 片段菜单命令
 
 日期：2026-07-04

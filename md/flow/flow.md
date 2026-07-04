@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalStore` 负责本地 JSON 加载与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -31,6 +31,10 @@ JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
   -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览
+
+[JournalEntry]
+  -> JournalEntryListSnapshot 单次派生列表搜索、分类筛选和分类计数
+  -> EntryListView 列表、section 标题和分类 chip
 
 [JournalEntry]
   -> JournalStatistics 每篇日记构造一次 JournalEntryBodySummary 并单轮聚合
@@ -75,12 +79,14 @@ JournalEntry.body
 ### 2.4 列表、筛选与删除
 
 1. `EntryListView` 接收 `entries` 和 `selection`。
-2. 搜索文本匹配标题、正文、分类、心情。
-3. 分类芯片通过 `selectedCategory` 过滤列表。
-4. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
-5. 用户滑动删除或在 Mac Catalyst 下右键删除时调用 `ContentView.deleteEntry(_:)`。
-6. `JournalStore.delete(_:)` 从数组移除日记并保存。
-7. `ContentView.repairSelection` 确保选中项仍然有效。
+2. `JournalEntryListSnapshot` 用当前搜索文本和选中分类对 `entries` 做单次派生。
+3. 搜索文本先 trim，非空时匹配标题、正文、分类、心情。
+4. 分类芯片通过 `selectedCategory` 过滤列表，chip 数量保持基于全部 entries 的分类分布。
+5. `EntryListView` 使用同一个快照渲染过滤结果、section 标题和分类计数。
+6. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
+7. 用户滑动删除或在 Mac Catalyst 下右键删除时调用 `ContentView.deleteEntry(_:)`。
+8. `JournalStore.delete(_:)` 从数组移除日记并保存。
+9. `ContentView.repairSelection` 确保选中项仍然有效。
 
 ### 2.5 Markdown 预览
 
@@ -205,7 +211,17 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：作为 `JournalEntry` 的持久化字段写入 JSON；改变旧有摘要、词数或小节识别语义。
 
-### 4.3 `JournalStore`
+### 4.3 `JournalEntryListSnapshot`
+
+职责：把 `[JournalEntry]`、搜索文本和选中分类转成列表展示所需的过滤结果、总数和分类计数。
+
+输入：日记数组、搜索文本、选中分类。
+
+输出：过滤后的日记、分类计数、section 标题。
+
+禁止：写入 JSON；持有缓存状态；改变搜索、分类筛选或分类计数语义。
+
+### 4.4 `JournalStore`
 
 职责：加载、保存、创建、更新、删除和排序日记。
 
@@ -215,7 +231,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在其他模块绕过它直接改写日记集合或本地文件。
 
-### 4.4 `MarkdownBlockParser`
+### 4.5 `MarkdownBlockParser`
 
 职责：把轻量 Markdown 字符串解析成块和 `###` 小节组。
 
@@ -225,7 +241,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在未更新 README、测试规范和 flow 文档的情况下改变现有语法含义。
 
-### 4.5 `JournalStatistics`
+### 4.6 `JournalStatistics`
 
 职责：把 `[JournalEntry]` 转成统计看板所需数据。
 
@@ -235,7 +251,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：在视图层复制统计逻辑。
 
-### 4.6 SwiftUI Views
+### 4.7 SwiftUI Views
 
 职责：展示状态、收集用户输入、调用上层 closure 或 binding。
 
@@ -248,7 +264,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ## 5. 关键边界
 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
-- 模型/规则层：`MarkdownBlockParser`、`JournalStatistics`、日期格式化和 Markdown snippet。
+- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化和 Markdown snippet。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
@@ -277,7 +293,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
-- 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用，但它只能是非持久化快照，不能改变 JSON schema。
+- 正文摘要、词数和 `###` 小节可用 `JournalEntryBodySummary` 单次派生复用；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建、统计和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
@@ -292,7 +308,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ## 9. 未来扩展点
 
-- 扩展 `MDJournalTests` 覆盖 `JournalStore` 可测试性、更多 Markdown 边界和数据迁移风险。
+- 扩展 `MDJournalTests` 覆盖更多 Markdown 边界、列表派生边界和数据迁移风险。
 - 增强 Markdown 预览语法，但保持轻量并同步测试。
 - 改善插入片段后的光标位置，目前菜单和工具栏都采用末尾追加式插入。
 - 增加导入/导出或备份功能。

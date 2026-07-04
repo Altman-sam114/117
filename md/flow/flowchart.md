@@ -24,6 +24,8 @@ flowchart TD
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
   Model --> Summary["JournalEntryBodySummary：非持久化摘要、词数、### 小节"]
+  Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
+  ListSnapshot --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
   Store --> Stats["JournalStatistics：每篇一次正文派生并单轮聚合统计"]
@@ -87,6 +89,8 @@ flowchart LR
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
+  Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数"]
+  ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip"]
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布"]
   Statistics --> Trend["最近 7 天趋势"]
