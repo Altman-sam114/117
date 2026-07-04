@@ -43,6 +43,7 @@ struct EntryEditorView: View {
             }
         }
         .background(Color(.systemBackground))
+        .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
     }
 
     private func header(isWideLayout: Bool, bodySummary: JournalEntryBodySummary) -> some View {
@@ -206,6 +207,8 @@ struct EntryEditorView: View {
     }
 
     private func insertSnippet(_ snippet: MarkdownSnippet) {
+        mode = .edit
+
         if !entry.body.isEmpty, !entry.body.hasSuffix("\n") {
             entry.body += "\n"
         }

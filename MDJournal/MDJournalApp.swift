@@ -28,6 +28,7 @@ enum JournalSceneID {
 private struct JournalCommands: Commands {
     @FocusedValue(\.createJournalEntryAction) private var createJournalEntryAction
     @FocusedValue(\.showJournalStatisticsAction) private var showJournalStatisticsAction
+    @FocusedValue(\.insertMarkdownSnippetAction) private var insertMarkdownSnippetAction
 
     var body: some Commands {
         CommandMenu("日记") {
@@ -42,6 +43,18 @@ private struct JournalCommands: Commands {
             }
             .disabled(showJournalStatisticsAction == nil)
         }
+
+        CommandMenu("插入 Markdown") {
+            ForEach(MarkdownSnippet.allCases) { snippet in
+                let shortcut = MarkdownSnippetCommandShortcut(snippet: snippet)
+
+                Button("插入\(snippet.title)") {
+                    insertMarkdownSnippetAction?(snippet)
+                }
+                .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.modifiers)
+                .disabled(insertMarkdownSnippetAction == nil)
+            }
+        }
     }
 }
 
@@ -53,6 +66,10 @@ private struct ShowJournalStatisticsActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+private struct InsertMarkdownSnippetActionKey: FocusedValueKey {
+    typealias Value = (MarkdownSnippet) -> Void
+}
+
 extension FocusedValues {
     var createJournalEntryAction: (() -> Void)? {
         get { self[CreateJournalEntryActionKey.self] }
@@ -62,5 +79,10 @@ extension FocusedValues {
     var showJournalStatisticsAction: (() -> Void)? {
         get { self[ShowJournalStatisticsActionKey.self] }
         set { self[ShowJournalStatisticsActionKey.self] = newValue }
+    }
+
+    var insertMarkdownSnippetAction: ((MarkdownSnippet) -> Void)? {
+        get { self[InsertMarkdownSnippetActionKey.self] }
+        set { self[InsertMarkdownSnippetActionKey.self] = newValue }
     }
 }

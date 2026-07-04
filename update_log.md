@@ -34,6 +34,57 @@
 
 ## 历史记录
 
+### v0.12 / Markdown 片段菜单命令
+
+日期：2026-07-04
+
+核心变更：
+
+- `MDJournalApp` 新增“插入 Markdown”菜单，复用 `MarkdownSnippet.allCases` 生成片段命令。
+- `EntryEditorView` 通过 focused scene value 暴露片段插入动作，菜单和工具栏复用同一追加式插入逻辑。
+- 片段插入时会切回编辑模式并聚焦正文，避免窄屏预览模式下触发菜单后正文静默变化。
+- 为片段菜单增加 `⌘⌥` 组合快捷键，避开已有 `⌘N` 新建入口和常见系统基础编辑快捷键。
+- `MarkdownSnippetTests` 补充片段顺序、全量 markdown contract 和快捷键映射唯一性测试。
+- GitHub Actions 结果包版本更新为 `v0.12`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournal/Utilities/MarkdownSnippet.swift`
+- `MDJournal/Utilities/MarkdownSnippetCommandShortcut.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.12（Markdown片段菜单命令）.md`
+- `update_log.md`
+
+本机验证：
+
+- `git diff --check`：通过。
+- `plutil -lint MDJournal.xcodeproj/project.pbxproj`：通过，输出 `MDJournal.xcodeproj/project.pbxproj: OK`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`：通过，输出 `yaml ok`。
+- `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`：通过。
+- Mac Catalyst build：通过，命令使用 `-destination 'generic/platform=macOS,variant=Mac Catalyst'` 和 `/private/tmp/mdjournal-derived-data-v012-mac-2`，结果 `** BUILD SUCCEEDED **`。
+- 通用 iOS build：通过，命令使用 `-destination 'generic/platform=iOS'` 和 `/private/tmp/mdjournal-derived-data-v012-ios-2`，结果 `** BUILD SUCCEEDED **`。
+- 本机 iOS XCTest：已尝试，未启动；`CoreSimulatorService` 连接失效且当前没有匹配 `iPhone 16` simulator。
+- 本机 Mac Catalyst XCTest：已尝试，未启动；`MDJournalTests` 不支持 `My Mac` 的 `com.apple.platform.macosx` 测试平台。
+- `xcrun simctl list devices available`：当前 `xcode-select` 指向 CommandLineTools 时找不到 `simctl`；显式设置 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 后仍因 `CoreSimulatorService connection became invalid` 无法列出设备。
+
+云端验证：
+
+- 待 push 后由 GitHub Actions `MD Journal CI Results` 生成 v0.12 artifact，再由 Agent C 下载复判。
+
+遗留事项：
+
+- 本轮仍采用末尾追加式片段插入，不支持光标位置插入或包裹选中文本。
+- 后续可继续做列表搜索/分类筛选派生单次化，或在明确选区策略后改进片段插入位置。
+
 ### v0.11 / Mac Catalyst 统计独立窗口
 
 日期：2026-07-04

@@ -22,6 +22,7 @@
 		A1000000000000000000000D /* MarkdownToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* MarkdownToolbar.swift */; };
 		A1000000000000000000000E /* JournalStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* JournalStatistics.swift */; };
 		A1000000000000000000000F /* StatisticsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* StatisticsDashboardView.swift */; };
+		A10000000000000000000010 /* MarkdownSnippetCommandShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */; };
 		B10000000000000000000001 /* JournalEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* JournalEntryTests.swift */; };
 		B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* MarkdownBlockParserTests.swift */; };
 		B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* JournalStatisticsTests.swift */; };
@@ -56,6 +57,7 @@
 		A2000000000000000000000F /* MDJournal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MDJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000010 /* JournalStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatistics.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* StatisticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsDashboardView.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSnippetCommandShortcut.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* JournalEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* MarkdownBlockParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* JournalStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatisticsTests.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				A20000000000000000000010 /* JournalStatistics.swift */,
 				A20000000000000000000006 /* MarkdownBlockParser.swift */,
 				A20000000000000000000007 /* MarkdownSnippet.swift */,
+				A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -280,6 +283,7 @@
 				A1000000000000000000000D /* MarkdownToolbar.swift in Sources */,
 				A1000000000000000000000E /* JournalStatistics.swift in Sources */,
 				A1000000000000000000000F /* StatisticsDashboardView.swift in Sources */,
+				A10000000000000000000010 /* MarkdownSnippetCommandShortcut.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
