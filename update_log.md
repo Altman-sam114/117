@@ -62,7 +62,13 @@
 
 验证结果：
 
-- 本轮最终验收只以 GitHub Actions 回传结果包为准；实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+- 实现 commit：`a36c8b196426aa91412555e13f5e81377e04e1ae`（`v0.17 增加 Mac 一键运行入口`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28725868018`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.17-main-a36c8b1-run28725868018-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28725868018/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.17`、`branch=main`、`commitSha=a36c8b196426aa91412555e13f5e81377e04e1ae`、`runId=28725868018`、`runAttempt=1` 与最新 `origin/main` 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
+- 本轮最终验收只采用云端回传结果包；不把本机 GUI 启动作为验收依据。
 
 遗留事项：
 
