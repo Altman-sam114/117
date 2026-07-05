@@ -34,6 +34,43 @@
 
 ## 历史记录
 
+### v0.26 / Markdown 有序列表插入入口
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownSnippet` 新增“有序列表”片段，默认插入 `1. `，正文工具栏、Mac Catalyst “插入 Markdown”菜单和键盘快捷键自动获得入口。
+- `MarkdownSnippetInsertion` 新增有序列表选区规则，选中多行时转换为从 `1. ` 开始递增编号的行，并保留尾随换行处理。
+- `MarkdownSnippetCommandShortcut` 为有序列表片段分配 `⌘⌥O`，继续避开 `⌘N` 新建和已有写作/片段命令。
+- `MarkdownSnippetTests` 扩展覆盖片段数量、顺序、markdown contract、有序列表多行插入和尾随换行。
+- GitHub Actions 结果包版本更新为 `v0.26`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownSnippet.swift`
+- `MDJournal/Utilities/MarkdownSnippetInsertion.swift`
+- `MDJournal/Utilities/MarkdownSnippetCommandShortcut.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.26（有序列表插入入口）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+
+遗留事项：
+
+- 本轮只补齐 `数字. ` 有序列表片段入口，不支持 `1) ` 变体、嵌套列表或对已有有序列表自动重编号。
+- 统计看板分布最大值预计算仍作为后续性能候选。
+
 ### v0.25 / 正文输入静态警告清理
 
 日期：2026-07-05

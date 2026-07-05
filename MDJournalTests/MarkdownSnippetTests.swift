@@ -4,7 +4,7 @@ import SwiftUI
 
 final class MarkdownSnippetTests: XCTestCase {
     func testAllSnippetsHaveVisibleMetadataAndMarkdown() {
-        XCTAssertEqual(MarkdownSnippet.allCases.count, 8)
+        XCTAssertEqual(MarkdownSnippet.allCases.count, 9)
 
         for snippet in MarkdownSnippet.allCases {
             XCTAssertFalse(snippet.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -55,7 +55,7 @@ final class MarkdownSnippetTests: XCTestCase {
     func testSnippetOrderMatchesToolbarAndMenuOrder() {
         XCTAssertEqual(
             MarkdownSnippet.allCases,
-            [.heading, .bold, .italic, .quote, .bullet, .checklist, .code, .divider]
+            [.heading, .bold, .italic, .quote, .bullet, .orderedList, .checklist, .code, .divider]
         )
     }
 
@@ -65,6 +65,7 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(MarkdownSnippet.italic.markdown, "*想法*")
         XCTAssertEqual(MarkdownSnippet.quote.markdown, "> 记下一句话\n")
         XCTAssertEqual(MarkdownSnippet.bullet.markdown, "- ")
+        XCTAssertEqual(MarkdownSnippet.orderedList.markdown, "1. ")
         XCTAssertEqual(MarkdownSnippet.checklist.markdown, "- [ ] ")
         XCTAssertEqual(MarkdownSnippet.code.markdown, "```\n\n```\n")
         XCTAssertEqual(MarkdownSnippet.divider.markdown, "---\n")
@@ -120,6 +121,32 @@ final class MarkdownSnippetTests: XCTestCase {
         )
 
         let expectedReplacement = "- [ ] 第一行\n- [ ] 第二行\n"
+        XCTAssertEqual(result.body, "\(expectedReplacement)未选")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionPrefixesSelectedLinesWithOrderedNumbers() {
+        let body = "第一行\n第二行"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .orderedList,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+
+        XCTAssertEqual(result.body, "1. 第一行\n2. 第二行")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
+    func testSnippetInsertionPreservesTrailingNewlineWithoutExtraOrderedItem() {
+        let selectedText = "第一行\n第二行\n"
+        let body = "\(selectedText)未选"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .orderedList,
+            to: body,
+            selectedRange: NSRange(location: 0, length: selectedText.utf16.count)
+        )
+
+        let expectedReplacement = "1. 第一行\n2. 第二行\n"
         XCTAssertEqual(result.body, "\(expectedReplacement)未选")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
     }

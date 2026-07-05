@@ -51,6 +51,8 @@ struct MarkdownSnippetInsertion {
             return prefixedLineReplacement(prefix: "> ", selectedText: selectedText)
         case .bullet:
             return prefixedLineReplacement(prefix: "- ", selectedText: selectedText)
+        case .orderedList:
+            return orderedListReplacement(selectedText: selectedText)
         case .checklist:
             return prefixedLineReplacement(prefix: "- [ ] ", selectedText: selectedText)
         case .code:
@@ -73,7 +75,7 @@ struct MarkdownSnippetInsertion {
             return placeholderReplacement(text: snippet.markdown, placeholder: "想法")
         case .quote:
             return placeholderReplacement(text: snippet.markdown, placeholder: "记下一句话")
-        case .bullet, .checklist, .divider:
+        case .bullet, .orderedList, .checklist, .divider:
             return Replacement(
                 text: snippet.markdown,
                 selectedRange: emptySelectionRange(at: snippet.markdown.utf16.count, in: snippet.markdown)
@@ -103,6 +105,27 @@ struct MarkdownSnippetInsertion {
 
         var text = lines
             .map { "\(prefix)\($0)" }
+            .joined(separator: "\n")
+        if preservesTrailingNewline {
+            text += "\n"
+        }
+
+        return Replacement(
+            text: text,
+            selectedRange: NSRange(location: 0, length: text.utf16.count)
+        )
+    }
+
+    private static func orderedListReplacement(selectedText: String) -> Replacement {
+        var lines = selectedText.components(separatedBy: "\n")
+        let preservesTrailingNewline = selectedText.hasSuffix("\n")
+        if preservesTrailingNewline {
+            lines.removeLast()
+        }
+
+        var text = lines
+            .enumerated()
+            .map { index, line in "\(index + 1). \(line)" }
             .joined(separator: "\n")
         if preservesTrailingNewline {
             text += "\n"

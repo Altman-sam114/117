@@ -29,6 +29,8 @@ struct MarkdownSnippetCommandShortcut: Equatable {
             return "q"
         case .bullet:
             return "l"
+        case .orderedList:
+            return "o"
         case .checklist:
             return "t"
         case .code:

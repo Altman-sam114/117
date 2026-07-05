@@ -6,6 +6,7 @@ enum MarkdownSnippet: String, CaseIterable, Identifiable {
     case italic
     case quote
     case bullet
+    case orderedList
     case checklist
     case code
     case divider
@@ -24,6 +25,8 @@ enum MarkdownSnippet: String, CaseIterable, Identifiable {
             return "引用"
         case .bullet:
             return "列表"
+        case .orderedList:
+            return "有序列表"
         case .checklist:
             return "待办"
         case .code:
@@ -45,6 +48,8 @@ enum MarkdownSnippet: String, CaseIterable, Identifiable {
             return "quote.opening"
         case .bullet:
             return "list.bullet"
+        case .orderedList:
+            return "list.number"
         case .checklist:
             return "checklist"
         case .code:
@@ -66,6 +71,8 @@ enum MarkdownSnippet: String, CaseIterable, Identifiable {
             return "> 记下一句话\n"
         case .bullet:
             return "- "
+        case .orderedList:
+            return "1. "
         case .checklist:
             return "- [ ] "
         case .code:

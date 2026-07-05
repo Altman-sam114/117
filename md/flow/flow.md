@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含有序列表多行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -75,8 +75,8 @@ JournalEntry.body
 4. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
 5. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
 6. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
-7. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`。
-8. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本。
+7. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+8. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；有序列表会把选中多行转换为从 `1. ` 开始递增编号的行。
 9. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
 10. binding setter 调用 `JournalStore.update(_:)`。
 11. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
@@ -126,7 +126,7 @@ JournalEntry.body
 3. 菜单“新建日记”调用 `ContentView.createEntry()`，并承载 `⌘N` 快捷键。
 4. 菜单“显示统计”调用 `ContentView.showStatistics()`；Mac Catalyst 下打开独立统计窗口，iOS/iPadOS 下复用统计 sheet。
 5. `EntryEditorView` 通过 focused scene value 暴露 Markdown 片段插入动作。
-6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段。
+6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文和显示/隐藏预览提供桌面菜单与快捷键入口。
 9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口；插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
@@ -299,7 +299,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.9 `MarkdownSnippetInsertion`
 
-职责：根据正文、Markdown 片段和 UTF-16 选区生成新的正文和插入后的选区。
+职责：根据正文、Markdown 片段和 UTF-16 选区生成新的正文和插入后的选区；有序列表片段会把选中多行转换为从 `1. ` 开始递增编号的行。
 
 输入：`JournalEntry.body`、`MarkdownSnippet`、正文 `NSRange` 光标/选区。
 
@@ -365,7 +365,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 详情编辑器：修改标题、日期、分类、心情、正文，按光标/选区插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段，包含有序列表入口。
 - 本地 Mac 运行：使用 `./script/build_and_run.sh` 或 Codex `Run` action 构建并启动 Mac Catalyst app。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
