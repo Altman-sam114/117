@@ -11,7 +11,7 @@ struct EntryListView: View {
     @State private var selectedCategory: JournalEntry.Category?
 
     var body: some View {
-        let stats = JournalStatistics(entries: entries)
+        let overviewSnapshot = JournalListOverviewSnapshot(entries: entries)
         let listSnapshot = JournalEntryListSnapshot(
             entries: entries,
             searchText: searchText,
@@ -20,7 +20,7 @@ struct EntryListView: View {
 
         List(selection: $selection) {
             Section {
-                overviewCard(stats)
+                overviewCard(overviewSnapshot)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
@@ -98,14 +98,14 @@ struct EntryListView: View {
         .ignoresSafeArea()
     }
 
-    private func overviewCard(_ stats: JournalStatistics) -> some View {
+    private func overviewCard(_ overviewSnapshot: JournalListOverviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("记录册")
                         .font(.title3.weight(.bold))
 
-                    Text(stats.insightText)
+                    Text(overviewSnapshot.insightText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -119,9 +119,9 @@ struct EntryListView: View {
             }
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 10)], spacing: 10) {
-                SummaryBadge(title: "日记", value: "\(stats.totalEntries)", systemImage: "doc.text")
-                SummaryBadge(title: "连续", value: "\(stats.recentStreak) 天", systemImage: "flame")
-                SummaryBadge(title: "词数", value: "\(stats.totalWords)", systemImage: "text.word.spacing")
+                SummaryBadge(title: "日记", value: "\(overviewSnapshot.totalEntries)", systemImage: "doc.text")
+                SummaryBadge(title: "连续", value: "\(overviewSnapshot.recentStreak) 天", systemImage: "flame")
+                SummaryBadge(title: "词数", value: "\(overviewSnapshot.totalWords)", systemImage: "text.word.spacing")
             }
         }
         .padding(16)

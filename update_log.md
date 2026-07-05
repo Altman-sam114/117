@@ -34,6 +34,43 @@
 
 ## 历史记录
 
+### v0.21 / 列表概览轻量统计快照
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `JournalListOverviewSnapshot`，只为列表首页概览卡计算总篇数、总词数、最近连续天数和概览洞察。
+- `EntryListView` 顶部概览卡改用轻量快照，不再在列表 `body` 中构造完整 `JournalStatistics`。
+- `StatisticsDashboardView` 和完整统计看板继续使用 `JournalStatistics`，统计看板语义不变。
+- 新增 `JournalListOverviewSnapshotTests`，对照 `JournalStatistics` 覆盖空状态、概览字段一致性、连续记录 insight、低小节覆盖率 insight 和主导分类 tie-break。
+- GitHub Actions 结果包版本更新为 `v0.21`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/JournalListOverviewSnapshot.swift`
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournalTests/JournalListOverviewSnapshotTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.21（列表概览轻量统计快照）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
+- 实现 commit、GitHub Actions run、artifact 名称和 Agent C 复判结果待本轮 push 后记录。
+
+遗留事项：
+
+- 本轮不改变完整统计看板、不引入缓存失效机制、不改 `JournalStore` 保存链路。
+- 后续可继续优化正文输入 undo 分组和局部文本替换。
+
 ### v0.20 / Markdown 行缩进 Tab 输入效率
 
 日期：2026-07-05

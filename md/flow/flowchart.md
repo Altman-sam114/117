@@ -40,6 +40,8 @@ flowchart TD
   Model --> Summary["JournalEntryBodySummary：非持久化摘要、词数、### 小节"]
   Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
   ListSnapshot --> List
+  Store --> ListOverview["JournalListOverviewSnapshot：轻量派生总篇数、总词数、连续天数和洞察"]
+  ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown 和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
   Store --> Stats["JournalStatistics：每篇一次正文派生并单轮聚合统计"]
@@ -134,6 +136,8 @@ flowchart LR
   Entries["[JournalEntry] 日记数组"] --> Statistics
   Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数"]
   ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip"]
+  Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
+  ListOverview2 --> ListView
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布"]
   Statistics --> Trend["最近 7 天趋势"]
