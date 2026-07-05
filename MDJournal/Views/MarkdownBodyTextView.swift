@@ -78,7 +78,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         func textView(
             _ textView: UITextView,
             shouldChangeTextIn range: NSRange,
-            replacementText replacementText: String
+            replacementText: String
         ) -> Bool {
             guard textView.markedTextRange == nil else { return true }
 

@@ -34,6 +34,35 @@
 
 ## 历史记录
 
+### v0.25 / 正文输入静态警告清理
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownBodyTextView.Coordinator` 的 `UITextViewDelegate.textView(_:shouldChangeTextIn:replacementText:)` 方法签名移除重复本地参数标签，保留 `replacementText:` 外部标签和 delegate selector。
+- 普通 Tab fallback、Markdown 回车续写、IME marked text 跳过、正文 binding 和选区同步逻辑保持不变。
+- GitHub Actions 结果包版本更新为 `v0.25`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、本轮 Agent A 提示词和本日志。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/prompt/v0（写作效率）/v0.25（清理正文输入静态警告）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+
+遗留事项：
+
+- 本轮只清理 `replacementText` 重复参数标签 warning，不重构 `MarkdownBodyTextView` 焦点调度、输入规则或保存链路。
+
 ### v0.24 / Markdown 有序列表预览
 
 日期：2026-07-05
