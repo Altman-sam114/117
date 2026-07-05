@@ -62,7 +62,13 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 云端 run、artifact 和 Agent C 复判结果待本轮实现 commit push 后补充。
+- 实现 commit：`7a7ac3636f77da73dbf4a247cceb2eb2d1e9157f`（`v0.23 支持 Markdown 有序列表续写`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28734113176`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.23-main-7a7ac36-run28734113176-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28734113176/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.23`、`branch=main`、`commitSha=7a7ac3636f77da73dbf4a247cceb2eb2d1e9157f`、`runId=28734113176`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownLineContinuationTests` 已编译并执行，新增有序列表编号递增、多位编号、缩进、空项退出、行中拆分、fenced code、非折叠选区、普通输入、溢出编号和 UTF-16/emoji 光标边界用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
