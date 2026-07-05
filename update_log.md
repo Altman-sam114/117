@@ -64,7 +64,13 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
-- 实现 commit、GitHub Actions run、artifact 名称和 Agent C 复判结果待本轮 push 后记录。
+- 实现 commit：`ba9c35b07ddcbb5f23b8523bac2de40a9f0f84fb`（`v0.20 支持 Markdown 行缩进`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28729565769`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.20-main-ba9c35b-run28729565769-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28729565769/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.20`、`branch=main`、`commitSha=ba9c35b07ddcbb5f23b8523bac2de40a9f0f84fb`、`runId=28729565769`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownLineIndentationTests` 已编译并执行，8 个新增用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
