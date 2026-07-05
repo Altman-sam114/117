@@ -34,6 +34,41 @@
 
 ## 历史记录
 
+### v0.22 / Markdown 引用回车续写
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownLineContinuation` 扩展支持 `> ` 引用行回车续写，非空引用行会延续同缩进引用前缀。
+- 空引用行按回车会删除当前 `> ` 前缀并退出引用，行为与空列表项退出当前结构保持一致。
+- 光标在引用行中间按回车时会拆分当前行，并让后半段继续处在引用中。
+- 新增 `MarkdownLineContinuationTests` 引用用例，覆盖引用续写、空引用退出、缩进引用、行中拆分、fenced code、非折叠选区、普通输入和 UTF-16/emoji 光标边界。
+- GitHub Actions 结果包版本更新为 `v0.22`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineContinuation.swift`
+- `MDJournalTests/MarkdownLineContinuationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.22（Markdown引用回车续写）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
+- 实现 commit、GitHub Actions run、artifact 名称和 Agent C 复判结果待本轮 push 后记录。
+
+遗留事项：
+
+- 本轮不支持裸 `>`、有序列表续写或新增 Markdown 预览语法。
+- 后续可继续优化统计看板分布比例预计算和正文输入 undo 分组。
+
 ### v0.21 / 列表概览轻量统计快照
 
 日期：2026-07-05

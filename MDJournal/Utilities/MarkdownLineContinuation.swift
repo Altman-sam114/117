@@ -6,7 +6,7 @@ struct MarkdownLineContinuation {
         let selectedRange: NSRange
     }
 
-    private struct ListPrefix {
+    private struct LinePrefix {
         let continuation: String
         let removableRange: Range<String.Index>
         let contentBeforeCursor: Substring
@@ -27,22 +27,22 @@ struct MarkdownLineContinuation {
         guard !isInsideFencedCodeBlock(before: currentLineStart, in: body) else { return nil }
 
         let currentLineEnd = lineEnd(after: cursor, in: body)
-        let linePrefix = body[currentLineStart..<cursor]
-        guard let listPrefix = listPrefix(in: linePrefix) else { return nil }
+        let currentLinePrefix = body[currentLineStart..<cursor]
+        guard let continuationPrefix = continuationPrefix(in: currentLinePrefix) else { return nil }
 
         let lineSuffix = body[cursor..<currentLineEnd]
-        if isEmptyListItem(listPrefix: listPrefix, lineSuffix: lineSuffix) {
-            return removingListPrefix(listPrefix, from: body)
+        if isEmptyContinuationLine(prefix: continuationPrefix, lineSuffix: lineSuffix) {
+            return removingContinuationPrefix(continuationPrefix, from: body)
         }
 
-        return continuingList(
-            with: listPrefix.continuation,
+        return continuingLine(
+            with: continuationPrefix.continuation,
             in: body,
             at: cursor
         )
     }
 
-    private static func listPrefix(in linePrefix: Substring) -> ListPrefix? {
+    private static func continuationPrefix(in linePrefix: Substring) -> LinePrefix? {
         var markerStart = linePrefix.startIndex
         while markerStart < linePrefix.endIndex {
             let character = linePrefix[markerStart]
@@ -55,8 +55,17 @@ struct MarkdownLineContinuation {
 
         if isChecklistPrefix(rest) {
             let markerEnd = linePrefix.index(markerStart, offsetBy: 6)
-            return ListPrefix(
+            return LinePrefix(
                 continuation: "\(indentation)- [ ] ",
+                removableRange: linePrefix.startIndex..<markerEnd,
+                contentBeforeCursor: linePrefix[markerEnd...]
+            )
+        }
+
+        if rest.hasPrefix("> ") {
+            let markerEnd = linePrefix.index(markerStart, offsetBy: 2)
+            return LinePrefix(
+                continuation: "\(indentation)> ",
                 removableRange: linePrefix.startIndex..<markerEnd,
                 contentBeforeCursor: linePrefix[markerEnd...]
             )
@@ -72,7 +81,7 @@ struct MarkdownLineContinuation {
         }
 
         let markerEnd = rest.index(after: spaceIndex)
-        return ListPrefix(
+        return LinePrefix(
             continuation: "\(indentation)\(marker) ",
             removableRange: linePrefix.startIndex..<markerEnd,
             contentBeforeCursor: linePrefix[markerEnd...]
@@ -83,15 +92,15 @@ struct MarkdownLineContinuation {
         text.hasPrefix("- [ ] ") || text.hasPrefix("- [x] ") || text.hasPrefix("- [X] ")
     }
 
-    private static func isEmptyListItem(listPrefix: ListPrefix, lineSuffix: Substring) -> Bool {
-        String(listPrefix.contentBeforeCursor).trimmingCharacters(in: .whitespaces).isEmpty
+    private static func isEmptyContinuationLine(prefix: LinePrefix, lineSuffix: Substring) -> Bool {
+        String(prefix.contentBeforeCursor).trimmingCharacters(in: .whitespaces).isEmpty
             && String(lineSuffix).trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private static func removingListPrefix(_ listPrefix: ListPrefix, from body: String) -> Result {
-        let selectedLocation = NSRange(body.startIndex..<listPrefix.removableRange.lowerBound, in: body).length
+    private static func removingContinuationPrefix(_ prefix: LinePrefix, from body: String) -> Result {
+        let selectedLocation = NSRange(body.startIndex..<prefix.removableRange.lowerBound, in: body).length
         var updatedBody = body
-        updatedBody.replaceSubrange(listPrefix.removableRange, with: "")
+        updatedBody.replaceSubrange(prefix.removableRange, with: "")
 
         return Result(
             body: updatedBody,
@@ -99,7 +108,7 @@ struct MarkdownLineContinuation {
         )
     }
 
-    private static func continuingList(
+    private static func continuingLine(
         with continuation: String,
         in body: String,
         at cursor: String.Index
