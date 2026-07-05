@@ -65,7 +65,13 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
-- 实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+- 实现 commit：`866e691254932b0f45e24df4f5d3dfafe9ecb1a9`（`v0.18 支持 Markdown 列表回车续写`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28726671477`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.18-main-866e691-run28726671477-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28726671477/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.18`、`branch=main`、`commitSha=866e691254932b0f45e24df4f5d3dfafe9ecb1a9`、`runId=28726671477`、`runAttempt=1` 与最新 `origin/main` 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownLineContinuationTests` 已编译并执行，13 个新增用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
