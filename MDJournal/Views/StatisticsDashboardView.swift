@@ -132,7 +132,7 @@ struct StatisticsDashboardView: View {
                     CompactNumber(title: "篇均词数", value: "\(stats.averageWords)")
                 }
 
-                SevenDayBarChart(days: stats.lastSevenDays)
+                SevenDayBarChart(days: stats.lastSevenDays, maxWords: stats.maxDailyWordCount)
             }
         }
     }
@@ -302,10 +302,7 @@ private struct CompactNumber: View {
 
 private struct SevenDayBarChart: View {
     let days: [JournalStatistics.DailyWriting]
-
-    private var maxWords: Int {
-        max(days.map(\.wordCount).max() ?? 0, 1)
-    }
+    let maxWords: Int
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 9) {

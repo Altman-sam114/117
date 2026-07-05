@@ -41,6 +41,7 @@ struct JournalStatistics {
     let maxCategoryEntryCount: Int
     let maxMoodEntryCount: Int
     let lastSevenDays: [DailyWriting]
+    let maxDailyWordCount: Int
     let latestEntryDate: Date?
 
     private struct EntryAggregate {
@@ -133,7 +134,7 @@ struct JournalStatistics {
         moodBreakdown = moodBreakdownValue
         maxMoodEntryCount = max(moodBreakdownValue.map(\.entryCount).max() ?? 0, 1)
 
-        lastSevenDays = (0..<7).reversed().compactMap { offset in
+        let lastSevenDaysValue = (0..<7).reversed().compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else {
                 return nil
             }
@@ -146,6 +147,8 @@ struct JournalStatistics {
                 wordCount: total.wordCount
             )
         }
+        lastSevenDays = lastSevenDaysValue
+        maxDailyWordCount = max(lastSevenDaysValue.map(\.wordCount).max() ?? 0, 1)
     }
 
     var dominantCategory: CategoryBreakdown? {

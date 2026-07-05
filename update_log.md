@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值派生。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值和 7 天趋势最大词数派生。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,39 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.28 / 最近 7 天趋势最大词数预计算
+
+日期：2026-07-05
+
+核心变更：
+
+- `JournalStatistics` 新增最近 7 天趋势最大词数派生值，在统计初始化阶段随 7 天趋势数组一次性计算，并保持空状态分母下限为 `1`。
+- `StatisticsDashboardView` 的 7 天趋势柱状图直接消费 `JournalStatistics` 的预计算最大词数，不再在每根柱子计算高度时重复扫描 7 天数组。
+- `JournalStatisticsTests` 扩展覆盖空状态最大词数和固定样本最大词数 contract。
+- GitHub Actions 结果包版本更新为 `v0.28`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图、本轮 Agent A 提示词和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/JournalStatistics.swift`
+- `MDJournal/Views/StatisticsDashboardView.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.28（最近7天趋势最大词数预计算）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后，由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只处理最近 7 天趋势最大词数预计算，不改变趋势图日期窗口、排序、柱高公式或 UI 样式。
 
 ### v0.27 / 统计看板分布最大值预计算
 

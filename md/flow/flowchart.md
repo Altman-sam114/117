@@ -44,7 +44,7 @@ flowchart TD
   ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown、有序列表和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
-  Store --> Stats["JournalStatistics：每篇一次正文派生，单轮聚合统计和分布最大值"]
+  Store --> Stats["JournalStatistics：每篇一次正文派生，单轮聚合统计、分布最大值和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
@@ -140,7 +140,7 @@ flowchart LR
   ListOverview2 --> ListView
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布和分布最大值"]
-  Statistics --> Trend["最近 7 天趋势"]
+  Statistics --> Trend["最近 7 天趋势和趋势最大词数"]
   Statistics --> Coverage["### 小节覆盖率"]
   Metrics --> Dashboard["统计看板"]
   Distributions --> Dashboard

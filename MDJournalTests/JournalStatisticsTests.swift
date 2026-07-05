@@ -20,6 +20,7 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertEqual(stats.wordsThisWeek, 0)
         XCTAssertEqual(stats.maxCategoryEntryCount, 1)
         XCTAssertEqual(stats.maxMoodEntryCount, 1)
+        XCTAssertEqual(stats.maxDailyWordCount, 1)
         XCTAssertEqual(stats.lastSevenDays.map(\.entryCount), Array(repeating: 0, count: 7))
         XCTAssertNil(stats.latestEntryDate)
     }
@@ -97,6 +98,7 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertEqual(stats.wordsThisWeek, 16)
         XCTAssertEqual(stats.lastSevenDays.map(\.entryCount), [0, 1, 0, 1, 0, 1, 2])
         XCTAssertEqual(stats.lastSevenDays.map(\.wordCount), [0, 3, 0, 2, 0, 5, 9])
+        XCTAssertEqual(stats.maxDailyWordCount, 9)
 
         let daily = try XCTUnwrap(stats.categoryBreakdown.first { $0.category == .daily })
         XCTAssertEqual(daily.entryCount, 3)
