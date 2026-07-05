@@ -63,11 +63,19 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0。
+- 实现 commit：`4fec9b32e37e9ed8aab84bb06bbf3aaa1b53e739`（`v0.24 支持 Markdown 有序列表预览`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28735275349`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.24-main-4fec9b3-run28735275349-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28735275349/` 复判，目录大小约 `1.3M`。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.24`、`branch=main`、`commitSha=4fec9b32e37e9ed8aab84bb06bbf3aaa1b53e739`、`runId=28735275349`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownBlockParserTests` 已编译并执行，新增有序列表混合块 flush、代码块内不解析、非法 `1.` / `1) ` 变体、leading whitespace trim 和空有序项用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
 - 本轮只支持 `数字. ` 有序列表预览，不支持 `1) ` 变体、嵌套列表、整段自动重编号、工具栏按钮或菜单项。
+- `static-checks.log` 仍记录 `MarkdownBodyTextView.swift` 中既有 `replacementText` 重复参数标签 warning；CI 通过且该 warning 不属于 v0.24 有序列表预览改动范围，后续可单独清理。
 
 ### v0.23 / Markdown 有序列表回车续写
 
