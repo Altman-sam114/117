@@ -15,6 +15,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
         textView.font = Self.bodyFont
+        Self.configureMarkdownInputTraits(textView)
         textView.adjustsFontForContentSizeCategory = true
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
@@ -33,6 +34,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         if textView.font != Self.bodyFont {
             textView.font = Self.bodyFont
         }
+        Self.configureMarkdownInputTraits(textView)
 
         let hasMarkedText = textView.markedTextRange != nil
 
@@ -115,6 +117,12 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         let baseFont = UIFont.preferredFont(forTextStyle: .body)
         let descriptor = baseFont.fontDescriptor.withDesign(.rounded) ?? baseFont.fontDescriptor
         return UIFont(descriptor: descriptor, size: baseFont.pointSize)
+    }
+
+    static func configureMarkdownInputTraits(_ textView: UITextView) {
+        textView.smartDashesType = .no
+        textView.smartQuotesType = .no
+        textView.smartInsertDeleteType = .no
     }
 
     private static func clampedRange(_ range: NSRange, in text: String) -> NSRange {

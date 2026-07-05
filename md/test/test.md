@@ -159,7 +159,7 @@ python3 -m json.tool path/to/file.json >/dev/null
 
 - 新增或修改 `MDJournalTests`。
 - 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics`、`MarkdownSnippet`、`MarkdownSnippetInsertion`、`MarkdownLineContinuation` 或 `EditorWritingCommand` 等已有 XCTest 覆盖的核心规则。
-- 修改 `MarkdownBodyTextView`、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，至少尝试本机 XCTest；CoreSimulator 不可用时记录错误并以 CI artifact 为准。
+- 修改 `MarkdownBodyTextView`、正文输入 traits、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，至少尝试本机 XCTest；CoreSimulator 不可用时记录错误并以 CI artifact 为准。
 - 若人工明确要求不跑本机构建、运行或测试，则跳过本机 XCTest 尝试，并在交付中说明最终只采用 GitHub Actions artifact。
 - 修改 `JournalStore` 加载、创建、更新、删除、保存、排序、节流或 flush 行为。
 - 修改 Xcode scheme、target 或 CI test 命令。
@@ -245,7 +245,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.18",
+  "version": "v0.19",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -278,7 +278,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.18-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.19-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判

@@ -34,6 +34,41 @@
 
 ## 历史记录
 
+### v0.19 / Markdown 安全输入配置
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownBodyTextView` 新增集中输入配置，禁用 `smartDashesType`、`smartQuotesType` 和 `smartInsertDeleteType`。
+- `makeUIView` 和 `updateUIView` 都会应用 Markdown 输入 traits，避免正文输入控件被外部状态重置后恢复系统自动替换。
+- 新增 `MarkdownTextInputConfigurationTests`，覆盖配置方法首次应用和重复应用。
+- GitHub Actions 结果包版本更新为 `v0.19`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownTextInputConfigurationTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.19（Markdown安全输入配置）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
+- 实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮只禁用三类会改写 Markdown 标记的智能输入替换，不关闭中文 IME、拼写检查、自动大写或 autocorrection。
+- 后续仍可继续优化 Tab/Shift-Tab 缩进和更细的 undo 行为。
+
 ### v0.18 / Markdown 列表回车续写
 
 日期：2026-07-05
