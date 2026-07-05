@@ -12,6 +12,8 @@ final class MarkdownBlockParserTests: XCTestCase {
             "> 引文",
             "- 甲",
             "* 乙",
+            "1. 第一项",
+            "2. 第二项",
             "- [ ] 待办",
             "- [x] 完成",
             "---",
@@ -29,12 +31,44 @@ final class MarkdownBlockParserTests: XCTestCase {
                 .paragraph("第一段\n第二段"),
                 .quote("引文"),
                 .unorderedList(["甲", "乙"]),
+                .orderedList([
+                    OrderedListItem(number: "1", text: "第一项"),
+                    OrderedListItem(number: "2", text: "第二项")
+                ]),
                 .checklist([
                     ChecklistItem(isChecked: false, text: "待办"),
                     ChecklistItem(isChecked: true, text: "完成")
                 ]),
                 .divider,
                 .code("let value = 1")
+            ]
+        )
+    }
+
+    func testParseFlushesOrderedListsBetweenBlockTypes() {
+        let markdown = [
+            "1. 第一项",
+            "2. 第二项",
+            "",
+            "正文",
+            "3. 第三项",
+            "- 无序",
+            "- [ ] 待办",
+            "4. 第四项"
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(
+            MarkdownBlockParser.parse(markdown),
+            [
+                .orderedList([
+                    OrderedListItem(number: "1", text: "第一项"),
+                    OrderedListItem(number: "2", text: "第二项")
+                ]),
+                .paragraph("正文"),
+                .orderedList([OrderedListItem(number: "3", text: "第三项")]),
+                .unorderedList(["无序"]),
+                .checklist([ChecklistItem(isChecked: false, text: "待办")]),
+                .orderedList([OrderedListItem(number: "4", text: "第四项")])
             ]
         )
     }
@@ -47,6 +81,54 @@ final class MarkdownBlockParserTests: XCTestCase {
         ].joined(separator: "\n")
 
         XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\nprint(value)")])
+    }
+
+    func testParseKeepsOrderedListMarkersInsideCodeBlock() {
+        let markdown = [
+            "```",
+            "1. code",
+            "2. still code",
+            "```",
+            "1. 正文列表"
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(
+            MarkdownBlockParser.parse(markdown),
+            [
+                .code("1. code\n2. still code"),
+                .orderedList([OrderedListItem(number: "1", text: "正文列表")])
+            ]
+        )
+    }
+
+    func testParseRejectsUnsupportedOrderedListMarkers() {
+        let markdown = [
+            "1.",
+            "1) 不是有序列表",
+            "abc. 也不是"
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(
+            MarkdownBlockParser.parse(markdown),
+            [.paragraph("1.\n1) 不是有序列表\nabc. 也不是")]
+        )
+    }
+
+    func testParseTrimsLeadingWhitespaceAndAllowsEmptyOrderedListItems() {
+        let markdown = [
+            "  9. 缩进项",
+            "10. "
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(
+            MarkdownBlockParser.parse(markdown),
+            [
+                .orderedList([
+                    OrderedListItem(number: "9", text: "缩进项"),
+                    OrderedListItem(number: "10", text: "")
+                ])
+            ]
+        )
     }
 
     func testGroupedByLevelThreePreservesIntroAndSections() {
@@ -77,6 +159,9 @@ final class MarkdownBlockParserTests: XCTestCase {
             "- [ ] 待办",
             "",
             "### 第二节",
+            "1. 第一步",
+            "2. 第二步",
+            "",
             "内容二"
         ].joined(separator: "\n")
 
@@ -109,6 +194,10 @@ final class MarkdownBlockParserTests: XCTestCase {
                     order: 2,
                     title: "第二节",
                     blocks: [
+                        .orderedList([
+                            OrderedListItem(number: "1", text: "第一步"),
+                            OrderedListItem(number: "2", text: "第二步")
+                        ]),
                         .paragraph("内容二")
                     ],
                     isIntro: false

@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,41 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.24 / Markdown 有序列表预览
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownBlockParser` 新增 `.orderedList` 块和 `OrderedListItem`，识别 leading whitespace trim 后的 `数字. ` 有序列表行。
+- 有序列表解析会保留用户输入的编号文本和项目正文，避免大编号转换溢出，也让预览按原编号展示。
+- `MarkdownPreviewView` 新增有序列表渲染分支，使用编号列和正文列对齐显示，服务 Mac Catalyst 宽屏编辑/预览链路。
+- `MarkdownBlockParserTests` 扩展覆盖有序列表识别、混合块 flush、代码块内不解析、非法 `1.` / `1) ` 变体和 `###` 小节分组保留有序列表。
+- GitHub Actions 结果包版本更新为 `v0.24`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.24（Markdown有序列表预览）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+
+遗留事项：
+
+- 本轮只支持 `数字. ` 有序列表预览，不支持 `1) ` 变体、嵌套列表、整段自动重编号、工具栏按钮或菜单项。
 
 ### v0.23 / Markdown 有序列表回车续写
 

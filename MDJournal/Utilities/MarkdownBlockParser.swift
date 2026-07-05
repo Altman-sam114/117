@@ -5,9 +5,15 @@ enum MarkdownBlock: Equatable {
     case paragraph(String)
     case quote(String)
     case unorderedList([String])
+    case orderedList([OrderedListItem])
     case checklist([ChecklistItem])
     case code(String)
     case divider
+}
+
+struct OrderedListItem: Equatable {
+    var number: String
+    var text: String
 }
 
 struct ChecklistItem: Equatable {
@@ -46,6 +52,7 @@ enum MarkdownBlockParser {
         var blocks: [MarkdownBlock] = []
         var paragraphLines: [String] = []
         var unorderedItems: [String] = []
+        var orderedItems: [OrderedListItem] = []
         var checklistItems: [ChecklistItem] = []
         var codeLines: [String] = []
         var isReadingCode = false
@@ -62,6 +69,12 @@ enum MarkdownBlockParser {
             unorderedItems.removeAll()
         }
 
+        func flushOrderedList() {
+            guard !orderedItems.isEmpty else { return }
+            blocks.append(.orderedList(orderedItems))
+            orderedItems.removeAll()
+        }
+
         func flushChecklist() {
             guard !checklistItems.isEmpty else { return }
             blocks.append(.checklist(checklistItems))
@@ -71,6 +84,7 @@ enum MarkdownBlockParser {
         func flushInlineBlocks() {
             flushParagraph()
             flushUnorderedList()
+            flushOrderedList()
             flushChecklist()
         }
 
@@ -121,18 +135,29 @@ enum MarkdownBlockParser {
             if let item = checklistItem(from: trimmedLine) {
                 flushParagraph()
                 flushUnorderedList()
+                flushOrderedList()
                 checklistItems.append(item)
                 continue
             }
 
             if let item = unorderedItem(from: trimmedLine) {
                 flushParagraph()
+                flushOrderedList()
                 flushChecklist()
                 unorderedItems.append(item)
                 continue
             }
 
+            if let item = orderedItem(from: trimmedLine) {
+                flushParagraph()
+                flushUnorderedList()
+                flushChecklist()
+                orderedItems.append(item)
+                continue
+            }
+
             flushUnorderedList()
+            flushOrderedList()
             flushChecklist()
             paragraphLines.append(rawLine)
         }
@@ -206,6 +231,32 @@ enum MarkdownBlockParser {
         }
 
         return nil
+    }
+
+    private static func orderedItem(from line: String) -> OrderedListItem? {
+        var numberEnd = line.startIndex
+        while numberEnd < line.endIndex, line[numberEnd].isNumber {
+            numberEnd = line.index(after: numberEnd)
+        }
+
+        guard numberEnd > line.startIndex,
+              numberEnd < line.endIndex,
+              line[numberEnd] == "."
+        else {
+            return nil
+        }
+
+        let spaceIndex = line.index(after: numberEnd)
+        guard spaceIndex < line.endIndex, line[spaceIndex] == " " else {
+            return nil
+        }
+
+        let contentStart = line.index(after: spaceIndex)
+        let text = contentStart < line.endIndex ? String(line[contentStart...]) : ""
+        return OrderedListItem(
+            number: String(line[line.startIndex..<numberEnd]),
+            text: text
+        )
     }
 
     private static func checklistItem(from line: String) -> ChecklistItem? {

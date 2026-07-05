@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -30,7 +30,7 @@ JournalEntry.body
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
-  -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览
+  -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览，其中有序列表保留用户输入编号
 
 [JournalEntry]
   -> JournalEntryListSnapshot 单次派生列表搜索、分类筛选和分类计数
@@ -105,7 +105,8 @@ JournalEntry.body
 3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果。
 4. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
 5. 否则按普通块序列渲染。
-6. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
+6. 普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线；有序列表只识别 leading whitespace trim 后的 `数字. `，并保留用户输入编号显示。
+7. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
 
 ### 2.6 统计看板
 

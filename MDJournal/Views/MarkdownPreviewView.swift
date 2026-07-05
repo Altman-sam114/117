@@ -132,6 +132,23 @@ struct MarkdownPreviewView: View {
                 }
             }
 
+        case let .orderedList(items):
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("\(item.number).")
+                            .font(.body.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(accent)
+                            .frame(minWidth: 28, alignment: .trailing)
+
+                        Text(inlineMarkdown(item.text))
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+
         case let .checklist(items):
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
