@@ -18,6 +18,8 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertEqual(stats.longestStreak, 0)
         XCTAssertEqual(stats.entriesThisWeek, 0)
         XCTAssertEqual(stats.wordsThisWeek, 0)
+        XCTAssertEqual(stats.maxCategoryEntryCount, 1)
+        XCTAssertEqual(stats.maxMoodEntryCount, 1)
         XCTAssertEqual(stats.lastSevenDays.map(\.entryCount), Array(repeating: 0, count: 7))
         XCTAssertNil(stats.latestEntryDate)
     }
@@ -111,6 +113,8 @@ final class JournalStatisticsTests: XCTestCase {
         let happy = try XCTUnwrap(stats.moodBreakdown.first { $0.mood == .happy })
         XCTAssertEqual(happy.entryCount, 3)
 
+        XCTAssertEqual(stats.maxCategoryEntryCount, 3)
+        XCTAssertEqual(stats.maxMoodEntryCount, 3)
         XCTAssertEqual(stats.dominantCategory?.category, .daily)
         XCTAssertEqual(stats.dominantMood?.mood, .happy)
         XCTAssertTrue(stats.insightText.contains("###"))

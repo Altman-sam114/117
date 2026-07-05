@@ -172,7 +172,7 @@ struct StatisticsDashboardView: View {
                         detail: "\(item.entryCount) 篇 · \(item.wordCount) 词",
                         systemImage: item.category.systemImage,
                         value: item.entryCount,
-                        maxValue: maxCategoryCount(stats),
+                        maxValue: stats.maxCategoryEntryCount,
                         tint: item.category.tint
                     )
                 }
@@ -189,7 +189,7 @@ struct StatisticsDashboardView: View {
                         detail: "\(item.entryCount) 篇",
                         systemImage: item.mood.systemImage,
                         value: item.entryCount,
-                        maxValue: maxMoodCount(stats),
+                        maxValue: stats.maxMoodEntryCount,
                         tint: .teal
                     )
                 }
@@ -226,13 +226,6 @@ struct StatisticsDashboardView: View {
             .stroke(Color.white.opacity(0.55), lineWidth: 1)
     }
 
-    private func maxCategoryCount(_ stats: JournalStatistics) -> Int {
-        max(stats.categoryBreakdown.map(\.entryCount).max() ?? 0, 1)
-    }
-
-    private func maxMoodCount(_ stats: JournalStatistics) -> Int {
-        max(stats.moodBreakdown.map(\.entryCount).max() ?? 0, 1)
-    }
 }
 
 private struct StatsSection<Content: View>: View {

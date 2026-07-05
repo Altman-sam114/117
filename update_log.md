@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值派生。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,40 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.27 / 统计看板分布最大值预计算
+
+日期：2026-07-05
+
+核心变更：
+
+- `JournalStatistics` 新增分类和心情分布最大 entry count 派生值，在统计初始化阶段一次性计算并保持显示分母下限为 `1`。
+- `StatisticsDashboardView` 的分类和心情分布条直接消费 `JournalStatistics` 的预计算最大值，不再在每个 `DistributionRow` 渲染时重复扫描分布数组。
+- `JournalStatisticsTests` 扩展覆盖空状态最大值和固定样本分类/心情最大值 contract。
+- GitHub Actions 结果包版本更新为 `v0.27`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图、本轮 Agent A 提示词和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/JournalStatistics.swift`
+- `MDJournal/Views/StatisticsDashboardView.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.27（统计看板分布最大值预计算）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+
+遗留事项：
+
+- 本轮只处理分类和心情分布最大值预计算，不改变最近 7 天趋势柱状图的最大词数计算。
 
 ### v0.26 / Markdown 有序列表插入入口
 
@@ -77,7 +111,6 @@
 遗留事项：
 
 - 本轮只补齐 `数字. ` 有序列表片段入口，不支持 `1) ` 变体、嵌套列表或对已有有序列表自动重编号。
-- 统计看板分布最大值预计算仍作为后续性能候选。
 
 ### v0.25 / 正文输入静态警告清理
 
