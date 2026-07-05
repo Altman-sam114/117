@@ -64,7 +64,15 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0。
+- 实现 commit：`8eaa75a15ae35f97d21bd7e9295dc9df5e1084b6`（`v0.26 增加有序列表插入入口`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28737678112`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.26-main-8eaa75a-run28737678112-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28737678112/` 复判，目录大小约 `1.3M`。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.26`、`branch=main`、`commitSha=8eaa75a15ae35f97d21bd7e9295dc9df5e1084b6`、`runId=28737678112`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `static-checks.log` 未发现 `warning:`、`error:`、`extraneous duplicate parameter name` 或 `replacementText already has an argument label`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownSnippetTests` 已编译并执行，新增有序列表多行编号和尾随换行用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
