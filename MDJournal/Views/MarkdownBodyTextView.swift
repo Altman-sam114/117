@@ -69,6 +69,27 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             self.isFocused = isFocused
         }
 
+        func textView(
+            _ textView: UITextView,
+            shouldChangeTextIn range: NSRange,
+            replacementText replacementText: String
+        ) -> Bool {
+            guard textView.markedTextRange == nil else { return true }
+            guard let result = MarkdownLineContinuation.apply(
+                to: textView.text,
+                selectedRange: range,
+                replacementText: replacementText
+            ) else {
+                return true
+            }
+
+            textView.text = result.body
+            textView.selectedRange = result.selectedRange
+            text.wrappedValue = result.body
+            selectedRange.wrappedValue = result.selectedRange
+            return false
+        }
+
         func textViewDidChange(_ textView: UITextView) {
             if text.wrappedValue != textView.text {
                 text.wrappedValue = textView.text

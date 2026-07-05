@@ -1,0 +1,190 @@
+import Foundation
+
+struct MarkdownLineContinuation {
+    struct Result: Equatable {
+        let body: String
+        let selectedRange: NSRange
+    }
+
+    private struct ListPrefix {
+        let continuation: String
+        let removableRange: Range<String.Index>
+        let contentBeforeCursor: Substring
+    }
+
+    static func apply(
+        to body: String,
+        selectedRange: NSRange,
+        replacementText: String
+    ) -> Result? {
+        guard replacementText == "\n" else { return nil }
+
+        let normalizedRange = clampedNSRange(selectedRange, in: body)
+        guard normalizedRange.length == 0 else { return nil }
+
+        let cursor = index(atOrBeforeUTF16Offset: normalizedRange.location, in: body)
+        let currentLineStart = lineStart(before: cursor, in: body)
+        guard !isInsideFencedCodeBlock(before: currentLineStart, in: body) else { return nil }
+
+        let currentLineEnd = lineEnd(after: cursor, in: body)
+        let linePrefix = body[currentLineStart..<cursor]
+        guard let listPrefix = listPrefix(in: linePrefix) else { return nil }
+
+        let lineSuffix = body[cursor..<currentLineEnd]
+        if isEmptyListItem(listPrefix: listPrefix, lineSuffix: lineSuffix) {
+            return removingListPrefix(listPrefix, from: body)
+        }
+
+        return continuingList(
+            with: listPrefix.continuation,
+            in: body,
+            at: cursor
+        )
+    }
+
+    private static func listPrefix(in linePrefix: Substring) -> ListPrefix? {
+        var markerStart = linePrefix.startIndex
+        while markerStart < linePrefix.endIndex {
+            let character = linePrefix[markerStart]
+            guard character == " " || character == "\t" else { break }
+            markerStart = linePrefix.index(after: markerStart)
+        }
+
+        let indentation = String(linePrefix[..<markerStart])
+        let rest = linePrefix[markerStart...]
+
+        if isChecklistPrefix(rest) {
+            let markerEnd = linePrefix.index(markerStart, offsetBy: 6)
+            return ListPrefix(
+                continuation: "\(indentation)- [ ] ",
+                removableRange: linePrefix.startIndex..<markerEnd,
+                contentBeforeCursor: linePrefix[markerEnd...]
+            )
+        }
+
+        guard let marker = rest.first, marker == "-" || marker == "*" || marker == "+" else {
+            return nil
+        }
+
+        let spaceIndex = rest.index(after: rest.startIndex)
+        guard spaceIndex < rest.endIndex, rest[spaceIndex] == " " else {
+            return nil
+        }
+
+        let markerEnd = rest.index(after: spaceIndex)
+        return ListPrefix(
+            continuation: "\(indentation)\(marker) ",
+            removableRange: linePrefix.startIndex..<markerEnd,
+            contentBeforeCursor: linePrefix[markerEnd...]
+        )
+    }
+
+    private static func isChecklistPrefix(_ text: Substring) -> Bool {
+        text.hasPrefix("- [ ] ") || text.hasPrefix("- [x] ") || text.hasPrefix("- [X] ")
+    }
+
+    private static func isEmptyListItem(listPrefix: ListPrefix, lineSuffix: Substring) -> Bool {
+        String(listPrefix.contentBeforeCursor).trimmingCharacters(in: .whitespaces).isEmpty
+            && String(lineSuffix).trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static func removingListPrefix(_ listPrefix: ListPrefix, from body: String) -> Result {
+        let selectedLocation = NSRange(body.startIndex..<listPrefix.removableRange.lowerBound, in: body).length
+        var updatedBody = body
+        updatedBody.replaceSubrange(listPrefix.removableRange, with: "")
+
+        return Result(
+            body: updatedBody,
+            selectedRange: NSRange(location: selectedLocation, length: 0)
+        )
+    }
+
+    private static func continuingList(
+        with continuation: String,
+        in body: String,
+        at cursor: String.Index
+    ) -> Result {
+        let insertionLocation = NSRange(body.startIndex..<cursor, in: body).length
+        let replacement = "\n\(continuation)"
+        var updatedBody = body
+        updatedBody.replaceSubrange(cursor..<cursor, with: replacement)
+
+        return Result(
+            body: updatedBody,
+            selectedRange: NSRange(
+                location: insertionLocation + replacement.utf16.count,
+                length: 0
+            )
+        )
+    }
+
+    private static func lineStart(before index: String.Index, in text: String) -> String.Index {
+        var currentIndex = index
+        while currentIndex > text.startIndex {
+            let previousIndex = text.index(before: currentIndex)
+            guard text[previousIndex] != "\n" else { break }
+            currentIndex = previousIndex
+        }
+        return currentIndex
+    }
+
+    private static func lineEnd(after index: String.Index, in text: String) -> String.Index {
+        var currentIndex = index
+        while currentIndex < text.endIndex {
+            guard text[currentIndex] != "\n" else { break }
+            currentIndex = text.index(after: currentIndex)
+        }
+        return currentIndex
+    }
+
+    private static func isInsideFencedCodeBlock(before lineStart: String.Index, in text: String) -> Bool {
+        var isInsideFence = false
+        for line in text[..<lineStart].split(separator: "\n", omittingEmptySubsequences: false) {
+            if String(line).trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                isInsideFence.toggle()
+            }
+        }
+        return isInsideFence
+    }
+
+    private static func clampedNSRange(_ nsRange: NSRange, in text: String) -> NSRange {
+        let utf16Count = text.utf16.count
+
+        guard nsRange.location != NSNotFound else {
+            return NSRange(location: utf16Count, length: 0)
+        }
+
+        let location = min(max(nsRange.location, 0), utf16Count)
+        let maximumLength = utf16Count - location
+        let length = min(max(nsRange.length, 0), maximumLength)
+        return NSRange(location: location, length: length)
+    }
+
+    private static func index(atOrBeforeUTF16Offset offset: Int, in text: String) -> String.Index {
+        let targetOffset = min(max(offset, 0), text.utf16.count)
+        var currentIndex = text.startIndex
+        var currentOffset = 0
+
+        while currentIndex < text.endIndex {
+            if currentOffset == targetOffset {
+                return currentIndex
+            }
+
+            let nextIndex = text.index(after: currentIndex)
+            let nextOffset = currentOffset + text[currentIndex..<nextIndex].utf16.count
+
+            if nextOffset == targetOffset {
+                return nextIndex
+            }
+
+            if nextOffset > targetOffset {
+                return currentIndex
+            }
+
+            currentIndex = nextIndex
+            currentOffset = nextOffset
+        }
+
+        return text.endIndex
+    }
+}

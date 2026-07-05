@@ -34,6 +34,44 @@
 
 ## 历史记录
 
+### v0.18 / Markdown 列表回车续写
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `MarkdownLineContinuation`，集中处理 Markdown 列表和待办的回车续写规则。
+- `MarkdownBodyTextView` 在 `UITextViewDelegate.shouldChangeTextIn` 中调用纯规则；普通输入、非折叠选区和 IME marked text 继续走系统默认行为。
+- 非空列表项按回车会延续同缩进前缀；空列表项或空待办项按回车会退出列表。
+- 待办项续写时统一生成未完成项，`- [x] 已完成` 的下一行变为 `- [ ] `。
+- 新增 `MarkdownLineContinuationTests` 覆盖列表、待办、完成待办、缩进、空项退出、代码块、非折叠选区和 UTF-16/emoji 边界。
+- GitHub Actions 结果包版本更新为 `v0.18`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineContinuation.swift`
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownLineContinuationTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.18（Markdown列表回车续写）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
+- 实现 commit、run id、run attempt、artifact 名称和 Agent C 复判结果待本轮 push 后补充。
+
+遗留事项：
+
+- 本轮不实现 Tab/Shift-Tab 缩进，也不调整智能引号、智能破折号等输入 traits。
+- 回车续写仅覆盖轻量 Markdown 列表/待办，不扩展 Markdown 预览语法。
+
 ### v0.17 / Mac Catalyst 一键构建运行入口
 
 日期：2026-07-05
