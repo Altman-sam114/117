@@ -22,7 +22,7 @@ flowchart TD
   Menu --> WritingCommand["写作命令：聚焦正文、显示/隐藏预览"]
   WritingCommand --> Editor
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab"]
-  BodyTextView --> LineContinuation["MarkdownLineContinuation：列表/待办/引用回车续写或退出"]
+  BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出"]
   LineContinuation --> Binding
   BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进"]
   LineIndentation --> Binding
@@ -118,7 +118,7 @@ flowchart TD
 flowchart LR
   Body["JournalEntry.body 正文"] --> Summary["JournalEntryBodySummary：非持久化单次正文派生"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区同步"]
-  BodyText --> ContinueRule["MarkdownLineContinuation：列表/待办/引用回车续写"]
+  BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写"]
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进"]
   IndentRule --> Body

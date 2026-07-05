@@ -34,6 +34,41 @@
 
 ## 历史记录
 
+### v0.23 / Markdown 有序列表回车续写
+
+日期：2026-07-05
+
+核心变更：
+
+- `MarkdownLineContinuation` 扩展支持 `数字. ` 有序列表行回车续写，非空项会延续同缩进前缀并递增编号。
+- 空有序列表项按回车会删除当前有序列表前缀并退出列表，行为与空无序列表、待办和引用退出保持一致。
+- 光标在有序列表行中间按回车时会拆分当前行，并让后半段继续处在下一编号有序列表中。
+- 新增 `MarkdownLineContinuationTests` 有序列表用例，覆盖编号递增、多位编号、缩进、空项退出、行中拆分、fenced code、非折叠选区、普通输入、溢出编号和 UTF-16/emoji 光标边界。
+- GitHub Actions 结果包版本更新为 `v0.23`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineContinuation.swift`
+- `MDJournalTests/MarkdownLineContinuationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.23（Markdown有序列表回车续写）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 云端 run、artifact 和 Agent C 复判结果待本轮实现 commit push 后补充。
+
+遗留事项：
+
+- 本轮只支持 `数字. ` 有序列表前缀，不支持 `1) ` 变体。
+- 本轮不做有序列表预览渲染、整段自动重编号、工具栏按钮或 undo 分组。
+
 ### v0.22 / Markdown 引用回车续写
 
 日期：2026-07-05

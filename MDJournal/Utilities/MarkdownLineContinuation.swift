@@ -71,6 +71,14 @@ struct MarkdownLineContinuation {
             )
         }
 
+        if let orderedListPrefix = orderedListPrefix(
+            in: linePrefix,
+            markerStart: markerStart,
+            indentation: indentation
+        ) {
+            return orderedListPrefix
+        }
+
         guard let marker = rest.first, marker == "-" || marker == "*" || marker == "+" else {
             return nil
         }
@@ -83,6 +91,41 @@ struct MarkdownLineContinuation {
         let markerEnd = rest.index(after: spaceIndex)
         return LinePrefix(
             continuation: "\(indentation)\(marker) ",
+            removableRange: linePrefix.startIndex..<markerEnd,
+            contentBeforeCursor: linePrefix[markerEnd...]
+        )
+    }
+
+    private static func orderedListPrefix(
+        in linePrefix: Substring,
+        markerStart: String.Index,
+        indentation: String
+    ) -> LinePrefix? {
+        var numberEnd = markerStart
+        while numberEnd < linePrefix.endIndex, linePrefix[numberEnd].isNumber {
+            numberEnd = linePrefix.index(after: numberEnd)
+        }
+
+        guard numberEnd > markerStart,
+              numberEnd < linePrefix.endIndex,
+              linePrefix[numberEnd] == "."
+        else {
+            return nil
+        }
+
+        let spaceIndex = linePrefix.index(after: numberEnd)
+        guard spaceIndex < linePrefix.endIndex, linePrefix[spaceIndex] == " " else {
+            return nil
+        }
+
+        let numberText = String(linePrefix[markerStart..<numberEnd])
+        guard let number = Int(numberText), number < Int.max else {
+            return nil
+        }
+
+        let markerEnd = linePrefix.index(after: spaceIndex)
+        return LinePrefix(
+            continuation: "\(indentation)\(number + 1). ",
             removableRange: linePrefix.startIndex..<markerEnd,
             contentBeforeCursor: linePrefix[markerEnd...]
         )

@@ -77,6 +77,21 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testReturnKeepsIndentedOrderedListPrefix() throws {
+        let body = "  12. 子项"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "  12. 子项\n  13. ")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
     func testReturnContinuesAsteriskAndPlusBullets() throws {
         let asteriskBody = "* 星号"
         let plusBody = "+ 加号"
@@ -98,6 +113,36 @@ final class MarkdownLineContinuationTests: XCTestCase {
 
         XCTAssertEqual(asteriskResult.body, "* 星号\n* ")
         XCTAssertEqual(plusResult.body, "+ 加号\n+ ")
+    }
+
+    func testReturnContinuesOrderedListLine() throws {
+        let body = "1. 第一项"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "1. 第一项\n2. ")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
+    func testReturnContinuesMultiDigitOrderedListLine() throws {
+        let body = "9. 第九项"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "9. 第九项\n10. ")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
     func testReturnContinuesQuoteLine() throws {
@@ -160,6 +205,21 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testReturnExitsEmptyOrderedListLine() throws {
+        let body = "1. 第一项\n2. "
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "1. 第一项\n")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
     func testReturnExitsEmptyQuoteLine() throws {
         let body = "> 第一段\n> "
 
@@ -204,6 +264,22 @@ final class MarkdownLineContinuationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "- 早安\n- 世界")
         XCTAssertEqual(result.selectedRange, cursor(at: "- 早安\n- ".utf16.count))
+    }
+
+    func testReturnSplitsCurrentOrderedListLineAtCursor() throws {
+        let body = "3. 早安世界"
+        let cursorLocation = "3. 早安".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: cursorLocation),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "3. 早安\n4. 世界")
+        XCTAssertEqual(result.selectedRange, cursor(at: "3. 早安\n4. ".utf16.count))
     }
 
     func testReturnSplitsCurrentQuoteLineAtCursor() throws {
@@ -252,12 +328,39 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testReturnDoesNotContinueOrderedListInsideFencedCodeBlock() {
+        let body = """
+        ```
+        1. code
+        """
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "\n"
+        )
+
+        XCTAssertNil(result)
+    }
+
     func testReturnDoesNotReplaceNonCollapsedSelection() {
         let body = "- 第一项"
 
         let result = MarkdownLineContinuation.apply(
             to: body,
             selectedRange: NSRange(location: 2, length: "第一".utf16.count),
+            replacementText: "\n"
+        )
+
+        XCTAssertNil(result)
+    }
+
+    func testReturnDoesNotReplaceNonCollapsedOrderedListSelection() {
+        let body = "1. 第一项"
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: NSRange(location: 3, length: "第一".utf16.count),
             replacementText: "\n"
         )
 
@@ -306,8 +409,35 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testReturnKeepsUTF16CursorAfterEmojiInOrderedList() throws {
+        let body = "1. 早安😀"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "1. 早安😀\n2. ")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
     func testRegularTextInputUsesDefaultBehavior() {
         let body = "- 第一项"
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "新"
+        )
+
+        XCTAssertNil(result)
+    }
+
+    func testRegularOrderedListTextInputUsesDefaultBehavior() {
+        let body = "1. 第一项"
 
         let result = MarkdownLineContinuation.apply(
             to: body,
@@ -325,6 +455,30 @@ final class MarkdownLineContinuationTests: XCTestCase {
             to: body,
             selectedRange: cursor(at: body.utf16.count),
             replacementText: "新"
+        )
+
+        XCTAssertNil(result)
+    }
+
+    func testBareOrderedListMarkerUsesDefaultBehavior() {
+        let body = "1."
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "\n"
+        )
+
+        XCTAssertNil(result)
+    }
+
+    func testOverflowOrderedListNumberUsesDefaultBehavior() {
+        let body = "\(Int.max). 第一项"
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "\n"
         )
 
         XCTAssertNil(result)
