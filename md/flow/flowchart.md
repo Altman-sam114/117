@@ -21,9 +21,11 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、显示/隐藏预览"]
   WritingCommand --> Editor
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab"]
   BodyTextView --> LineContinuation["MarkdownLineContinuation：列表/待办回车续写或退出"]
   LineContinuation --> Binding
+  BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进"]
+  LineIndentation --> Binding
   BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果"]
   SnippetInsertion --> Binding
   Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏"]
@@ -116,6 +118,8 @@ flowchart LR
   Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：列表/待办回车续写"]
   ContinueRule --> Body
+  BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进"]
+  IndentRule --> Body
   BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀"]
   InsertRule --> Body
   Summary --> Excerpt["摘要、词数、### 小节、小节数"]

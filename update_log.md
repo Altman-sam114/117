@@ -34,6 +34,43 @@
 
 ## 历史记录
 
+### v0.20 / Markdown 行缩进 Tab 输入效率
+
+日期：2026-07-05
+
+核心变更：
+
+- 新增 `MarkdownLineIndentation`，集中处理当前行或多行选区的 Tab 缩进与 Shift-Tab 反缩进。
+- `MarkdownBodyTextView` 使用轻量 `UITextView` 子类捕获 Tab / Shift-Tab，并保留 `shouldChangeTextIn` 中普通 Tab 的 fallback；IME marked text 存在时不改写正文。
+- 缩进单位为两个空格；反缩进会删除一个 tab 或最多两个行首空格。
+- 新增 `MarkdownLineIndentationTests`，覆盖单行、多行、选区结束边界、emoji / UTF-16 光标、混合缩进反缩进和空反缩进。
+- GitHub Actions 结果包版本更新为 `v0.20`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineIndentation.swift`
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownLineIndentationTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.20（Markdown行缩进Tab输入效率）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行或测试；最终验收只以 GitHub Actions 回传结果包为准。
+- 实现 commit、GitHub Actions run、artifact 名称和 Agent C 复判结果待本轮 push 后记录。
+
+遗留事项：
+
+- 本轮不新增 Markdown 预览语法，不改变 `JournalStore` 保存链路，不新增 native macOS target。
+- 更细的 undo 分组仍留待后续优化。
+
 ### v0.19 / Markdown 安全输入配置
 
 日期：2026-07-05

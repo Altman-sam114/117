@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`MarkdownLineContinuation` 负责 Markdown 列表和待办的回车续写规则，`MarkdownBodyTextView` 负责正文输入 traits 和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodySummary` 负责非持久化正文摘要、词数和小节派生，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，`MarkdownLineContinuation` 负责 Markdown 列表和待办的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -70,15 +70,16 @@ JournalEntry.body
 3. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区。
 4. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
 5. 用户在 Markdown 列表或待办中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，空项退出列表，IME marked text 或普通输入继续走系统默认行为。
-6. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`。
-7. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本。
-8. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
-9. binding setter 调用 `JournalStore.update(_:)`。
-10. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
-11. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
-12. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
-13. 保存失败时设置 `errorMessage`。
-14. `ContentView` 通过 alert 展示保存或读取错误。
+6. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
+7. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`。
+8. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本。
+9. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
+10. binding setter 调用 `JournalStore.update(_:)`。
+11. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
+12. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
+13. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
+14. 保存失败时设置 `errorMessage`。
+15. `ContentView` 通过 alert 展示保存或读取错误。
 
 ### 2.4 列表、筛选与删除
 
@@ -300,9 +301,19 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：访问 UIKit、SwiftUI、JSON、`JournalStore` 或 Markdown 预览解析。
 
-### 4.10 `MarkdownBodyTextView`
+### 4.10 `MarkdownLineIndentation`
 
-职责：用最小 `UITextView` bridge 提供正文编辑、Markdown 安全输入 traits、光标/选区同步、焦点同步和回车续写规则入口。
+职责：根据正文、Tab / Shift-Tab 方向和 UTF-16 光标/选区生成行级缩进或反缩进结果。
+
+输入：`JournalEntry.body`、正文 `NSRange` 光标/选区、缩进方向。
+
+输出：可选的更新后正文和新的 `NSRange`；无可反缩进行返回空结果。
+
+禁止：访问 UIKit、SwiftUI、JSON、`JournalStore` 或 Markdown 预览解析；改变缩进以外的正文内容。
+
+### 4.11 `MarkdownBodyTextView`
+
+职责：用最小 `UITextView` bridge 提供正文编辑、Markdown 安全输入 traits、光标/选区同步、焦点同步、回车续写规则入口和 Tab / Shift-Tab 行缩进入口。
 
 输入：正文 binding、选区 binding、焦点 binding。
 
@@ -310,7 +321,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：持有第二套正文状态；把 Markdown 字符串规则写进 delegate；绕过 `EntryEditorView` 或 `JournalStore`；关闭 IME 或破坏中文输入。
 
-### 4.11 SwiftUI Views
+### 4.12 SwiftUI Views
 
 职责：展示状态、收集用户输入、调用上层 closure 或 binding。
 
@@ -323,7 +334,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ## 5. 关键边界
 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
-- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet、`MarkdownSnippetInsertion` 和 `EditorWritingCommand`。
+- 模型/规则层：`JournalEntryListSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet、`MarkdownSnippetInsertion`、`MarkdownLineContinuation`、`MarkdownLineIndentation` 和 `EditorWritingCommand`。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
@@ -347,7 +358,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、Markdown 片段插入规则、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、Markdown 片段插入规则、Markdown 列表回车续写规则、Markdown 行缩进规则、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
@@ -371,7 +382,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 - 扩展 `MDJournalTests` 覆盖更多 Markdown 边界、列表派生边界和数据迁移风险。
 - 增强 Markdown 预览语法，但保持轻量并同步测试。
-- 继续改善编辑器体验，例如更细的选区保持、Tab/Shift-Tab 自动缩进或更多 Markdown 边界规则。
+- 继续改善编辑器体验，例如更细的 undo 行为、选区保持或更多 Markdown 边界规则。
 - 增加导入/导出或备份功能。
 - 增加更可靠的模拟器或真机视觉验证流程。
 - 为文档增加 markdown lint。

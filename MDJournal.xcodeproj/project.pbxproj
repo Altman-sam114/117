@@ -28,6 +28,7 @@
 		A10000000000000000000013 /* MarkdownSnippetInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* MarkdownSnippetInsertion.swift */; };
 		A10000000000000000000014 /* MarkdownBodyTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MarkdownBodyTextView.swift */; };
 		A10000000000000000000015 /* MarkdownLineContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* MarkdownLineContinuation.swift */; };
+		A10000000000000000000016 /* MarkdownLineIndentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* MarkdownLineIndentation.swift */; };
 		B10000000000000000000001 /* JournalEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* JournalEntryTests.swift */; };
 		B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* MarkdownBlockParserTests.swift */; };
 		B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* JournalStatisticsTests.swift */; };
@@ -36,6 +37,7 @@
 		B10000000000000000000006 /* JournalEntryListSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* JournalEntryListSnapshotTests.swift */; };
 		B10000000000000000000007 /* MarkdownLineContinuationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* MarkdownLineContinuationTests.swift */; };
 		B10000000000000000000008 /* MarkdownTextInputConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* MarkdownTextInputConfigurationTests.swift */; };
+		B10000000000000000000009 /* MarkdownLineIndentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* MarkdownLineIndentationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +73,7 @@
 		A20000000000000000000015 /* MarkdownSnippetInsertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSnippetInsertion.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* MarkdownBodyTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBodyTextView.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* MarkdownLineContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineContinuation.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* MarkdownLineIndentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineIndentation.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* JournalEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* MarkdownBlockParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* JournalStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatisticsTests.swift; sourceTree = "<group>"; };
@@ -79,6 +82,7 @@
 		B20000000000000000000006 /* JournalEntryListSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryListSnapshotTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000007 /* MarkdownLineContinuationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineContinuationTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000008 /* MarkdownTextInputConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextInputConfigurationTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000009 /* MarkdownLineIndentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineIndentationTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000F /* MDJournalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDJournalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -162,6 +166,7 @@
 				A20000000000000000000010 /* JournalStatistics.swift */,
 				A20000000000000000000006 /* MarkdownBlockParser.swift */,
 				A20000000000000000000017 /* MarkdownLineContinuation.swift */,
+				A20000000000000000000018 /* MarkdownLineIndentation.swift */,
 				A20000000000000000000007 /* MarkdownSnippet.swift */,
 				A20000000000000000000012 /* MarkdownSnippetCommandShortcut.swift */,
 				A20000000000000000000015 /* MarkdownSnippetInsertion.swift */,
@@ -186,6 +191,7 @@
 				B20000000000000000000003 /* JournalStatisticsTests.swift */,
 				B20000000000000000000006 /* JournalEntryListSnapshotTests.swift */,
 				B20000000000000000000007 /* MarkdownLineContinuationTests.swift */,
+				B20000000000000000000009 /* MarkdownLineIndentationTests.swift */,
 				B20000000000000000000004 /* MarkdownSnippetTests.swift */,
 				B20000000000000000000008 /* MarkdownTextInputConfigurationTests.swift */,
 				B20000000000000000000005 /* JournalStoreTests.swift */,
@@ -311,6 +317,7 @@
 				A10000000000000000000011 /* JournalEntryListSnapshot.swift in Sources */,
 				A10000000000000000000012 /* EditorWritingCommand.swift in Sources */,
 				A10000000000000000000015 /* MarkdownLineContinuation.swift in Sources */,
+				A10000000000000000000016 /* MarkdownLineIndentation.swift in Sources */,
 				A10000000000000000000013 /* MarkdownSnippetInsertion.swift in Sources */,
 				A10000000000000000000014 /* MarkdownBodyTextView.swift in Sources */,
 			);
@@ -325,6 +332,7 @@
 				B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */,
 				B10000000000000000000006 /* JournalEntryListSnapshotTests.swift in Sources */,
 				B10000000000000000000007 /* MarkdownLineContinuationTests.swift in Sources */,
+				B10000000000000000000009 /* MarkdownLineIndentationTests.swift in Sources */,
 				B10000000000000000000004 /* MarkdownSnippetTests.swift in Sources */,
 				B10000000000000000000008 /* MarkdownTextInputConfigurationTests.swift in Sources */,
 				B10000000000000000000005 /* JournalStoreTests.swift in Sources */,

@@ -12,7 +12,7 @@
 - 当前最低 iOS 版本：16.0。
 - 当前 Mac 版本路径：Mac Catalyst，Mac deployment target 为 13.0。
 - 当前没有第三方依赖和包管理器。
-- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文派生、列表派生快照、Markdown 解析、统计、Markdown snippet、Markdown 片段插入规则、写作命令快捷键和 `JournalStore` 写入节流与按需排序。
+- 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文派生、列表派生快照、Markdown 解析、统计、Markdown snippet、Markdown 片段插入规则、Markdown 列表回车续写规则、Markdown 行缩进规则、Markdown 输入配置、写作命令快捷键和 `JournalStore` 写入节流与按需排序。
 - 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；修改 Mac Catalyst 支持时尝试本机 Catalyst build；最终重验证交给 GitHub Actions。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
@@ -158,8 +158,8 @@ python3 -m json.tool path/to/file.json >/dev/null
 触发条件：
 
 - 新增或修改 `MDJournalTests`。
-- 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics`、`MarkdownSnippet`、`MarkdownSnippetInsertion`、`MarkdownLineContinuation` 或 `EditorWritingCommand` 等已有 XCTest 覆盖的核心规则。
-- 修改 `MarkdownBodyTextView`、正文输入 traits、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，至少尝试本机 XCTest；CoreSimulator 不可用时记录错误并以 CI artifact 为准。
+- 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics`、`MarkdownSnippet`、`MarkdownSnippetInsertion`、`MarkdownLineContinuation`、`MarkdownLineIndentation` 或 `EditorWritingCommand` 等已有 XCTest 覆盖的核心规则。
+- 修改 `MarkdownBodyTextView`、正文输入 traits、Tab / Shift-Tab 行缩进、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，至少尝试本机 XCTest；CoreSimulator 不可用时记录错误并以 CI artifact 为准。
 - 若人工明确要求不跑本机构建、运行或测试，则跳过本机 XCTest 尝试，并在交付中说明最终只采用 GitHub Actions artifact。
 - 修改 `JournalStore` 加载、创建、更新、删除、保存、排序、节流或 flush 行为。
 - 修改 Xcode scheme、target 或 CI test 命令。
@@ -245,7 +245,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.19",
+  "version": "v0.20",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -278,7 +278,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.19-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-v0.20-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判

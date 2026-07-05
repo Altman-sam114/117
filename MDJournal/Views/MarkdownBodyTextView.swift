@@ -11,8 +11,12 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
+        let textView = MarkdownIndentingTextView()
         textView.delegate = context.coordinator
+        textView.indentationAction = { [weak textView, weak coordinator = context.coordinator] direction in
+            guard let textView else { return }
+            coordinator?.applyIndentation(direction, to: textView)
+        }
         textView.backgroundColor = .clear
         textView.font = Self.bodyFont
         Self.configureMarkdownInputTraits(textView)
@@ -77,6 +81,12 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             replacementText replacementText: String
         ) -> Bool {
             guard textView.markedTextRange == nil else { return true }
+
+            if replacementText == "\t" {
+                applyIndentation(.indent, to: textView, selectedRange: range)
+                return false
+            }
+
             guard let result = MarkdownLineContinuation.apply(
                 to: textView.text,
                 selectedRange: range,
@@ -90,6 +100,27 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             text.wrappedValue = result.body
             selectedRange.wrappedValue = result.selectedRange
             return false
+        }
+
+        func applyIndentation(
+            _ direction: MarkdownLineIndentation.Direction,
+            to textView: UITextView,
+            selectedRange requestedRange: NSRange? = nil
+        ) {
+            guard textView.markedTextRange == nil else { return }
+
+            guard let result = MarkdownLineIndentation.apply(
+                to: textView.text,
+                selectedRange: requestedRange ?? textView.selectedRange,
+                direction: direction
+            ) else {
+                return
+            }
+
+            textView.text = result.body
+            textView.selectedRange = result.selectedRange
+            text.wrappedValue = result.body
+            selectedRange.wrappedValue = result.selectedRange
         }
 
         func textViewDidChange(_ textView: UITextView) {
@@ -136,5 +167,25 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         let maximumLength = utf16Count - location
         let length = min(max(range.length, 0), maximumLength)
         return NSRange(location: location, length: length)
+    }
+
+    private final class MarkdownIndentingTextView: UITextView {
+        var indentationAction: ((MarkdownLineIndentation.Direction) -> Void)?
+
+        override var keyCommands: [UIKeyCommand]? {
+            let indentationCommands = [
+                UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(indentLines)),
+                UIKeyCommand(input: "\t", modifierFlags: [.shift], action: #selector(outdentLines))
+            ]
+            return (super.keyCommands ?? []) + indentationCommands
+        }
+
+        @objc private func indentLines() {
+            indentationAction?(.indent)
+        }
+
+        @objc private func outdentLines() {
+            indentationAction?(.outdent)
+        }
     }
 }
