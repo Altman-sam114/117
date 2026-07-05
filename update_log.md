@@ -57,7 +57,15 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0。
+- 实现 commit：`4002197e96fefab35286dfa1bcee984fdde33827`（`v0.25 清理正文输入静态警告`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28736206114`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.25-main-4002197-run28736206114-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28736206114/` 复判，目录大小约 `1.3M`。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.25`、`branch=main`、`commitSha=4002197e96fefab35286dfa1bcee984fdde33827`、`runId=28736206114`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `static-checks.log` 中不再出现 `extraneous duplicate parameter name` 或 `replacementText already has an argument label`，`xcrun swiftc -parse` 阶段无 warning / error 输出。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `MarkdownTextInputConfigurationTests`、`MarkdownLineContinuationTests` 和 `MarkdownLineIndentationTests` 已编译并执行，输入 traits、回车续写和缩进相关用例通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
