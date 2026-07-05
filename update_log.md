@@ -62,7 +62,15 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查、实现 commit、push、GitHub Actions run 和 Agent C artifact 复判待本轮后续补全。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0。
+- 实现 commit：`0d667fd7942ea03f2d0ff02291fc59eaa9fae288`（`v0.27 预计算统计分布最大值`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28739204401`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.27-main-0d667fd-run28739204401-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28739204401/` 复判，目录大小约 `1.3M`。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.27`、`branch=main`、`commitSha=0d667fd7942ea03f2d0ff02291fc59eaa9fae288`、`runId=28739204401`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `static-checks.log` 未发现 `warning:` 或 `error:`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `JournalStatisticsTests` 已编译并执行，空状态最大值和固定样本统计用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
