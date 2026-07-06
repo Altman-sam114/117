@@ -18,10 +18,10 @@ struct EntryEditorView: View {
     var body: some View {
         GeometryReader { proxy in
             let isWideLayout = proxy.size.width >= 820
-            let bodySummary = entry.bodySummary
+            let bodyMetrics = entry.bodyMetrics
 
             VStack(spacing: 0) {
-                header(isWideLayout: isWideLayout, bodySummary: bodySummary)
+                header(isWideLayout: isWideLayout, bodyMetrics: bodyMetrics)
 
                 if isWideLayout {
                     wideEditor
@@ -111,7 +111,7 @@ struct EntryEditorView: View {
         }
     }
 
-    private func header(isWideLayout: Bool, bodySummary: JournalEntryBodySummary) -> some View {
+    private func header(isWideLayout: Bool, bodyMetrics: JournalEntryBodyMetrics) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 categoryPicker
@@ -131,15 +131,15 @@ struct EntryEditorView: View {
 
             if isWideLayout {
                 HStack(alignment: .top, spacing: 12) {
-                    statPills(bodySummary)
+                    statPills(bodyMetrics)
                         .frame(width: 270, alignment: .leading)
 
-                    JournalSectionOverview(sections: bodySummary.sections, accent: entry.category.tint)
+                    JournalSectionOverview(sections: bodyMetrics.sections, accent: entry.category.tint)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    statPills(bodySummary)
-                    JournalSectionOverview(sections: bodySummary.sections, accent: entry.category.tint)
+                    statPills(bodyMetrics)
+                    JournalSectionOverview(sections: bodyMetrics.sections, accent: entry.category.tint)
                 }
             }
         }
@@ -160,10 +160,10 @@ struct EntryEditorView: View {
         )
     }
 
-    private func statPills(_ bodySummary: JournalEntryBodySummary) -> some View {
+    private func statPills(_ bodyMetrics: JournalEntryBodyMetrics) -> some View {
         HStack(spacing: 8) {
-            EditorStatPill(value: "\(bodySummary.wordCount)", title: "词", systemImage: "text.word.spacing")
-            EditorStatPill(value: "\(bodySummary.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
+            EditorStatPill(value: "\(bodyMetrics.wordCount)", title: "词", systemImage: "text.word.spacing")
+            EditorStatPill(value: "\(bodyMetrics.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
             EditorStatPill(value: entry.updatedAt.journalRelativeUpdateText, title: "更新", systemImage: "clock")
         }
     }

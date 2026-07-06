@@ -25,12 +25,12 @@ Markdown 与统计派生数据流：
 JournalEntry.body
   -> JournalEntryBodyMetrics
   -> wordCount / sections / sectionCount
-  -> JournalStatistics 和 JournalListOverviewSnapshot 轻量复用，不生成 excerpt
+  -> EntryEditorView 头部、JournalStatistics 和 JournalListOverviewSnapshot 轻量复用，不生成 excerpt
 
 JournalEntry.body
   -> JournalEntryBodySummary
   -> excerpt + JournalEntryBodyMetrics
-  -> 列表卡片和编辑器头部复用同一次正文展示派生结果
+  -> 列表卡片复用同一次正文展示派生结果
 
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
@@ -76,20 +76,21 @@ JournalEntry.body
 
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
-3. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区。
-4. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
-5. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
-6. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
-7. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
-8. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
-9. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表会跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
-10. 若窄屏当前处于预览模式，片段插入或写作缩进命令会先切回编辑模式并重新聚焦正文。
-11. binding setter 调用 `JournalStore.update(_:)`。
-12. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
-13. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
-14. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
-15. 保存失败时设置 `errorMessage`。
-16. `ContentView` 通过 alert 展示保存或读取错误。
+3. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt。
+4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区。
+5. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
+6. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
+7. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
+8. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
+9. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+10. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表会跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
+11. 若窄屏当前处于预览模式，片段插入或写作缩进命令会先切回编辑模式并重新聚焦正文。
+12. binding setter 调用 `JournalStore.update(_:)`。
+13. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
+14. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
+15. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
+16. 保存失败时设置 `errorMessage`。
+17. `ContentView` 通过 alert 展示保存或读取错误。
 
 ### 2.4 列表、筛选与删除
 
@@ -397,7 +398,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
-- 正文词数和 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；列表首页概览可用 `JournalListOverviewSnapshot` 轻量派生，避免为概览卡构造完整统计看板或正文摘要；这些都只能是非持久化快照，不能改变 JSON schema。
+- 正文词数和 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部、统计和列表概览在不需要摘要时必须优先使用 metrics；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；列表首页概览可用 `JournalListOverviewSnapshot` 轻量派生，避免为概览卡构造完整统计看板或正文摘要；这些都只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。

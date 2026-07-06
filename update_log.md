@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.34 / 编辑器头部轻量 metrics
+
+日期：2026-07-06
+
+核心变更：
+
+- `EntryEditorView` 头部从 `entry.bodySummary` 改为 `entry.bodyMetrics`，词数和 `###` 小节概览不再为未展示的正文摘要生成 excerpt。
+- `header` 和 `statPills` 改为消费 `JournalEntryBodyMetrics`，`JournalSectionOverview` 继续消费同一组 `sections`，展示行为不变。
+- GitHub Actions 结果包版本更新为 `v0.34`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.34（编辑器头部轻量metrics）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查和云端 artifact 复判结果将在本轮提交、push 和 Agent C 下载核对后补充。
+
+遗留事项：
+
+- 本轮只优化编辑器头部正文派生成本，不改变正文摘要、词数 split、`###` 小节识别、列表卡片摘要、Markdown 预览、持久化或写作菜单行为。
+
 ### v0.33 / 统计主导项预计算
 
 日期：2026-07-06

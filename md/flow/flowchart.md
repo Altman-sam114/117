@@ -131,8 +131,9 @@ flowchart LR
   InsertRule --> Body
   MetricsNode2 --> MetricsData["词数、### 小节、小节数"]
   Summary --> Excerpt["摘要 + metrics"]
-  Excerpt --> RowEditor["列表卡片和编辑器头部复用"]
+  Excerpt --> RowEditor["列表卡片复用"]
   MetricsData --> Statistics["JournalStatistics：每篇一次 metrics，单轮聚合"]
+  MetricsData --> EditorHeader["EntryEditorView 头部：词数和 ### 小节概览"]
   Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
