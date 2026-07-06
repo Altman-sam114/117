@@ -46,6 +46,26 @@ struct EntryEditorView: View {
                 }
                 .help(EditorWritingCommand.focusBody.title)
 
+                Button {
+                    applyIndentation(.outdent)
+                } label: {
+                    Label(
+                        EditorWritingCommand.outdentLines.title,
+                        systemImage: EditorWritingCommand.outdentLines.systemImage
+                    )
+                }
+                .help(EditorWritingCommand.outdentLines.title)
+
+                Button {
+                    applyIndentation(.indent)
+                } label: {
+                    Label(
+                        EditorWritingCommand.indentLines.title,
+                        systemImage: EditorWritingCommand.indentLines.systemImage
+                    )
+                }
+                .help(EditorWritingCommand.indentLines.title)
+
                 Menu {
                     ForEach(MarkdownSnippet.allCases) { snippet in
                         Button {
@@ -85,6 +105,7 @@ struct EntryEditorView: View {
         .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
         .focusedSceneValue(\.focusEditorBodyAction, focusBody)
         .focusedSceneValue(\.toggleEditorPreviewAction, togglePreviewVisibility)
+        .focusedSceneValue(\.applyEditorIndentationAction, applyIndentation)
         .onChange(of: entry.id) { _ in
             resetBodySelectionToEnd()
         }
@@ -274,6 +295,21 @@ struct EntryEditorView: View {
         } else {
             mode = mode == .preview ? .edit : .preview
         }
+    }
+
+    private func applyIndentation(_ direction: MarkdownLineIndentation.Direction) {
+        focusBody()
+
+        guard let result = MarkdownLineIndentation.apply(
+            to: entry.body,
+            selectedRange: bodySelectedRange,
+            direction: direction
+        ) else {
+            return
+        }
+
+        entry.body = result.body
+        bodySelectedRange = result.selectedRange
     }
 
     private func insertSnippet(_ snippet: MarkdownSnippet) {

@@ -1,7 +1,7 @@
 import Foundation
 
 struct MarkdownLineIndentation {
-    enum Direction {
+    enum Direction: Equatable {
         case indent
         case outdent
     }

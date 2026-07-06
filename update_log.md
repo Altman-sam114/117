@@ -34,6 +34,43 @@
 
 ## 历史记录
 
+### v0.32 / Mac 写作缩进菜单工具栏入口
+
+日期：2026-07-06
+
+核心变更：
+
+- `EditorWritingCommand` 新增“增加缩进”和“减少缩进”，并为写作菜单提供 `⌘⌥]` / `⌘⌥[` 快捷键。
+- `MarkdownLineIndentation.Direction` 显式声明 `Equatable`，便于写作命令测试直接断言缩进方向映射。
+- `MDJournalApp` 新增 focused scene value，把 Mac Catalyst “写作”菜单的缩进命令路由到当前编辑器。
+- `EntryEditorView` 在 Mac Catalyst 写作工具栏新增增加缩进和减少缩进按钮，并复用 `MarkdownLineIndentation` 更新当前正文和 UTF-16 选区。
+- `MarkdownSnippetTests` 扩展覆盖写作命令顺序、元数据、快捷键冲突和缩进方向映射。
+- GitHub Actions 结果包版本更新为 `v0.32`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/EditorWritingCommand.swift`
+- `MDJournal/Utilities/MarkdownLineIndentation.swift`
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.32（Mac写作缩进菜单工具栏入口）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待 Agent B 提交并 push 后，由 GitHub Actions 回传结果包和 Agent C 下载复判补全。
+
+遗留事项：
+
+- 本轮只新增 Mac Catalyst 可见缩进/反缩进入口，不修改缩进算法、Tab / Shift-Tab 键盘捕获、Markdown 预览、片段插入或持久化行为。
+
 ### v0.31 / Markdown 单空格反缩进规则
 
 日期：2026-07-06

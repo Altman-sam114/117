@@ -19,9 +19,11 @@ flowchart TD
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
-  Menu --> WritingCommand["写作命令：聚焦正文、显示/隐藏预览"]
+  Menu --> WritingCommand["写作命令：聚焦正文、增加/减少缩进、显示/隐藏预览"]
   WritingCommand --> Editor
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab"]
+  Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
+  WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出"]
   LineContinuation --> Binding
   BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进，删除 tab 或最多两个行首空格"]

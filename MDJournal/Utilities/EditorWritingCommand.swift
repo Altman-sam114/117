@@ -2,6 +2,8 @@ import SwiftUI
 
 enum EditorWritingCommand: String, CaseIterable, Identifiable {
     case focusBody
+    case indentLines
+    case outdentLines
     case togglePreview
 
     var id: String { rawValue }
@@ -10,6 +12,10 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         switch self {
         case .focusBody:
             return "聚焦正文"
+        case .indentLines:
+            return "增加缩进"
+        case .outdentLines:
+            return "减少缩进"
         case .togglePreview:
             return "显示/隐藏预览"
         }
@@ -19,8 +25,23 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         switch self {
         case .focusBody:
             return "text.cursor"
+        case .indentLines:
+            return "increase.indent"
+        case .outdentLines:
+            return "decrease.indent"
         case .togglePreview:
             return "rectangle.split.2x1"
+        }
+    }
+
+    var indentationDirection: MarkdownLineIndentation.Direction? {
+        switch self {
+        case .indentLines:
+            return .indent
+        case .outdentLines:
+            return .outdent
+        case .focusBody, .togglePreview:
+            return nil
         }
     }
 }
@@ -46,6 +67,10 @@ struct EditorWritingCommandShortcut: Equatable {
         switch command {
         case .focusBody:
             return "e"
+        case .indentLines:
+            return "]"
+        case .outdentLines:
+            return "["
         case .togglePreview:
             return "p"
         }

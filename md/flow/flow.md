@@ -80,15 +80,16 @@ JournalEntry.body
 4. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
 5. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
 6. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
-7. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
-8. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表会跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
-9. 若窄屏当前处于预览模式，片段插入会先切回编辑模式并重新聚焦正文。
-10. binding setter 调用 `JournalStore.update(_:)`。
-11. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
-12. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
-13. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
-14. 保存失败时设置 `errorMessage`。
-15. `ContentView` 通过 alert 展示保存或读取错误。
+7. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
+8. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+9. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表会跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
+10. 若窄屏当前处于预览模式，片段插入或写作缩进命令会先切回编辑模式并重新聚焦正文。
+11. binding setter 调用 `JournalStore.update(_:)`。
+12. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
+13. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
+14. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
+15. 保存失败时设置 `errorMessage`。
+16. `ContentView` 通过 alert 展示保存或读取错误。
 
 ### 2.4 列表、筛选与删除
 
@@ -132,9 +133,9 @@ JournalEntry.body
 4. 菜单“显示统计”调用 `ContentView.showStatistics()`；Mac Catalyst 下打开独立统计窗口，iOS/iPadOS 下复用统计 sheet。
 5. `EntryEditorView` 通过 focused scene value 暴露 Markdown 片段插入动作。
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
-7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文和显示/隐藏预览动作。
-8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、插入 Markdown 和显示/隐藏预览的可见入口；插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
+7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文、增加/减少缩进和显示/隐藏预览动作。
+8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文、增加缩进、减少缩进和显示/隐藏预览提供桌面菜单与快捷键入口。
+9. Mac Catalyst 写作工具栏提供聚焦正文、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ### 2.8 Mac Catalyst 本地构建运行入口
@@ -304,7 +305,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.9 `EditorWritingCommand`
 
-职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标和快捷键映射。
+职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标、快捷键映射和可选缩进方向。
 
 输入：写作命令枚举值。
 
@@ -380,7 +381,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 详情编辑器：修改标题、日期、分类、心情、正文，按光标/选区插入 Markdown 片段，分享文档。
 - 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏。
 - 统计看板：从列表工具栏打开。
-- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段，包含有序列表入口。
+- Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文、增加缩进、减少缩进和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段，包含有序列表入口。
 - 本地 Mac 运行：使用 `./script/build_and_run.sh` 或 Codex `Run` action 构建并启动 Mac Catalyst app。
 
 ## 7. 前端 / 数据层 / 模型层 / 测试层关系
