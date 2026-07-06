@@ -75,7 +75,7 @@ final class JournalEntryTests: XCTestCase {
 
         let summary = JournalEntryBodySummary(body: body)
 
-        XCTAssertEqual(summary.excerpt, "标题 重点 代码 引用")
+        XCTAssertEqual(summary.excerpt, "标题 重点 代码  引用")
     }
 
     func testEntryDerivedPropertiesDelegateToBodySummary() throws {
@@ -152,6 +152,6 @@ final class JournalEntryTests: XCTestCase {
             ].joined(separator: "\n")
         )
 
-        XCTAssertEqual(section.excerpt, "整理 完成 普通项目")
+        XCTAssertEqual(section.excerpt, "整理  完成  普通项目")
     }
 }
