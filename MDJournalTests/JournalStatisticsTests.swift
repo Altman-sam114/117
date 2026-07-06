@@ -23,6 +23,8 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertEqual(stats.maxDailyWordCount, 1)
         XCTAssertEqual(stats.lastSevenDays.map(\.entryCount), Array(repeating: 0, count: 7))
         XCTAssertNil(stats.latestEntryDate)
+        XCTAssertNil(stats.dominantCategory)
+        XCTAssertNil(stats.dominantMood)
     }
 
     func testStatisticsAreDeterministicWithFixedCalendarAndNow() throws {
@@ -122,6 +124,94 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertTrue(stats.insightText.contains("###"))
     }
 
+    func testDominantCategoryUsesWordCountTieBreak() throws {
+        let calendar = fixedCalendar()
+        let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
+        let entries = [
+            makeEntry(
+                title: "日常",
+                body: "one two",
+                category: .daily,
+                mood: .calm,
+                day: 3,
+                calendar: calendar,
+                now: now
+            ),
+            makeEntry(
+                title: "工作学习",
+                body: "one two three four",
+                category: .workStudy,
+                mood: .happy,
+                day: 2,
+                calendar: calendar,
+                now: now
+            )
+        ]
+
+        let stats = JournalStatistics(entries: entries, calendar: calendar, now: now)
+
+        XCTAssertEqual(stats.dominantCategory?.category, .workStudy)
+        XCTAssertEqual(stats.dominantCategory?.wordCount, 4)
+    }
+
+    func testDominantCategoryKeepsAllCasesOrderWhenCountsAndWordsTie() throws {
+        let calendar = fixedCalendar()
+        let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
+        let entries = [
+            makeEntry(
+                title: "健康",
+                body: "one two",
+                category: .health,
+                mood: .calm,
+                day: 3,
+                calendar: calendar,
+                now: now
+            ),
+            makeEntry(
+                title: "日常",
+                body: "one two",
+                category: .daily,
+                mood: .happy,
+                day: 2,
+                calendar: calendar,
+                now: now
+            )
+        ]
+
+        let stats = JournalStatistics(entries: entries, calendar: calendar, now: now)
+
+        XCTAssertEqual(stats.dominantCategory?.category, .daily)
+    }
+
+    func testDominantMoodKeepsAllCasesOrderWhenCountsTie() throws {
+        let calendar = fixedCalendar()
+        let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
+        let entries = [
+            makeEntry(
+                title: "开心",
+                body: "one two three",
+                category: .daily,
+                mood: .happy,
+                day: 3,
+                calendar: calendar,
+                now: now
+            ),
+            makeEntry(
+                title: "平静",
+                body: "one two",
+                category: .workStudy,
+                mood: .calm,
+                day: 2,
+                calendar: calendar,
+                now: now
+            )
+        ]
+
+        let stats = JournalStatistics(entries: entries, calendar: calendar, now: now)
+
+        XCTAssertEqual(stats.dominantMood?.mood, .calm)
+    }
+
     private func fixedCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
@@ -138,5 +228,24 @@ final class JournalStatisticsTests: XCTestCase {
         components.day = day
         components.hour = hour
         return try XCTUnwrap(calendar.date(from: components))
+    }
+
+    private func makeEntry(
+        title: String,
+        body: String,
+        category: JournalEntry.Category,
+        mood: JournalEntry.Mood,
+        day: Int,
+        calendar: Calendar,
+        now: Date
+    ) throws -> JournalEntry {
+        JournalEntry(
+            title: title,
+            body: body,
+            createdAt: try date(year: 2026, month: 7, day: day, hour: 8, calendar: calendar),
+            updatedAt: now,
+            category: category,
+            mood: mood
+        )
     }
 }

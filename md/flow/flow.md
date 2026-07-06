@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口和 UIKit bridge，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -47,7 +47,7 @@ JournalEntry.body
 
 [JournalEntry]
   -> JournalStatistics 每篇日记构造一次 JournalEntryBodyMetrics 并单轮聚合
-  -> 总篇数、总词数、连续天数、7 天趋势、7 天趋势最大词数、分类分布、心情分布、分布最大值、小节覆盖率
+  -> 总篇数、总词数、连续天数、7 天趋势、7 天趋势最大词数、分类分布、心情分布、分布最大值、主导分类/心情、小节覆盖率
   -> EntryListView 概览卡片 / StatisticsDashboardView
 ```
 
@@ -121,7 +121,7 @@ JournalEntry.body
 3. iOS/iPadOS 下，`ContentView` 以 sheet 形式打开 `StatisticsDashboardView`。
 4. Mac Catalyst 下，`ContentView` 调用 `openWindow(id:)` 打开独立“统计”窗口。
 5. `StatisticsDashboardView` 用当前 `entries` 构造一次 `JournalStatistics` 并传给子视图。
-6. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodyMetrics`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布、分布最大 entry count、最近 7 天趋势和趋势最大词数，不为统计路径生成正文摘要。
+6. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodyMetrics`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布、分布最大 entry count、主导分类/心情、最近 7 天趋势和趋势最大词数，不为统计路径生成正文摘要。
 7. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
 8. 独立统计窗口复用 App 级 `JournalStore`，只读展示当前日记数组，不新增第二套加载或保存路径。
 
@@ -289,7 +289,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 输入：日记数组、日历、当前时间。
 
-输出：总量、平均值、连续天数、分布、分布最大值、7 天趋势、趋势最大词数和洞察文案。
+输出：总量、平均值、连续天数、分布、分布最大值、主导分类/心情、7 天趋势、趋势最大词数和洞察文案。
 
 禁止：在视图层复制统计逻辑。
 

@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值和 7 天趋势最大词数派生。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情和 7 天趋势最大词数派生。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,40 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.33 / 统计主导项预计算
+
+日期：2026-07-06
+
+核心变更：
+
+- `JournalStatistics` 将主导分类和主导心情改为初始化阶段预计算的存储属性，避免 `insightText` 和统计看板写作节奏区域读取时重复扫描分类/心情分布数组。
+- 主导分类继续保持原有 tie-break：先比较篇数，篇数相同再比较词数，完全平局时保持 `JournalEntry.Category.allCases` 较早项优先。
+- 主导心情继续保持原有 tie-break：先比较篇数，篇数相同时保持 `JournalEntry.Mood.allCases` 较早项优先。
+- `JournalStatisticsTests` 扩展覆盖空状态主导项为 `nil`、分类词数 tie-break、分类完全平局 allCases 顺序和心情平局 allCases 顺序。
+- GitHub Actions 结果包版本更新为 `v0.33`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/JournalStatistics.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.33（统计主导项预计算）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查和云端 artifact 复判结果将在本轮提交、push 和 Agent C 下载核对后补充。
+
+遗留事项：
+
+- 本轮只处理统计看板主导分类/心情预计算，不改变统计 UI、分类/心情枚举、JSON 持久化、Markdown 或写作菜单行为。
 
 ### v0.32 / Mac 写作缩进菜单工具栏入口
 

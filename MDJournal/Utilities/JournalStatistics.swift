@@ -40,6 +40,8 @@ struct JournalStatistics {
     let moodBreakdown: [MoodBreakdown]
     let maxCategoryEntryCount: Int
     let maxMoodEntryCount: Int
+    let dominantCategory: CategoryBreakdown?
+    let dominantMood: MoodBreakdown?
     let lastSevenDays: [DailyWriting]
     let maxDailyWordCount: Int
     let latestEntryDate: Date?
@@ -124,6 +126,15 @@ struct JournalStatistics {
         }
         categoryBreakdown = categoryBreakdownValue
         maxCategoryEntryCount = max(categoryBreakdownValue.map(\.entryCount).max() ?? 0, 1)
+        dominantCategory = categoryBreakdownValue
+            .filter { $0.entryCount > 0 }
+            .max { lhs, rhs in
+                if lhs.entryCount == rhs.entryCount {
+                    return lhs.wordCount < rhs.wordCount
+                }
+
+                return lhs.entryCount < rhs.entryCount
+            }
 
         let moodBreakdownValue = JournalEntry.Mood.allCases.map { mood in
             MoodBreakdown(
@@ -133,6 +144,9 @@ struct JournalStatistics {
         }
         moodBreakdown = moodBreakdownValue
         maxMoodEntryCount = max(moodBreakdownValue.map(\.entryCount).max() ?? 0, 1)
+        dominantMood = moodBreakdownValue
+            .filter { $0.entryCount > 0 }
+            .max { $0.entryCount < $1.entryCount }
 
         let lastSevenDaysValue: [DailyWriting] = (0..<7).reversed().compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else {
@@ -149,24 +163,6 @@ struct JournalStatistics {
         }
         lastSevenDays = lastSevenDaysValue
         maxDailyWordCount = max(lastSevenDaysValue.map { $0.wordCount }.max() ?? 0, 1)
-    }
-
-    var dominantCategory: CategoryBreakdown? {
-        categoryBreakdown
-            .filter { $0.entryCount > 0 }
-            .max { lhs, rhs in
-                if lhs.entryCount == rhs.entryCount {
-                    return lhs.wordCount < rhs.wordCount
-                }
-
-                return lhs.entryCount < rhs.entryCount
-            }
-    }
-
-    var dominantMood: MoodBreakdown? {
-        moodBreakdown
-            .filter { $0.entryCount > 0 }
-            .max { $0.entryCount < $1.entryCount }
     }
 
     var insightText: String {
