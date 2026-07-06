@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖写作命令快捷键、工具栏快捷键提示文案、专注写作命令和缩进方向映射。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,42 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.50 / Markdown 选区片段转换单次扫描
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownSnippetInsertion` 将引用、无序列表、待办和有序列表的多行选区转换从 `components(separatedBy: "\n")` + `map` + `joined` 改为按 LF 单次扫描并增量构造 replacement。
+- 保持原有语义：只按 LF 分行，CR 保留为行内容参与 `.whitespacesAndNewlines` 空白判断和输出；尾随 LF 不生成额外空项；有序列表只给非空行从 `1. ` 开始连续编号；替换后选区仍覆盖 replacement 全文。
+- `MarkdownSnippetTests` 扩展覆盖 CRLF、CR-only 空白行、尾随换行、emoji/UTF-16 选区长度和有序编号跳过空白行边界。
+- GitHub Actions 结果包版本更新为 `v0.50`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownSnippetInsertion.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.50（Markdown选区片段转换单次扫描）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.50` 存在。
+- `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 未能运行：当前环境没有 `xcrun`，且 `swiftc` 不在 PATH。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 未能运行：当前环境没有 `ruby`。
+- 本机 XCTest 未能运行：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 不存在。
+- GitHub Actions 云端结果包：待本轮实现 commit push 后由 Agent C 下载并核对最新 `origin/main` 对应 artifact。
+
+遗留事项：
+
+- 本轮只优化 Markdown 选区逐行片段转换的中间分配，不改变空选区插入、加粗/斜体/代码包裹、Mac Catalyst 命令路由、Markdown 预览、JSON 持久化、统计口径或回车续写规则。
 
 ### v0.49 / Markdown 回车空项退出非分配判断
 

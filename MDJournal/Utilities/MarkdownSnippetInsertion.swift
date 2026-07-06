@@ -97,19 +97,14 @@ struct MarkdownSnippetInsertion {
     }
 
     private static func prefixedLineReplacement(prefix: String, selectedText: String) -> Replacement {
-        var lines = selectedText.components(separatedBy: "\n")
-        let preservesTrailingNewline = selectedText.hasSuffix("\n")
-        if preservesTrailingNewline {
-            lines.removeLast()
-        }
-
-        var text = lines
-            .map { line in
-                line.isBlankLine ? line : "\(prefix)\(line)"
+        let text = transformSelectedLines(selectedText) { line, isBlankLine, output in
+            guard !isBlankLine else {
+                output.append(contentsOf: line)
+                return
             }
-            .joined(separator: "\n")
-        if preservesTrailingNewline {
-            text += "\n"
+
+            output += prefix
+            output.append(contentsOf: line)
         }
 
         return Replacement(
@@ -119,32 +114,58 @@ struct MarkdownSnippetInsertion {
     }
 
     private static func orderedListReplacement(selectedText: String) -> Replacement {
-        var lines = selectedText.components(separatedBy: "\n")
-        let preservesTrailingNewline = selectedText.hasSuffix("\n")
-        if preservesTrailingNewline {
-            lines.removeLast()
-        }
-
         var nextNumber = 1
-        var text = lines
-            .map { line in
-                guard !line.isBlankLine else {
-                    return line
-                }
-
-                let numberedLine = "\(nextNumber). \(line)"
-                nextNumber += 1
-                return numberedLine
+        let text = transformSelectedLines(selectedText) { line, isBlankLine, output in
+            guard !isBlankLine else {
+                output.append(contentsOf: line)
+                return
             }
-            .joined(separator: "\n")
-        if preservesTrailingNewline {
-            text += "\n"
+
+            output += "\(nextNumber). "
+            output.append(contentsOf: line)
+            nextNumber += 1
         }
 
         return Replacement(
             text: text,
             selectedRange: NSRange(location: 0, length: text.utf16.count)
         )
+    }
+
+    private static func transformSelectedLines(
+        _ selectedText: String,
+        transformLine: (Substring, Bool, inout String) -> Void
+    ) -> String {
+        var text = String()
+        text.reserveCapacity(selectedText.utf16.count)
+
+        var lineStart = selectedText.startIndex
+        var currentIndex = selectedText.startIndex
+
+        while currentIndex < selectedText.endIndex {
+            if selectedText[currentIndex] == "\n" {
+                let line = selectedText[lineStart..<currentIndex]
+                transformLine(line, isBlankLine(line), &text)
+                text.append("\n")
+                currentIndex = selectedText.index(after: currentIndex)
+                lineStart = currentIndex
+            } else {
+                currentIndex = selectedText.index(after: currentIndex)
+            }
+        }
+
+        if lineStart < selectedText.endIndex {
+            let line = selectedText[lineStart..<selectedText.endIndex]
+            transformLine(line, isBlankLine(line), &text)
+        }
+
+        return text
+    }
+
+    private static func isBlankLine(_ line: Substring) -> Bool {
+        line.unicodeScalars.allSatisfy {
+            CharacterSet.whitespacesAndNewlines.contains($0)
+        }
     }
 
     private static func codeBlockReplacement(selectedText: String) -> Replacement {
@@ -227,11 +248,5 @@ struct MarkdownSnippetInsertion {
         }
 
         return text.endIndex
-    }
-}
-
-private extension String {
-    var isBlankLine: Bool {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

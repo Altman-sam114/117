@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -85,7 +85,7 @@ JournalEntry.body
 8. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.focusWriting()` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染。
 9. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
 10. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
-11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表会跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
+11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
 13. binding setter 调用 `JournalStore.update(_:)`。
 14. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
@@ -321,7 +321,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.10 `MarkdownSnippetInsertion`
 
-职责：根据正文、Markdown 片段和 UTF-16 选区生成新的正文和插入后的选区；逐行片段会跳过选区里的空白行，有序列表片段会把非空选中行转换为从 `1. ` 开始连续编号的行。
+职责：根据正文、Markdown 片段和 UTF-16 选区生成新的正文和插入后的选区；逐行片段按 LF 单次扫描并增量构造替换文本，会跳过选区里的空白行、保留 CR/CRLF 和尾随 LF 语义，有序列表片段会把非空选中行转换为从 `1. ` 开始连续编号的行。
 
 输入：`JournalEntry.body`、`MarkdownSnippet`、正文 `NSRange` 光标/选区。
 
@@ -396,7 +396,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、列表快照、列表概览轻量统计快照、Markdown 片段插入规则、Markdown 无序列表/待办/引用/有序列表回车续写规则（含空项退出水平空白边界）、Markdown 行缩进规则、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、列表快照、列表概览轻量统计快照、Markdown 片段插入规则（含 CR/CRLF、尾随换行、有序编号和 UTF-16 边界）、Markdown 无序列表/待办/引用/有序列表回车续写规则（含空项退出水平空白边界）、Markdown 行缩进规则、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 

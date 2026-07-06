@@ -169,6 +169,40 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
     }
 
+    func testSnippetInsertionPreservesCRLFAndSkipsCRBlankLinesWhenPrefixing() {
+        let selectedText = "第一行\r\n\r\n第二行\r\n"
+        let body = "\(selectedText)未选"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .quote,
+            to: body,
+            selectedRange: NSRange(location: 0, length: selectedText.utf16.count)
+        )
+
+        let expectedReplacement = "> 第一行\r\n\r\n> 第二行\r\n"
+        XCTAssertEqual(result.body, "\(expectedReplacement)未选")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionLeavesCROnlyBlankLinesUnmarked() {
+        let body = "\r\n  \r\n\t\r"
+
+        for snippet in [
+            MarkdownSnippet.quote,
+            MarkdownSnippet.bullet,
+            MarkdownSnippet.orderedList,
+            MarkdownSnippet.checklist
+        ] {
+            let result = MarkdownSnippetInsertion.apply(
+                snippet: snippet,
+                to: body,
+                selectedRange: NSRange(location: 0, length: body.utf16.count)
+            )
+
+            XCTAssertEqual(result.body, body)
+            XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: body.utf16.count))
+        }
+    }
+
     func testSnippetInsertionPrefixesSelectedLinesWithOrderedNumbers() {
         let body = "第一行\n第二行"
         let result = MarkdownSnippetInsertion.apply(
@@ -205,6 +239,38 @@ final class MarkdownSnippetTests: XCTestCase {
         let expectedReplacement = "1. 第一行\n2. 第二行\n"
         XCTAssertEqual(result.body, "\(expectedReplacement)未选")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionNumbersOnlyNonBlankCRLFLines() {
+        let selectedText = "第一行\r\n \r\n第二行\r\n第三行"
+        let body = "\(selectedText)未选"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .orderedList,
+            to: body,
+            selectedRange: NSRange(location: 0, length: selectedText.utf16.count)
+        )
+
+        let expectedReplacement = "1. 第一行\r\n \r\n2. 第二行\r\n3. 第三行"
+        XCTAssertEqual(result.body, "\(expectedReplacement)未选")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionPrefixesEmojiSelectionAndSelectsReplacementByUTF16Length() {
+        let body = "前缀😀\n第二行🎯\n尾巴"
+        let selectedText = "😀\n第二行🎯"
+        let selectedRange = (body as NSString).range(of: selectedText)
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .bullet,
+            to: body,
+            selectedRange: selectedRange
+        )
+
+        let expectedReplacement = "- 😀\n- 第二行🎯"
+        XCTAssertEqual(result.body, "前缀\(expectedReplacement)\n尾巴")
+        XCTAssertEqual(
+            result.selectedRange,
+            NSRange(location: "前缀".utf16.count, length: expectedReplacement.utf16.count)
+        )
     }
 
     func testSnippetInsertionLeavesBlankOnlySelectionsUnmarked() {
