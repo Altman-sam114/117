@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖写作命令快捷键、工具栏快捷键提示文案、专注写作命令和缩进方向映射。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖写作命令快捷键、工具栏快捷键提示文案、专注写作命令和缩进方向映射。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,42 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.49 / Markdown 回车空项退出非分配判断
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownLineContinuation` 将空项退出判断从 `Substring` 转 `String` 后 `trimmingCharacters(in: .whitespaces)` 改为直接扫描 `Substring` 的 `.whitespaces` 水平空白。
+- 保持原有语义：空格、tab 和 `CharacterSet.whitespaces` 覆盖的水平空白视为空内容；不扩大到换行，也不改变非空项续写、行中拆分、有序列表编号递增或 fenced code 内默认输入行为。
+- `MarkdownLineContinuationTests` 扩展覆盖空格 + tab 空项退出、光标后仅水平空白仍退出，以及光标前或光标后存在正文时继续拆分续写的边界。
+- GitHub Actions 结果包版本更新为 `v0.49`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineContinuation.swift`
+- `MDJournalTests/MarkdownLineContinuationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.49（Markdown回车空项退出非分配判断）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.49` 存在。
+- `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 未能运行：当前环境没有 `xcrun`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 未能运行：当前环境没有 `ruby`；`python3` 环境也没有 PyYAML，未做等价 YAML 解析。
+- 本机 XCTest 未能运行：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 不存在。
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化回车续写空项退出判断的中间分配，不改变回车续写、空项退出外部结果、fenced code、Tab / Shift-Tab 缩进、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
 
 ### v0.48 / Markdown 回车续写代码围栏判断单次扫描
 

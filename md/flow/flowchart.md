@@ -24,7 +24,7 @@ flowchart TD
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits，去重同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation
-  BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，单次扫描 fenced code 状态"]
+  BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，空项非分配水平空白判断，单次扫描 fenced code 状态"]
   LineContinuation --> Binding
   BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进，删除 tab 或最多两个行首空格"]
   LineIndentation --> Binding
@@ -123,7 +123,7 @@ flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、rounded body 字体和输入 traits 按需配置、UTF-16 光标/选区去重同步"]
-  BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，fenced code 内回退默认输入"]
+  BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，反缩进删除 tab 或最多两个行首空格"]
   IndentRule --> Body

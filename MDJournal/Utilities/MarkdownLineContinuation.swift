@@ -136,8 +136,18 @@ struct MarkdownLineContinuation {
     }
 
     private static func isEmptyContinuationLine(prefix: LinePrefix, lineSuffix: Substring) -> Bool {
-        String(prefix.contentBeforeCursor).trimmingCharacters(in: .whitespaces).isEmpty
-            && String(lineSuffix).trimmingCharacters(in: .whitespaces).isEmpty
+        isWhitespaceOnly(prefix.contentBeforeCursor) && isWhitespaceOnly(lineSuffix)
+    }
+
+    private static func isWhitespaceOnly(_ text: Substring) -> Bool {
+        var currentIndex = text.startIndex
+        while currentIndex < text.endIndex {
+            guard text[currentIndex].isHorizontalWhitespace else {
+                return false
+            }
+            currentIndex = text.index(after: currentIndex)
+        }
+        return true
     }
 
     private static func removingContinuationPrefix(_ prefix: LinePrefix, from body: String) -> Result {

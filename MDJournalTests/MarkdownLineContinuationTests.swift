@@ -190,6 +190,37 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testReturnExitsBulletLineWithOnlySpacesAndTabsBeforeCursor() throws {
+        let body = "- 第一项\n-  \t "
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "- 第一项\n \t ")
+        XCTAssertEqual(result.selectedRange, cursor(at: "- 第一项\n".utf16.count))
+    }
+
+    func testReturnExitsBulletLineWithOnlySpacesAndTabsAfterCursor() throws {
+        let body = "- 第一项\n- \t  "
+        let cursorLocation = "- 第一项\n- ".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: cursorLocation),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "- 第一项\n\t  ")
+        XCTAssertEqual(result.selectedRange, cursor(at: "- 第一项\n".utf16.count))
+    }
+
     func testReturnExitsEmptyChecklistLine() throws {
         let body = "- [ ] 第一项\n- [ ] "
 
@@ -203,6 +234,21 @@ final class MarkdownLineContinuationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "- [ ] 第一项\n")
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
+    func testReturnExitsEmptyChecklistLineWithOnlyTabContent() throws {
+        let body = "- [ ] 第一项\n- [ ] \t"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "- [ ] 第一项\n\t")
+        XCTAssertEqual(result.selectedRange, cursor(at: "- [ ] 第一项\n".utf16.count))
     }
 
     func testReturnExitsEmptyOrderedListLine() throws {
@@ -220,6 +266,21 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testReturnExitsEmptyOrderedListLineWithOnlySpacesAndTabs() throws {
+        let body = "1. 第一项\n2. \t "
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "1. 第一项\n\t ")
+        XCTAssertEqual(result.selectedRange, cursor(at: "1. 第一项\n".utf16.count))
+    }
+
     func testReturnExitsEmptyQuoteLine() throws {
         let body = "> 第一段\n> "
 
@@ -233,6 +294,21 @@ final class MarkdownLineContinuationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "> 第一段\n")
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
+    func testReturnExitsEmptyQuoteLineWithOnlyTabContent() throws {
+        let body = "> 第一段\n> \t"
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "> 第一段\n\t")
+        XCTAssertEqual(result.selectedRange, cursor(at: "> 第一段\n".utf16.count))
     }
 
     func testReturnExitsIndentedEmptyQuoteLine() throws {
@@ -264,6 +340,38 @@ final class MarkdownLineContinuationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "- 早安\n- 世界")
         XCTAssertEqual(result.selectedRange, cursor(at: "- 早安\n- ".utf16.count))
+    }
+
+    func testReturnSplitsBulletLineWhenTextExistsBeforeWhitespaceSuffix() throws {
+        let body = "- 早安 \t"
+        let cursorLocation = "- 早安".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: cursorLocation),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "- 早安\n-  \t")
+        XCTAssertEqual(result.selectedRange, cursor(at: "- 早安\n- ".utf16.count))
+    }
+
+    func testReturnSplitsBulletLineWhenTextExistsAfterWhitespacePrefix() throws {
+        let body = "- \t 世界"
+        let cursorLocation = "- \t ".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: cursorLocation),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(result.body, "- \t \n- 世界")
+        XCTAssertEqual(result.selectedRange, cursor(at: "- \t \n- ".utf16.count))
     }
 
     func testReturnSplitsCurrentOrderedListLineAtCursor() throws {
