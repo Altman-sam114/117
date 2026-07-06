@@ -92,14 +92,14 @@ struct MarkdownPreviewView: View {
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case let .heading(level, text):
-            Text(inlineMarkdown(text))
+            Text(Self.inlineMarkdown(text))
                 .font(font(for: level))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, level == 1 ? 2 : 8)
 
         case let .paragraph(text):
-            Text(inlineMarkdown(text))
+            Text(Self.inlineMarkdown(text))
                 .font(.body)
                 .lineSpacing(5)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,7 +110,7 @@ struct MarkdownPreviewView: View {
                     .fill(accent)
                     .frame(width: 4)
 
-                Text(inlineMarkdown(text))
+                Text(Self.inlineMarkdown(text))
                     .font(.body.italic())
                     .foregroundStyle(.secondary)
                     .lineSpacing(4)
@@ -128,7 +128,7 @@ struct MarkdownPreviewView: View {
                         Text("•")
                             .font(.body.weight(.bold))
                             .foregroundStyle(accent)
-                        Text(inlineMarkdown(item))
+                        Text(Self.inlineMarkdown(item))
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -147,7 +147,7 @@ struct MarkdownPreviewView: View {
                             .foregroundStyle(accent)
                             .frame(minWidth: 28, alignment: .trailing)
 
-                        Text(inlineMarkdown(item.text))
+                        Text(Self.inlineMarkdown(item.text))
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -162,7 +162,7 @@ struct MarkdownPreviewView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(item.isChecked ? accent : .secondary)
-                        Text(inlineMarkdown(item.text))
+                        Text(Self.inlineMarkdown(item.text))
                             .font(.body)
                             .strikethrough(item.isChecked)
                             .foregroundStyle(item.isChecked ? .secondary : .primary)
@@ -193,12 +193,27 @@ struct MarkdownPreviewView: View {
         }
     }
 
-    private func inlineMarkdown(_ text: String) -> AttributedString {
+    static func inlineMarkdown(_ text: String) -> AttributedString {
+        guard shouldParseInlineMarkdown(text) else {
+            return AttributedString(text)
+        }
+
         if let attributedText = try? AttributedString(markdown: text) {
             return attributedText
         }
 
         return AttributedString(text)
+    }
+
+    static func shouldParseInlineMarkdown(_ text: String) -> Bool {
+        text.contains { character in
+            switch character {
+            case "*", "_", "`", "[", "]", "(", ")", "!", "<", ">", "&", "\\", "~", "|":
+                return true
+            default:
+                return false
+            }
+        }
     }
 
     private func font(for headingLevel: Int) -> Font {

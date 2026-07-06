@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -36,7 +36,7 @@ JournalEntry.body
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
-  -> MarkdownPreviewView 复用小节分组判断，并用索引迭代渲染普通块、列表项或 ### 小节分组预览，其中有序列表保留用户输入编号
+  -> MarkdownPreviewView 复用小节分组判断；纯文本片段跳过内联 Markdown 解析，并用索引迭代渲染普通块、列表项或 ### 小节分组预览，其中有序列表保留用户输入编号
 
 [JournalEntry]
   -> JournalEntryListSnapshot 单次派生列表搜索、分类筛选和分类计数
@@ -117,7 +117,7 @@ JournalEntry.body
 6. 否则按普通块序列渲染。
 7. 普通块、小节内块、无序列表、有序列表和待办列表使用索引迭代驱动 `ForEach`，避免在实时预览重渲染时为 `enumerated()` 结果创建临时数组。
 8. 普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线；有序列表只识别 leading whitespace trim 后的 `数字. `，并保留用户输入编号显示。
-9. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
+9. 内联文本先用保守触发字符判断是否可能包含 Markdown；纯文本直接构造 `AttributedString(text)`，包含触发字符时继续通过 `AttributedString(markdown:)` 做轻量渲染并保留 fallback。
 
 ### 2.6 统计看板
 

@@ -233,4 +233,31 @@ final class MarkdownBlockParserTests: XCTestCase {
             ]
         )
     }
+
+    func testInlineMarkdownSkipsParserForPlainText() {
+        XCTAssertFalse(MarkdownPreviewView.shouldParseInlineMarkdown("今天写了普通中文和 English 123。"))
+        XCTAssertFalse(MarkdownPreviewView.shouldParseInlineMarkdown("没有样式的段落\n第二行"))
+    }
+
+    func testInlineMarkdownKeepsParserForSupportedOrAmbiguousMarkers() {
+        let markdownLikeTexts = [
+            "**加粗**",
+            "_斜体_",
+            "`代码`",
+            "[链接](https://example.com)",
+            "![图片](image.png)",
+            "<https://example.com>",
+            "Tom &amp; Jerry",
+            "\\*转义星号",
+            "~~删除线~~",
+            "表格 | 分隔"
+        ]
+
+        for text in markdownLikeTexts {
+            XCTAssertTrue(
+                MarkdownPreviewView.shouldParseInlineMarkdown(text),
+                "Expected Markdown parsing for: \(text)"
+            )
+        }
+    }
 }

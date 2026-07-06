@@ -46,7 +46,7 @@ flowchart TD
   Store --> ListOverview["JournalListOverviewSnapshot：通过 metrics 轻量派生总篇数、总词数、连续天数和洞察"]
   ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown、有序列表和 ### 小节"]
-  Parser --> Preview["MarkdownPreviewView：复用解析结果和小节分组判断，用索引迭代渲染普通预览、列表项或小节分组预览"]
+  Parser --> Preview["MarkdownPreviewView：复用解析结果和小节分组判断，纯文本内联快路径，用索引迭代渲染普通预览、列表项或小节分组预览"]
   Store --> Stats["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
@@ -137,7 +137,7 @@ flowchart LR
   Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
-  Blocks --> Preview["MarkdownPreviewView 索引迭代普通块和列表项渲染"]
+  Blocks --> Preview["MarkdownPreviewView 纯文本内联快路径 + 索引迭代普通块和列表项渲染"]
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics

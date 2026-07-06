@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.47 / Markdown 预览纯文本内联快路径
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownPreviewView` 新增纯文本内联快路径：文本片段没有 Markdown 触发字符时直接构造 `AttributedString(text)`。
+- 包含加粗、斜体、代码、链接、图片、自动链接、HTML 实体、转义、删除线或表格等可能触发字符时，继续走既有 `AttributedString(markdown:)` 解析和 fallback。
+- `MarkdownBlockParserTests` 扩展覆盖普通中英文纯文本跳过 Markdown 解析，以及保守触发字符仍保留 Markdown 解析路径。
+- GitHub Actions 结果包版本更新为 `v0.47`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.47（Markdown预览纯文本内联快路径）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化 Markdown 预览内联文本渲染的纯文本分支，不改变块级 Markdown 解析、`###` 小节分组、正文编辑、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.46 / 正文词数统计单次扫描
 
 日期：2026-07-07
