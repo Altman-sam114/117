@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.45 / 正文字体配置写入去重
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownBodyTextView` 新增 `configureBodyFontIfNeeded(_:)`，集中配置正文 `UITextView` 的 rounded body 字体。
+- `makeUIView` 和 `updateUIView` 共用正文字体配置 helper；`updateUIView` 单次刷新只构造一次目标字体，并且仅在当前字体不匹配时写入。
+- `MarkdownTextInputConfigurationTests` 扩展覆盖正文字体会配置为当前 preferred rounded body font，以及当前字体已匹配时不会替换已有 font 对象。
+- GitHub Actions 结果包版本更新为 `v0.45`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownTextInputConfigurationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.45（正文字体配置写入去重）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化正文 `UITextView` 字体配置的重复目标字体构造和无效写入，不改变 Dynamic Type、输入规则、编辑器布局、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.44 / 正文输入 Traits 去重配置
 
 日期：2026-07-06

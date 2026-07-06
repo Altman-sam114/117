@@ -18,7 +18,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             coordinator?.applyIndentation(direction, to: textView)
         }
         textView.backgroundColor = .clear
-        textView.font = Self.bodyFont
+        Self.configureBodyFontIfNeeded(textView)
         Self.configureMarkdownInputTraits(textView)
         textView.adjustsFontForContentSizeCategory = true
         textView.alwaysBounceVertical = true
@@ -35,9 +35,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         context.coordinator.selectedRange = $selectedRange
         context.coordinator.isFocused = $isFocused
 
-        if textView.font != Self.bodyFont {
-            textView.font = Self.bodyFont
-        }
+        Self.configureBodyFontIfNeeded(textView)
         Self.configureMarkdownInputTraits(textView)
 
         let hasMarkedText = textView.markedTextRange != nil
@@ -163,6 +161,13 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         let baseFont = UIFont.preferredFont(forTextStyle: .body)
         let descriptor = baseFont.fontDescriptor.withDesign(.rounded) ?? baseFont.fontDescriptor
         return UIFont(descriptor: descriptor, size: baseFont.pointSize)
+    }
+
+    static func configureBodyFontIfNeeded(_ textView: UITextView) {
+        let bodyFont = Self.bodyFont
+        if textView.font != bodyFont {
+            textView.font = bodyFont
+        }
     }
 
     static func configureMarkdownInputTraits(_ textView: UITextView) {
