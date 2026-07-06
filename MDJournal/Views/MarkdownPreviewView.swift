@@ -7,15 +7,16 @@ struct MarkdownPreviewView: View {
 
     var body: some View {
         let document = MarkdownBlockParser.parseDocument(markdown)
+        let shouldUseSectionGroups = document.shouldUseSectionGroups
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: document.shouldUseSectionGroups ? 14 : 12) {
+            LazyVStack(alignment: .leading, spacing: shouldUseSectionGroups ? 14 : 12) {
                 if document.blocks.isEmpty {
                     Text("暂无内容")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 60)
-                } else if document.shouldUseSectionGroups {
+                } else if shouldUseSectionGroups {
                     ForEach(document.sectionGroups) { group in
                         sectionGroupView(group)
                     }

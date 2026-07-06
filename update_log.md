@@ -34,6 +34,36 @@
 
 ## 历史记录
 
+### v0.39 / Markdown 预览分组判断复用
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownPreviewView` 在单次 `body` 渲染中将 `document.shouldUseSectionGroups` 缓存为局部 `shouldUseSectionGroups`，同时用于 `LazyVStack` spacing 和普通/小节分组渲染分支。
+- 保持空内容提示、`###` 小节分组条件、普通块渲染、小节卡片、列表项和预览间距数值不变。
+- GitHub Actions 结果包版本更新为 `v0.39`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.39（预览分组判断复用）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只复用 Markdown 预览同一解析结果上的分组布尔判断，不改变 Markdown 解析、`###` 小节识别、列表编号、正文编辑、JSON 持久化或统计口径。
+
 ### v0.38 / 编辑器占位非分配判断
 
 日期：2026-07-06
