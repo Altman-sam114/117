@@ -30,6 +30,7 @@ private struct JournalCommands: Commands {
     @FocusedValue(\.showJournalStatisticsAction) private var showJournalStatisticsAction
     @FocusedValue(\.insertMarkdownSnippetAction) private var insertMarkdownSnippetAction
     @FocusedValue(\.focusEditorBodyAction) private var focusEditorBodyAction
+    @FocusedValue(\.focusEditorWritingAction) private var focusEditorWritingAction
     @FocusedValue(\.toggleEditorPreviewAction) private var toggleEditorPreviewAction
     @FocusedValue(\.applyEditorIndentationAction) private var applyEditorIndentationAction
 
@@ -76,6 +77,8 @@ private struct JournalCommands: Commands {
         switch command {
         case .focusBody:
             return focusEditorBodyAction
+        case .focusWriting:
+            return focusEditorWritingAction
         case .indentLines, .outdentLines:
             guard let indentationDirection = command.indentationDirection,
                   let applyEditorIndentationAction
@@ -107,6 +110,10 @@ private struct FocusEditorBodyActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+private struct FocusEditorWritingActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 private struct ToggleEditorPreviewActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
@@ -134,6 +141,11 @@ extension FocusedValues {
     var focusEditorBodyAction: (() -> Void)? {
         get { self[FocusEditorBodyActionKey.self] }
         set { self[FocusEditorBodyActionKey.self] = newValue }
+    }
+
+    var focusEditorWritingAction: (() -> Void)? {
+        get { self[FocusEditorWritingActionKey.self] }
+        set { self[FocusEditorWritingActionKey.self] = newValue }
     }
 
     var toggleEditorPreviewAction: (() -> Void)? {

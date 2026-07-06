@@ -46,6 +46,14 @@ struct EntryEditorView: View {
                 }
                 .help(EditorWritingCommand.focusBody.title)
 
+                Button(action: focusWriting) {
+                    Label(
+                        EditorWritingCommand.focusWriting.title,
+                        systemImage: EditorWritingCommand.focusWriting.systemImage
+                    )
+                }
+                .help(EditorWritingCommand.focusWriting.title)
+
                 Button {
                     applyIndentation(.outdent)
                 } label: {
@@ -104,6 +112,7 @@ struct EntryEditorView: View {
         .background(Color(.systemBackground))
         .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
         .focusedSceneValue(\.focusEditorBodyAction, focusBody)
+        .focusedSceneValue(\.focusEditorWritingAction, focusWriting)
         .focusedSceneValue(\.toggleEditorPreviewAction, togglePreviewVisibility)
         .focusedSceneValue(\.applyEditorIndentationAction, applyIndentation)
         .onChange(of: entry.id) { _ in
@@ -282,6 +291,16 @@ struct EntryEditorView: View {
 
     private func focusBody() {
         mode = .edit
+        editorFocused = true
+    }
+
+    private func focusWriting() {
+        mode = .edit
+
+        if isWideLayoutActive {
+            isPreviewColumnVisible = false
+        }
+
         editorFocused = true
     }
 

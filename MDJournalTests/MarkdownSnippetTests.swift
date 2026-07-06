@@ -26,7 +26,7 @@ final class MarkdownSnippetTests: XCTestCase {
     }
 
     func testEditorWritingCommandsHaveVisibleMetadata() {
-        XCTAssertEqual(EditorWritingCommand.allCases, [.focusBody, .indentLines, .outdentLines, .togglePreview])
+        XCTAssertEqual(EditorWritingCommand.allCases, [.focusBody, .focusWriting, .indentLines, .outdentLines, .togglePreview])
 
         for command in EditorWritingCommand.allCases {
             XCTAssertFalse(command.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -36,6 +36,7 @@ final class MarkdownSnippetTests: XCTestCase {
 
     func testEditorWritingIndentationCommandsExposeDirections() {
         XCTAssertNil(EditorWritingCommand.focusBody.indentationDirection)
+        XCTAssertNil(EditorWritingCommand.focusWriting.indentationDirection)
         XCTAssertEqual(EditorWritingCommand.indentLines.indentationDirection, .indent)
         XCTAssertEqual(EditorWritingCommand.outdentLines.indentationDirection, .outdent)
         XCTAssertNil(EditorWritingCommand.togglePreview.indentationDirection)
@@ -53,6 +54,7 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(writingIdentifiers.count, EditorWritingCommand.allCases.count)
         XCTAssertTrue(writingIdentifiers.isDisjoint(with: snippetIdentifiers))
         XCTAssertFalse(writingShortcuts.map(\.key).contains("n"), "Command-N is reserved for creating a new journal entry.")
+        XCTAssertEqual(EditorWritingCommandShortcut(command: .focusWriting).key, "w")
         XCTAssertEqual(EditorWritingCommandShortcut(command: .indentLines).key, "]")
         XCTAssertEqual(EditorWritingCommandShortcut(command: .outdentLines).key, "[")
 

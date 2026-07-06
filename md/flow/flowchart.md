@@ -19,7 +19,7 @@ flowchart TD
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
-  Menu --> WritingCommand["写作命令：聚焦正文、增加/减少缩进、显示/隐藏预览"]
+  Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览"]
   WritingCommand --> Editor
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
@@ -30,7 +30,7 @@ flowchart TD
   LineIndentation --> Binding
   BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果，跳过选区空白行，含有序列表编号"]
   SnippetInsertion --> Binding
-  Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏"]
+  Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏与专注写作"]
   PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]

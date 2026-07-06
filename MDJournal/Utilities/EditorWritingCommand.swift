@@ -2,6 +2,7 @@ import SwiftUI
 
 enum EditorWritingCommand: String, CaseIterable, Identifiable {
     case focusBody
+    case focusWriting
     case indentLines
     case outdentLines
     case togglePreview
@@ -12,6 +13,8 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         switch self {
         case .focusBody:
             return "聚焦正文"
+        case .focusWriting:
+            return "专注写作"
         case .indentLines:
             return "增加缩进"
         case .outdentLines:
@@ -25,6 +28,8 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         switch self {
         case .focusBody:
             return "text.cursor"
+        case .focusWriting:
+            return "rectangle.leadinghalf.inset.filled"
         case .indentLines:
             return "increase.indent"
         case .outdentLines:
@@ -40,7 +45,7 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
             return .indent
         case .outdentLines:
             return .outdent
-        case .focusBody, .togglePreview:
+        case .focusBody, .focusWriting, .togglePreview:
             return nil
         }
     }
@@ -67,6 +72,8 @@ struct EditorWritingCommandShortcut: Equatable {
         switch command {
         case .focusBody:
             return "e"
+        case .focusWriting:
+            return "w"
         case .indentLines:
             return "]"
         case .outdentLines:
