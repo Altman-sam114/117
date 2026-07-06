@@ -191,12 +191,39 @@ struct MarkdownLineContinuation {
 
     private static func isInsideFencedCodeBlock(before lineStart: String.Index, in text: String) -> Bool {
         var isInsideFence = false
-        for line in text[..<lineStart].split(separator: "\n", omittingEmptySubsequences: false) {
-            if String(line).trimmingCharacters(in: .whitespaces).hasPrefix("```") {
-                isInsideFence.toggle()
+
+        var currentLineStart = text.startIndex
+        var currentIndex = text.startIndex
+
+        while currentIndex < lineStart {
+            if text[currentIndex] == "\n" {
+                if lineStartsFence(text[currentLineStart..<currentIndex]) {
+                    isInsideFence.toggle()
+                }
+
+                currentIndex = text.index(after: currentIndex)
+                currentLineStart = currentIndex
+            } else {
+                currentIndex = text.index(after: currentIndex)
             }
         }
+
+        if currentLineStart < lineStart,
+           lineStartsFence(text[currentLineStart..<lineStart]) {
+            isInsideFence.toggle()
+        }
+
         return isInsideFence
+    }
+
+    private static func lineStartsFence(_ line: Substring) -> Bool {
+        var markerStart = line.startIndex
+        while markerStart < line.endIndex {
+            guard line[markerStart].isHorizontalWhitespace else { break }
+            markerStart = line.index(after: markerStart)
+        }
+
+        return line[markerStart...].hasPrefix("```")
     }
 
     private static func clampedNSRange(_ nsRange: NSRange, in text: String) -> NSRange {
@@ -238,5 +265,11 @@ struct MarkdownLineContinuation {
         }
 
         return text.endIndex
+    }
+}
+
+private extension Character {
+    var isHorizontalWhitespace: Bool {
+        unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
     }
 }

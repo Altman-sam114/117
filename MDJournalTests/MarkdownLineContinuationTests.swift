@@ -343,6 +343,91 @@ final class MarkdownLineContinuationTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testReturnContinuesAfterClosedFencedCodeBlock() throws {
+        let body = """
+        ```
+        - code
+        ```
+        - 第一项
+        """
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(
+            result.body,
+            [
+                "```",
+                "- code",
+                "```",
+                "- 第一项"
+            ].joined(separator: "\n") + "\n- "
+        )
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
+    func testReturnDoesNotContinueInsideIndentedFencedCodeBlock() {
+        let body = """
+          ```swift
+        - code
+        """
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "\n"
+        )
+
+        XCTAssertNil(result)
+    }
+
+    func testReturnContinuesAfterNonLeadingFenceText() throws {
+        let body = """
+        note ```
+        - 第一项
+        """
+
+        let result = try XCTUnwrap(
+            MarkdownLineContinuation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                replacementText: "\n"
+            )
+        )
+
+        XCTAssertEqual(
+            result.body,
+            [
+                "note ```",
+                "- 第一项"
+            ].joined(separator: "\n") + "\n- "
+        )
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
+    func testReturnUsesOddFenceCountToDisableContinuation() {
+        let body = """
+        ```
+        code
+        ```
+        ```
+        - code
+        """
+
+        let result = MarkdownLineContinuation.apply(
+            to: body,
+            selectedRange: cursor(at: body.utf16.count),
+            replacementText: "\n"
+        )
+
+        XCTAssertNil(result)
+    }
+
     func testReturnDoesNotReplaceNonCollapsedSelection() {
         let body = "- 第一项"
 

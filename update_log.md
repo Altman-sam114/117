@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.48 / Markdown 回车续写代码围栏判断单次扫描
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownLineContinuation` 将光标前 fenced code block 状态判断从 `split` + 逐行 `String` + trim 改为单次索引扫描。
+- 保持原有语义：只扫描当前行之前内容，行首跳过 `.whitespaces` 后以 ``` 开头才切换 fenced 状态，非行首 ``` 不切换，代码围栏内回车不自动续写列表/引用/有序列表。
+- `MarkdownLineContinuationTests` 扩展覆盖闭合围栏后恢复续写、缩进围栏内不续写、非行首围栏文本不切换、奇数围栏数量禁用续写等边界。
+- GitHub Actions 结果包版本更新为 `v0.48`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineContinuation.swift`
+- `MDJournalTests/MarkdownLineContinuationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.48（Markdown回车续写代码围栏判断单次扫描）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化回车续写前的 fenced code 状态判断，不改变列表/待办/引用/有序列表续写、空项退出、UTF-16 光标、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.47 / Markdown 预览纯文本内联快路径
 
 日期：2026-07-07
