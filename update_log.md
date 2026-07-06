@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖写作命令快捷键、工具栏快捷键提示文案、专注写作命令和缩进方向映射。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖写作命令快捷键、工具栏快捷键提示文案、专注写作命令和缩进方向映射。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,38 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.42 / 摘要 Markdown 清理单次扫描
+
+日期：2026-07-06
+
+核心变更：
+
+- `JournalEntryBodySummary` 和 `JournalSection.excerpt` 共用 `MarkdownSummaryText` 单次扫描清理轻量 Markdown 标记，减少摘要派生中的连续全量字符串替换和 `split.map(String).joined` 中间分配。
+- 保持正文摘要清理 `#`、`*`、反引号、引用符和空行处理语义不变；小节摘要继续额外清理待办标记和列表连字符。
+- `JournalEntryTests` 扩展覆盖正文摘要 Markdown 标记清理、空行处理、小节待办标记和普通项目清理语义。
+- GitHub Actions 结果包版本更新为 `v0.42`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.42（摘要Markdown清理单次扫描）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化正文和小节摘要的 Markdown 标记清理成本，不改变正文内容、`###` 小节识别、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
 
 ### v0.41 / Mac 写作工具栏快捷键提示
 

@@ -222,15 +222,7 @@ struct JournalEntryBodySummary: Equatable {
     init(body: String) {
         metrics = JournalEntryBodyMetrics(body: body)
 
-        let plainText = body
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: ">", with: "")
-            .split(separator: "\n")
-            .map(String.init)
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let plainText = MarkdownSummaryText.plainText(from: body, removesListMarkers: false)
 
         excerpt = plainText.isEmpty ? "还没有正文" : plainText
     }
@@ -246,19 +238,7 @@ struct JournalSection: Identifiable, Hashable {
     }
 
     var excerpt: String {
-        let plainText = markdown
-            .replacingOccurrences(of: "#", with: "")
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: ">", with: "")
-            .replacingOccurrences(of: "- [ ]", with: "")
-            .replacingOccurrences(of: "- [x]", with: "")
-            .replacingOccurrences(of: "- [X]", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .split(separator: "\n")
-            .map(String.init)
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let plainText = MarkdownSummaryText.plainText(from: markdown, removesListMarkers: true)
 
         return plainText.isEmpty ? "还没有内容" : plainText
     }
@@ -304,5 +284,69 @@ struct JournalSection: Identifiable, Hashable {
 private extension String {
     func trimmingLeadingWhitespace() -> String {
         String(drop(while: { $0 == " " || $0 == "\t" }))
+    }
+}
+
+private enum MarkdownSummaryText {
+    static func plainText(from markdown: String, removesListMarkers: Bool) -> String {
+        var result = String()
+        var line = String()
+        result.reserveCapacity(markdown.count)
+        line.reserveCapacity(markdown.count)
+
+        var index = markdown.startIndex
+        while index < markdown.endIndex {
+            if markdown[index] == "\n" {
+                appendLine(line, to: &result)
+                line.removeAll(keepingCapacity: true)
+                markdown.formIndex(after: &index)
+                continue
+            }
+
+            if removesListMarkers {
+                if markdown[index...].hasPrefix("- [ ]") {
+                    markdown.formIndex(&index, offsetBy: 5)
+                    continue
+                }
+
+                if markdown[index...].hasPrefix("- [x]") || markdown[index...].hasPrefix("- [X]") {
+                    markdown.formIndex(&index, offsetBy: 5)
+                    continue
+                }
+            }
+
+            let character = markdown[index]
+            if shouldSkip(character, removesListMarkers: removesListMarkers) {
+                markdown.formIndex(after: &index)
+                continue
+            }
+
+            line.append(character)
+            markdown.formIndex(after: &index)
+        }
+
+        appendLine(line, to: &result)
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func appendLine(_ line: String, to result: inout String) {
+        guard !line.isEmpty else { return }
+
+        if !result.isEmpty {
+            result.append(" ")
+        }
+
+        result.append(line)
+    }
+
+    private static func shouldSkip(_ character: Character, removesListMarkers: Bool) -> Bool {
+        switch character {
+        case "#", "*", "`", ">":
+            return true
+        case "-":
+            return removesListMarkers
+        default:
+            return false
+        }
     }
 }

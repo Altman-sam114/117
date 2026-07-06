@@ -40,7 +40,7 @@ flowchart TD
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
   Model --> MetricsNode["JournalEntryBodyMetrics：非持久化词数、### 小节"]
-  Model --> Summary["JournalEntryBodySummary：非持久化摘要并复用 metrics"]
+  Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
   Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
   ListSnapshot --> List
   Store --> ListOverview["JournalListOverviewSnapshot：通过 metrics 轻量派生总篇数、总词数、连续天数和洞察"]
@@ -121,7 +121,7 @@ flowchart TD
 ```mermaid
 flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
-  Body --> Summary["JournalEntryBodySummary：摘要并复用 metrics"]
+  Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写"]
   ContinueRule --> Body

@@ -65,6 +65,19 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(summary.metrics, metrics)
     }
 
+    func testBodySummaryCleansMarkdownMarkersWithoutKeepingBlankLines() {
+        let body = [
+            "# 标题",
+            "",
+            "**重点** `代码`",
+            "> 引用"
+        ].joined(separator: "\n")
+
+        let summary = JournalEntryBodySummary(body: body)
+
+        XCTAssertEqual(summary.excerpt, "标题 重点 代码 引用")
+    }
+
     func testEntryDerivedPropertiesDelegateToBodySummary() throws {
         let createdAt = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-04-05T12:00:00Z"))
         let entryID = try XCTUnwrap(UUID(uuidString: "66666666-6666-6666-6666-666666666666"))
@@ -125,5 +138,20 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertFalse(sections[0].excerpt.contains("**"))
         XCTAssertFalse(sections[0].excerpt.contains("`"))
         XCTAssertEqual(sections[1].excerpt, "还没有内容")
+    }
+
+    func testJournalSectionExcerptCleansTaskMarkersAndBlankLines() {
+        let section = JournalSection(
+            order: 0,
+            title: "任务",
+            markdown: [
+                "- [ ] **整理**",
+                "",
+                "- [X] `完成`",
+                "- 普通项目"
+            ].joined(separator: "\n")
+        )
+
+        XCTAssertEqual(section.excerpt, "整理 完成 普通项目")
     }
 }
