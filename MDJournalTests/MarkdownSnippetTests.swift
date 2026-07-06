@@ -31,6 +31,8 @@ final class MarkdownSnippetTests: XCTestCase {
         for command in EditorWritingCommand.allCases {
             XCTAssertFalse(command.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             XCTAssertFalse(command.systemImage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertTrue(command.helpText.contains(command.title))
+            XCTAssertTrue(command.helpText.contains(EditorWritingCommandShortcut(command: command).displayText))
         }
     }
 
@@ -57,6 +59,9 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(EditorWritingCommandShortcut(command: .focusWriting).key, "w")
         XCTAssertEqual(EditorWritingCommandShortcut(command: .indentLines).key, "]")
         XCTAssertEqual(EditorWritingCommandShortcut(command: .outdentLines).key, "[")
+        XCTAssertEqual(EditorWritingCommandShortcut(command: .focusBody).displayText, "⌘⌥E")
+        XCTAssertEqual(EditorWritingCommandShortcut(command: .focusWriting).displayText, "⌘⌥W")
+        XCTAssertEqual(EditorWritingCommandShortcut(command: .togglePreview).displayText, "⌘⌥P")
 
         for shortcut in writingShortcuts {
             XCTAssertEqual(shortcut.modifiers, [.command, .option])

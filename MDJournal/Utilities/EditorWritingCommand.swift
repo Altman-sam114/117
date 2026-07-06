@@ -39,6 +39,10 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         }
     }
 
+    var helpText: String {
+        "\(title)（\(EditorWritingCommandShortcut(command: self).displayText)）"
+    }
+
     var indentationDirection: MarkdownLineIndentation.Direction? {
         switch self {
         case .indentLines:
@@ -66,6 +70,10 @@ struct EditorWritingCommandShortcut: Equatable {
 
     var identifier: String {
         "\(modifiers.rawValue)-\(key)"
+    }
+
+    var displayText: String {
+        "⌘⌥\(String(key).uppercased())"
     }
 
     private static func key(for command: EditorWritingCommand) -> Character {

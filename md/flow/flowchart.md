@@ -19,7 +19,7 @@ flowchart TD
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
-  Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览"]
+  Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键"]
   WritingCommand --> Editor
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]

@@ -44,7 +44,7 @@ struct EntryEditorView: View {
                 Button(action: focusBody) {
                     Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
                 }
-                .help(EditorWritingCommand.focusBody.title)
+                .help(EditorWritingCommand.focusBody.helpText)
 
                 Button(action: focusWriting) {
                     Label(
@@ -52,7 +52,7 @@ struct EntryEditorView: View {
                         systemImage: EditorWritingCommand.focusWriting.systemImage
                     )
                 }
-                .help(EditorWritingCommand.focusWriting.title)
+                .help(EditorWritingCommand.focusWriting.helpText)
 
                 Button {
                     applyIndentation(.outdent)
@@ -62,7 +62,7 @@ struct EntryEditorView: View {
                         systemImage: EditorWritingCommand.outdentLines.systemImage
                     )
                 }
-                .help(EditorWritingCommand.outdentLines.title)
+                .help(EditorWritingCommand.outdentLines.helpText)
 
                 Button {
                     applyIndentation(.indent)
@@ -72,7 +72,7 @@ struct EntryEditorView: View {
                         systemImage: EditorWritingCommand.indentLines.systemImage
                     )
                 }
-                .help(EditorWritingCommand.indentLines.title)
+                .help(EditorWritingCommand.indentLines.helpText)
 
                 Menu {
                     ForEach(MarkdownSnippet.allCases) { snippet in
@@ -93,7 +93,7 @@ struct EntryEditorView: View {
                         systemImage: EditorWritingCommand.togglePreview.systemImage
                     )
                 }
-                .help(EditorWritingCommand.togglePreview.title)
+                .help(EditorWritingCommand.togglePreview.helpText)
             }
             #endif
 
