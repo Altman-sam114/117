@@ -65,6 +65,34 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(summary.metrics, metrics)
     }
 
+    func testBodyMetricsCountsWordsWithoutAllocatingSplitSegments() {
+        let cases: [(body: String, count: Int)] = [
+            ("", 0),
+            ("   \n\t  ", 0),
+            (" alpha  beta\n\n gamma\t delta ", 4),
+            ("中文 English\n混排", 3),
+            ("### 标题\n- [ ] 任务", 6),
+            ("\r\nalpha\r\nbeta\r", 2),
+            ("a\u{00A0}b\u{3000}c", 3),
+            ("  one  ", 1),
+            ("one\n", 1),
+            ("\tone", 1)
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(
+                JournalEntryBodyMetrics.wordCount(in: testCase.body),
+                testCase.count,
+                "Unexpected word count for body: \(testCase.body.debugDescription)"
+            )
+            XCTAssertEqual(
+                JournalEntryBodyMetrics(body: testCase.body).wordCount,
+                testCase.count,
+                "Unexpected metrics word count for body: \(testCase.body.debugDescription)"
+            )
+        }
+    }
+
     func testBodySummaryCleansMarkdownMarkersWithoutKeepingBlankLines() {
         let body = [
             "# 标题",

@@ -39,7 +39,7 @@ flowchart TD
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
-  Model --> MetricsNode["JournalEntryBodyMetrics：非持久化词数、### 小节"]
+  Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
   Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
   ListSnapshot --> List
@@ -129,7 +129,7 @@ flowchart LR
   IndentRule --> Body
   BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀、空白行跳过和有序列表编号"]
   InsertRule --> Body
-  MetricsNode2 --> MetricsData["词数、### 小节、小节数"]
+  MetricsNode2 --> MetricsData["单次扫描词数、### 小节、小节数"]
   Summary --> Excerpt["摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片复用"]
   MetricsData --> Statistics["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics，单轮聚合"]

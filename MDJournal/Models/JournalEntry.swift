@@ -196,10 +196,24 @@ struct JournalEntryBodyMetrics: Equatable {
     }
 
     init(body: String) {
-        wordCount = body
-            .split { $0.isWhitespace || $0.isNewline }
-            .count
+        wordCount = Self.wordCount(in: body)
         sections = JournalSection.extract(from: body)
+    }
+
+    static func wordCount(in body: String) -> Int {
+        var count = 0
+        var isInsideWord = false
+
+        for character in body {
+            if character.isWhitespace || character.isNewline {
+                isInsideWord = false
+            } else if !isInsideWord {
+                count += 1
+                isInsideWord = true
+            }
+        }
+
+        return count
     }
 }
 
