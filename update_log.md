@@ -34,6 +34,36 @@
 
 ## 历史记录
 
+### v0.37 / Markdown 预览索引迭代
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownPreviewView` 的普通块、小节内块、无序列表、有序列表和待办列表 `ForEach` 从 `Array(...enumerated())` 改为基于 `indices` 的索引迭代，减少实时预览重渲染时的临时数组分配。
+- 保持 offset 身份语义、空内容提示、`###` 小节分组、有序列表用户输入编号、待办勾选样式和所有预览 UI 行为不变。
+- GitHub Actions 结果包版本更新为 `v0.37`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.37（预览索引迭代）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化 Markdown 预览 SwiftUI `ForEach` 数据源，不改变 Markdown 解析、`###` 小节识别、正文编辑、写作命令、JSON 持久化或统计口径。
+
 ### v0.36 / 小节概览懒加载
 
 日期：2026-07-06

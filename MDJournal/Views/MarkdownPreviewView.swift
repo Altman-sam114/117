@@ -20,8 +20,8 @@ struct MarkdownPreviewView: View {
                         sectionGroupView(group)
                     }
                 } else {
-                    ForEach(Array(document.blocks.enumerated()), id: \.offset) { _, block in
-                        blockView(block)
+                    ForEach(document.blocks.indices, id: \.self) { index in
+                        blockView(document.blocks[index])
                     }
                 }
             }
@@ -49,8 +49,8 @@ struct MarkdownPreviewView: View {
     private func sectionGroupView(_ group: MarkdownSectionGroup) -> some View {
         if group.isIntro {
             VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(group.blocks.enumerated()), id: \.offset) { _, block in
-                    blockView(block)
+                ForEach(group.blocks.indices, id: \.self) { index in
+                    blockView(group.blocks[index])
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -72,8 +72,8 @@ struct MarkdownPreviewView: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(group.blocks.enumerated()), id: \.offset) { _, block in
-                        blockView(block)
+                    ForEach(group.blocks.indices, id: \.self) { index in
+                        blockView(group.blocks[index])
                     }
                 }
             }
@@ -120,7 +120,9 @@ struct MarkdownPreviewView: View {
 
         case let .unorderedList(items):
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                ForEach(items.indices, id: \.self) { index in
+                    let item = items[index]
+
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("•")
                             .font(.body.weight(.bold))
@@ -134,7 +136,9 @@ struct MarkdownPreviewView: View {
 
         case let .orderedList(items):
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                ForEach(items.indices, id: \.self) { index in
+                    let item = items[index]
+
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("\(item.number).")
                             .font(.body.weight(.semibold))
@@ -151,7 +155,9 @@ struct MarkdownPreviewView: View {
 
         case let .checklist(items):
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                ForEach(items.indices, id: \.self) { index in
+                    let item = items[index]
+
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(item.isChecked ? accent : .secondary)

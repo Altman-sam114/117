@@ -35,7 +35,7 @@ JournalEntry.body
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
-  -> MarkdownPreviewView 渲染普通块或 ### 小节分组预览，其中有序列表保留用户输入编号
+  -> MarkdownPreviewView 用索引迭代渲染普通块、列表项或 ### 小节分组预览，其中有序列表保留用户输入编号
 
 [JournalEntry]
   -> JournalEntryListSnapshot 单次派生列表搜索、分类筛选和分类计数
@@ -113,8 +113,9 @@ JournalEntry.body
 3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果。
 4. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
 5. 否则按普通块序列渲染。
-6. 普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线；有序列表只识别 leading whitespace trim 后的 `数字. `，并保留用户输入编号显示。
-7. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
+6. 普通块、小节内块、无序列表、有序列表和待办列表使用索引迭代驱动 `ForEach`，避免在实时预览重渲染时为 `enumerated()` 结果创建临时数组。
+7. 普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线；有序列表只识别 leading whitespace trim 后的 `数字. `，并保留用户输入编号显示。
+8. 内联 Markdown 通过 `AttributedString(markdown:)` 做轻量渲染。
 
 ### 2.6 统计看板
 
