@@ -344,7 +344,7 @@ struct EntryEditorView: View {
     }
 
     private var bodyContainsVisibleContent: Bool {
-        body.contains { !$0.isWhitespace }
+        entry.body.contains { !$0.isWhitespace }
     }
 }
 
