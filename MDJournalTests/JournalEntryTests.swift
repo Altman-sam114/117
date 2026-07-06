@@ -51,12 +51,18 @@ final class JournalEntryTests: XCTestCase {
         ].joined(separator: "\n")
 
         let summary = JournalEntryBodySummary(body: body)
+        let metrics = JournalEntryBodyMetrics(body: body)
 
         XCTAssertEqual(summary.excerpt, "alpha beta  Plan four five")
         XCTAssertEqual(summary.wordCount, 6)
         XCTAssertEqual(summary.sectionCount, 1)
         XCTAssertEqual(summary.sections.map(\.title), ["Plan"])
         XCTAssertEqual(summary.sections.first?.markdown, "four five")
+        XCTAssertEqual(metrics.wordCount, 6)
+        XCTAssertEqual(metrics.sectionCount, 1)
+        XCTAssertEqual(metrics.sections.map(\.title), ["Plan"])
+        XCTAssertEqual(metrics.sections.first?.markdown, "four five")
+        XCTAssertEqual(summary.metrics, metrics)
     }
 
     func testEntryDerivedPropertiesDelegateToBodySummary() throws {
@@ -71,11 +77,15 @@ final class JournalEntryTests: XCTestCase {
         )
 
         let summary = entry.bodySummary
+        let metrics = entry.bodyMetrics
 
         XCTAssertEqual(entry.excerpt, summary.excerpt)
         XCTAssertEqual(entry.wordCount, summary.wordCount)
         XCTAssertEqual(entry.sections, summary.sections)
         XCTAssertEqual(entry.sectionCount, summary.sectionCount)
+        XCTAssertEqual(metrics.wordCount, summary.wordCount)
+        XCTAssertEqual(metrics.sections, summary.sections)
+        XCTAssertEqual(metrics.sectionCount, summary.sectionCount)
     }
 
     func testStarterEntryContainsDefaultLevelThreeSections() throws {

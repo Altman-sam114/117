@@ -122,6 +122,10 @@ struct JournalEntry: Identifiable, Codable, Hashable {
         JournalEntryBodySummary(body: body)
     }
 
+    var bodyMetrics: JournalEntryBodyMetrics {
+        JournalEntryBodyMetrics(body: body)
+    }
+
     var excerpt: String {
         bodySummary.excerpt
     }
@@ -183,8 +187,7 @@ struct JournalEntry: Identifiable, Codable, Hashable {
     }
 }
 
-struct JournalEntryBodySummary: Equatable {
-    let excerpt: String
+struct JournalEntryBodyMetrics: Equatable {
     let wordCount: Int
     let sections: [JournalSection]
 
@@ -193,6 +196,32 @@ struct JournalEntryBodySummary: Equatable {
     }
 
     init(body: String) {
+        wordCount = body
+            .split { $0.isWhitespace || $0.isNewline }
+            .count
+        sections = JournalSection.extract(from: body)
+    }
+}
+
+struct JournalEntryBodySummary: Equatable {
+    let excerpt: String
+    let metrics: JournalEntryBodyMetrics
+
+    var wordCount: Int {
+        metrics.wordCount
+    }
+
+    var sections: [JournalSection] {
+        metrics.sections
+    }
+
+    var sectionCount: Int {
+        metrics.sectionCount
+    }
+
+    init(body: String) {
+        metrics = JournalEntryBodyMetrics(body: body)
+
         let plainText = body
             .replacingOccurrences(of: "#", with: "")
             .replacingOccurrences(of: "*", with: "")
@@ -204,10 +233,6 @@ struct JournalEntryBodySummary: Equatable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         excerpt = plainText.isEmpty ? "还没有正文" : plainText
-        wordCount = body
-            .split { $0.isWhitespace || $0.isNewline }
-            .count
-        sections = JournalSection.extract(from: body)
     }
 }
 

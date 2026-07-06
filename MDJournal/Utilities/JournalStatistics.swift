@@ -71,13 +71,13 @@ struct JournalStatistics {
         var moodTotals: [JournalEntry.Mood: Int] = [:]
 
         for entry in sortedEntries {
-            let bodySummary = entry.bodySummary
+            let bodyMetrics = entry.bodyMetrics
             let day = calendar.startOfDay(for: entry.createdAt)
 
-            totalWordsValue += bodySummary.wordCount
-            totalSectionsValue += bodySummary.sectionCount
+            totalWordsValue += bodyMetrics.wordCount
+            totalSectionsValue += bodyMetrics.sectionCount
 
-            if !bodySummary.sections.isEmpty {
+            if !bodyMetrics.sections.isEmpty {
                 entriesWithSectionsValue += 1
             }
 
@@ -85,17 +85,17 @@ struct JournalStatistics {
 
             var dayTotal = dayTotals[day] ?? EntryAggregate()
             dayTotal.entryCount += 1
-            dayTotal.wordCount += bodySummary.wordCount
+            dayTotal.wordCount += bodyMetrics.wordCount
             dayTotals[day] = dayTotal
 
             if entry.createdAt >= weekStart {
                 entriesThisWeekValue += 1
-                wordsThisWeekValue += bodySummary.wordCount
+                wordsThisWeekValue += bodyMetrics.wordCount
             }
 
             var categoryTotal = categoryTotals[entry.category] ?? EntryAggregate()
             categoryTotal.entryCount += 1
-            categoryTotal.wordCount += bodySummary.wordCount
+            categoryTotal.wordCount += bodyMetrics.wordCount
             categoryTotals[entry.category] = categoryTotal
 
             moodTotals[entry.mood, default: 0] += 1

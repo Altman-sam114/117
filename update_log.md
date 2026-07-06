@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值和 7 天趋势最大词数派生。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`JournalStatisticsTests` 覆盖统计分布最大值和 7 天趋势最大词数派生。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,41 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.29 / 正文统计轻量 metrics 拆分
+
+日期：2026-07-06
+
+核心变更：
+
+- 新增非持久化 `JournalEntryBodyMetrics`，只派生词数、`###` 小节和小节数。
+- `JournalEntryBodySummary` 继续负责正文摘要，并复用 `JournalEntryBodyMetrics` 提供 metrics，避免词数和小节规则重复实现。
+- `JournalStatistics` 和 `JournalListOverviewSnapshot` 改用 `entry.bodyMetrics`，统计和列表概览路径不再生成 excerpt。
+- `JournalEntryTests` 扩展覆盖 body metrics 与 body summary metrics 的一致性。
+- GitHub Actions 结果包版本更新为 `v0.29`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图、本轮 Agent A 提示词和本日志。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/Utilities/JournalStatistics.swift`
+- `MDJournal/Utilities/JournalListOverviewSnapshot.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.29（正文统计轻量metrics拆分）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后，由 GitHub Actions 结果包和 Agent C 复判补充。
+
+遗留事项：
+
+- 本轮只拆分统计/概览可用的轻量正文 metrics，不改变摘要文案、词数 split、`###` 小节识别、统计口径或 UI 样式。
 
 ### v0.28 / 最近 7 天趋势最大词数预计算
 

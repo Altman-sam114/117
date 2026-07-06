@@ -37,20 +37,22 @@ flowchart TD
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
-  Model --> Summary["JournalEntryBodySummary：非持久化摘要、词数、### 小节"]
+  Model --> MetricsNode["JournalEntryBodyMetrics：非持久化词数、### 小节"]
+  Model --> Summary["JournalEntryBodySummary：非持久化摘要并复用 metrics"]
   Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
   ListSnapshot --> List
-  Store --> ListOverview["JournalListOverviewSnapshot：轻量派生总篇数、总词数、连续天数和洞察"]
+  Store --> ListOverview["JournalListOverviewSnapshot：通过 metrics 轻量派生总篇数、总词数、连续天数和洞察"]
   ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown、有序列表和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果渲染普通预览或小节分组预览"]
-  Store --> Stats["JournalStatistics：每篇一次正文派生，单轮聚合统计、分布最大值和趋势最大词数"]
+  Store --> Stats["JournalStatistics：每篇一次 metrics 派生，单轮聚合统计、分布最大值和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Summary --> EditorStats["EntryEditorView：头部词数和小节概览"]
-  Summary --> Stats
+  MetricsNode --> Stats
+  MetricsNode --> ListOverview
   Store --> Error["errorMessage：读取/保存失败"]
   Error --> Alert["ContentView Alert：展示本地数据错误"]
 ```
@@ -116,7 +118,8 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  Body["JournalEntry.body 正文"] --> Summary["JournalEntryBodySummary：非持久化单次正文派生"]
+  Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
+  Body --> Summary["JournalEntryBodySummary：摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写"]
   ContinueRule --> Body
@@ -124,9 +127,10 @@ flowchart LR
   IndentRule --> Body
   BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀和有序列表编号"]
   InsertRule --> Body
-  Summary --> Excerpt["摘要、词数、### 小节、小节数"]
+  MetricsNode2 --> MetricsData["词数、### 小节、小节数"]
+  Summary --> Excerpt["摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片和编辑器头部复用"]
-  Summary --> Statistics["JournalStatistics：每篇一次 summary，单轮聚合"]
+  MetricsData --> Statistics["JournalStatistics：每篇一次 metrics，单轮聚合"]
   Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
@@ -137,6 +141,7 @@ flowchart LR
   Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数"]
   ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip"]
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
+  MetricsData --> ListOverview2
   ListOverview2 --> ListView
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布和分布最大值"]

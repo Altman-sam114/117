@@ -35,12 +35,12 @@ struct JournalListOverviewSnapshot {
         var categoryTotals: [JournalEntry.Category: EntryAggregate] = [:]
 
         for entry in entries {
-            let bodySummary = entry.bodySummary
-            let wordCount = bodySummary.wordCount
+            let bodyMetrics = entry.bodyMetrics
+            let wordCount = bodyMetrics.wordCount
             let day = calendar.startOfDay(for: entry.createdAt)
 
             totalWordsValue += wordCount
-            if !bodySummary.sections.isEmpty {
+            if !bodyMetrics.sections.isEmpty {
                 entriesWithSectionsValue += 1
             }
 
