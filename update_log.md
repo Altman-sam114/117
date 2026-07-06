@@ -63,7 +63,17 @@
 
 验证结果：
 
-- 待本轮实现 commit push 后，由 GitHub Actions 结果包和 Agent C 复判补充。
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 实现 commit：`5d36ea3cb24ffc2a7b6e2d4427af967d038813ad`（`v0.29 拆分正文统计轻量指标`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28766381429`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.29-main-5d36ea3-run28766381429-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28766381429/` 复判，目录大小约 `1.3M`。
+- Agent X 复判结果：`ci-artifact-manifest.json` 中 `version=v0.29`、`branch=main`、`commitSha=5d36ea3cb24ffc2a7b6e2d4427af967d038813ad`、`runId=28766381429`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `JournalEntryTests`、`JournalStatisticsTests` 和 `JournalListOverviewSnapshotTests` 已编译并执行，body summary / metrics 一致性、统计和列表概览用例通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
+- 日志中仍有 Xcode 16.4 的 AppIntents metadata extraction warning，以及 XCTest 结束后模拟器启动 app 的错误片段；manifest outcome、JUnit、failure summary 和 `** TEST SUCCEEDED **` 均确认它们未导致本轮失败。
+- Agent C 独立复判结果：确认当前 `HEAD` 与 `origin/main` 均为 `5d36ea3cb24ffc2a7b6e2d4427af967d038813ad`；artifact `mdjournal-ci-v0.29-main-5d36ea3-run28766381429-attempt1` 的 manifest、JUnit、iOS build、Mac Catalyst build、XCTest 日志和三个 `.xcresult/Info.plist` 均核对通过；未执行 `gh auth login`，未改变 GitHub CLI 配置。
 
 遗留事项：
 
