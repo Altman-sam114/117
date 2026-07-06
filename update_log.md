@@ -58,7 +58,15 @@
 
 验证结果：
 
-- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 初始实现 commit：`689ee14a2ba6068fe0774fc8968a79b0d48af45d`（`v0.38 优化编辑器占位判断`），已 push 到 `origin/main`；GitHub Actions run `28787687406`，attempt `1` 失败。Agent X 下载未加密 artifact `mdjournal-ci-v0.38-main-689ee14-run28787687406-attempt1` 到 `/private/tmp/mdjournal-c-review-28787687406/` 复判，manifest 匹配本轮 commit，静态检查通过，但 iOS build、Mac Catalyst build 和 XCTest 均因 `EntryEditorView.bodyContainsVisibleContent` 内 `body` 被解析为 SwiftUI `View.body` 而编译失败。
+- 追加修复 commit：`be26339e28348c0ac253545c206d76674e6ea6e1`（`v0.38 修复占位判断编译`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28788098149`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.38-main-be26339-run28788098149-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28788098149/` 复判，目录大小约 `1.4M`。
+- Agent X 复判结果：`ci-artifact-manifest.json` 中 `version=v0.38`、`branch=main`、`commitSha=be26339e28348c0ac253545c206d76674e6ea6e1`、`runId=28788098149`、`runAttempt=1` 与本轮修复 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
 
 遗留事项：
 
