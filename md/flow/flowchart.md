@@ -26,7 +26,7 @@ flowchart TD
   LineContinuation --> Binding
   BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进"]
   LineIndentation --> Binding
-  BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果，含有序列表编号"]
+  BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果，跳过选区空白行，含有序列表编号"]
   SnippetInsertion --> Binding
   Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏"]
   PreviewToggle --> Preview
@@ -125,7 +125,7 @@ flowchart LR
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进"]
   IndentRule --> Body
-  BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀和有序列表编号"]
+  BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀、空白行跳过和有序列表编号"]
   InsertRule --> Body
   MetricsNode2 --> MetricsData["词数、### 小节、小节数"]
   Summary --> Excerpt["摘要 + metrics"]

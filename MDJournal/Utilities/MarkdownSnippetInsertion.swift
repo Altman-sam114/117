@@ -104,7 +104,9 @@ struct MarkdownSnippetInsertion {
         }
 
         var text = lines
-            .map { "\(prefix)\($0)" }
+            .map { line in
+                line.isBlankLine ? line : "\(prefix)\(line)"
+            }
             .joined(separator: "\n")
         if preservesTrailingNewline {
             text += "\n"
@@ -123,9 +125,17 @@ struct MarkdownSnippetInsertion {
             lines.removeLast()
         }
 
+        var nextNumber = 1
         var text = lines
-            .enumerated()
-            .map { index, line in "\(index + 1). \(line)" }
+            .map { line in
+                guard !line.isBlankLine else {
+                    return line
+                }
+
+                let numberedLine = "\(nextNumber). \(line)"
+                nextNumber += 1
+                return numberedLine
+            }
             .joined(separator: "\n")
         if preservesTrailingNewline {
             text += "\n"
@@ -217,5 +227,11 @@ struct MarkdownSnippetInsertion {
         }
 
         return text.endIndex
+    }
+}
+
+private extension String {
+    var isBlankLine: Bool {
+        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

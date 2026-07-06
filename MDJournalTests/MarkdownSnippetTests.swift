@@ -111,6 +111,34 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
     }
 
+    func testSnippetInsertionSkipsBlankLinesWhenPrefixingSelectedLines() {
+        let body = "第一行\n\n  \n第二行"
+
+        let quoteResult = MarkdownSnippetInsertion.apply(
+            snippet: .quote,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+        XCTAssertEqual(quoteResult.body, "> 第一行\n\n  \n> 第二行")
+        XCTAssertEqual(quoteResult.selectedRange, NSRange(location: 0, length: quoteResult.body.utf16.count))
+
+        let bulletResult = MarkdownSnippetInsertion.apply(
+            snippet: .bullet,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+        XCTAssertEqual(bulletResult.body, "- 第一行\n\n  \n- 第二行")
+        XCTAssertEqual(bulletResult.selectedRange, NSRange(location: 0, length: bulletResult.body.utf16.count))
+
+        let checklistResult = MarkdownSnippetInsertion.apply(
+            snippet: .checklist,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+        XCTAssertEqual(checklistResult.body, "- [ ] 第一行\n\n  \n- [ ] 第二行")
+        XCTAssertEqual(checklistResult.selectedRange, NSRange(location: 0, length: checklistResult.body.utf16.count))
+    }
+
     func testSnippetInsertionPreservesTrailingNewlineWithoutExtraEmptyBullet() {
         let selectedText = "第一行\n第二行\n"
         let body = "\(selectedText)未选"
@@ -137,6 +165,18 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
     }
 
+    func testSnippetInsertionSkipsBlankLinesWhenNumberingSelectedLines() {
+        let body = "第一行\n\n  \n第二行"
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: .orderedList,
+            to: body,
+            selectedRange: NSRange(location: 0, length: body.utf16.count)
+        )
+
+        XCTAssertEqual(result.body, "1. 第一行\n\n  \n2. 第二行")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
     func testSnippetInsertionPreservesTrailingNewlineWithoutExtraOrderedItem() {
         let selectedText = "第一行\n第二行\n"
         let body = "\(selectedText)未选"
@@ -149,6 +189,26 @@ final class MarkdownSnippetTests: XCTestCase {
         let expectedReplacement = "1. 第一行\n2. 第二行\n"
         XCTAssertEqual(result.body, "\(expectedReplacement)未选")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: expectedReplacement.utf16.count))
+    }
+
+    func testSnippetInsertionLeavesBlankOnlySelectionsUnmarked() {
+        let body = "\n  \n"
+
+        for snippet in [
+            MarkdownSnippet.quote,
+            MarkdownSnippet.bullet,
+            MarkdownSnippet.orderedList,
+            MarkdownSnippet.checklist
+        ] {
+            let result = MarkdownSnippetInsertion.apply(
+                snippet: snippet,
+                to: body,
+                selectedRange: NSRange(location: 0, length: body.utf16.count)
+            )
+
+            XCTAssertEqual(result.body, body)
+            XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: body.utf16.count))
+        }
     }
 
     func testSnippetInsertionWrapsSelectedTextInCodeBlock() {

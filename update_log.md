@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.30 / Markdown 选区片段跳过空白行
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownSnippetInsertion` 的引用、无序列表、待办和有序列表选区逐行转换会跳过空白行，减少段落间隔被转换成空 Markdown 标记。
+- 有序列表只对非空白行连续编号，空白行保持为空行，尾随换行仍不产生额外项目。
+- `MarkdownSnippetTests` 扩展覆盖选区空白行跳过、有序列表连续编号和只含空白行的选区不生成标记。
+- GitHub Actions 结果包版本更新为 `v0.30`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图、本轮 Agent A 提示词和本日志。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownSnippetInsertion.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.30（Markdown选区片段跳过空白行）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后，由 GitHub Actions 结果包和 Agent C 复判补充。
+
+遗留事项：
+
+- 本轮只优化选区逐行片段插入的空白行处理，不改变空选区插入、代码块包裹、回车续写、Tab 缩进、Markdown 预览或持久化行为。
+
 ### v0.29 / 正文统计轻量 metrics 拆分
 
 日期：2026-07-06
