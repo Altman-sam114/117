@@ -97,8 +97,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
             textView.text = result.body
             textView.selectedRange = result.selectedRange
-            text.wrappedValue = result.body
-            selectedRange.wrappedValue = result.selectedRange
+            updateTextIfNeeded(result.body)
+            updateSelectedRangeIfNeeded(result.selectedRange)
             return false
         }
 
@@ -119,28 +119,43 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
             textView.text = result.body
             textView.selectedRange = result.selectedRange
-            text.wrappedValue = result.body
-            selectedRange.wrappedValue = result.selectedRange
+            updateTextIfNeeded(result.body)
+            updateSelectedRangeIfNeeded(result.selectedRange)
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            if text.wrappedValue != textView.text {
-                text.wrappedValue = textView.text
-            }
-
-            selectedRange.wrappedValue = textView.selectedRange
+            updateTextIfNeeded(textView.text)
+            updateSelectedRangeIfNeeded(textView.selectedRange)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
-            selectedRange.wrappedValue = textView.selectedRange
+            updateSelectedRangeIfNeeded(textView.selectedRange)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
-            isFocused.wrappedValue = true
+            updateFocusIfNeeded(true)
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
-            isFocused.wrappedValue = false
+            updateFocusIfNeeded(false)
+        }
+
+        private func updateTextIfNeeded(_ newText: String) {
+            if text.wrappedValue != newText {
+                text.wrappedValue = newText
+            }
+        }
+
+        private func updateSelectedRangeIfNeeded(_ newRange: NSRange) {
+            if selectedRange.wrappedValue != newRange {
+                selectedRange.wrappedValue = newRange
+            }
+        }
+
+        private func updateFocusIfNeeded(_ newValue: Bool) {
+            if isFocused.wrappedValue != newValue {
+                isFocused.wrappedValue = newValue
+            }
         }
     }
 

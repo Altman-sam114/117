@@ -21,7 +21,7 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键"]
   WritingCommand --> Editor
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，配置 Markdown 输入 traits，去重同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出"]
@@ -122,7 +122,7 @@ flowchart TD
 flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
-  Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区同步"]
+  Body --> BodyText["MarkdownBodyTextView：正文编辑、输入 traits 和 UTF-16 光标/选区去重同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写"]
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，反缩进删除 tab 或最多两个行首空格"]

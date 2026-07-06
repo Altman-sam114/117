@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.43 / 正文桥接状态写回去重
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownBodyTextView.Coordinator` 新增正文、选区和焦点去重写回 helper，只在 binding 值真实变化时同步 SwiftUI 状态。
+- Markdown 回车续写、Tab / Shift-Tab 行缩进、普通输入变化、选区变化和焦点变化统一复用去重写回，减少长文写作时的无效 SwiftUI 刷新。
+- 保持正文内容、光标/选区、焦点、IME marked text、Markdown 续写、缩进、JSON 持久化和 Mac Catalyst 写作入口语义不变。
+- GitHub Actions 结果包版本更新为 `v0.43`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.43（正文桥接状态写回去重）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化正文 UIKit bridge 的重复状态写回，不改变输入规则、编辑器布局、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.42 / 摘要 Markdown 清理单次扫描
 
 日期：2026-07-06
