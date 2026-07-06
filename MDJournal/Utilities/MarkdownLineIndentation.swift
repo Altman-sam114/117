@@ -84,6 +84,16 @@ struct MarkdownLineIndentation {
                 )
             }
 
+            if body[lineStart] == " " {
+                let end = body.index(after: lineStart)
+                return Operation(
+                    range: lineStart..<end,
+                    location: NSRange(body.startIndex..<lineStart, in: body).length,
+                    replacedLength: " ".utf16.count,
+                    replacement: ""
+                )
+            }
+
             return nil
         }
     }

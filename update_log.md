@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.31 / Markdown 单空格反缩进规则
+
+日期：2026-07-06
+
+核心变更：
+
+- `MarkdownLineIndentation` 的 Shift-Tab 反缩进现在会删除一个 tab 或最多两个行首空格；只有一个行首空格时也能反缩进。
+- 多行选区中，一个空格、两个空格和 tab 开头的行会分别按行反缩进，无缩进行保持不变。
+- `MarkdownLineIndentationTests` 扩展覆盖单空格反缩进和混合空白多行选区。
+- GitHub Actions 结果包版本更新为 `v0.31`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineIndentation.swift`
+- `MDJournalTests/MarkdownLineIndentationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（写作效率）/v0.31（Markdown单空格反缩进规则）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待 Agent B 提交并 push 后，由 GitHub Actions 回传结果包和 Agent C 下载复判补全。
+
+遗留事项：
+
+- 本轮只修正 Shift-Tab 单空格反缩进边界，不新增菜单、工具栏、快捷键或 UI 行为。
+
 ### v0.30 / Markdown 选区片段跳过空白行
 
 日期：2026-07-06

@@ -79,6 +79,21 @@ final class MarkdownLineIndentationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
+    func testShiftTabOutdentsOneLeadingSpace() throws {
+        let body = " - 子项"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                direction: .outdent
+            )
+        )
+
+        XCTAssertEqual(result.body, "- 子项")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
+    }
+
     func testShiftTabOutdentsOneLeadingTab() throws {
         let body = "\t- 子项"
 
@@ -106,6 +121,21 @@ final class MarkdownLineIndentationTests: XCTestCase {
         )
 
         XCTAssertEqual(result.body, "第一行\n第二行\n第三行")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
+    func testShiftTabOutdentsSelectedMixedWhitespaceLines() throws {
+        let body = " 第一行\n  第二行\n\t第三行\n第四行"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: 0, length: body.utf16.count),
+                direction: .outdent
+            )
+        )
+
+        XCTAssertEqual(result.body, "第一行\n第二行\n第三行\n第四行")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
     }
 
