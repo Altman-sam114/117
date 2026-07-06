@@ -62,7 +62,17 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查和云端 artifact 复判结果将在本轮提交、push 和 Agent C 下载核对后补充。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok` 并返回 0；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 初始实现 commit：`19592ed4493f218685c6d41fed698c1fcb2977e1`（`v0.33 预计算统计主导项`），已 push 到 `origin/main`；GitHub Actions run `28772432279`，attempt `1` 失败。Agent X 下载未加密 artifact `mdjournal-ci-v0.33-main-19592ed-run28772432279-attempt1` 到 `/private/tmp/mdjournal-c-review-28772432279/` 复判，manifest 匹配本轮 commit，iOS build 和 Mac Catalyst build 通过，但 `JournalStatisticsTests.swift` 新增测试数组中的 throwing helper 调用缺少 `try`，导致 XCTest 编译失败。
+- 追加修复 commit：`e8b25753c1b032c3157cf25f81ba89395121cbe1`（`v0.33 修复统计测试编译`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28773236403`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.33-main-e8b2575-run28773236403-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28773236403/` 复判，目录大小约 `1.4M`。
+- Agent X 复判结果：`ci-artifact-manifest.json` 中 `version=v0.33`、`branch=main`、`commitSha=e8b25753c1b032c3157cf25f81ba89395121cbe1`、`runId=28773236403`、`runAttempt=1` 与本轮修复 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `xctest.log` 确认 `JournalStatisticsTests` 已编译并执行，`testDominantCategoryUsesWordCountTieBreak`、`testDominantCategoryKeepsAllCasesOrderWhenCountsAndWordsTie`、`testDominantMoodKeepsAllCasesOrderWhenCountsTie`、`testEmptyStatisticsUseZeroValues` 和 `testStatisticsAreDeterministicWithFixedCalendarAndNow` 用例均通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 解析通过。
+- 日志中仍有 Xcode 16.4 的 AppIntents metadata extraction warning，以及 XCTest 成功后模拟器启动 app 的错误片段；manifest outcome、JUnit、failure summary 和 `** TEST SUCCEEDED **` 均确认它们未导致本轮失败。
+- Agent C 独立复判结果：确认当前 `HEAD` 与 `origin/main` 均为 `e8b25753c1b032c3157cf25f81ba89395121cbe1`；artifact `mdjournal-ci-v0.33-main-e8b2575-run28773236403-attempt1` 的 manifest、JUnit、iOS build、Mac Catalyst build、XCTest 日志和三个 `.xcresult/Info.plist` 均核对通过；未执行 `gh auth login`，未改变 GitHub CLI 配置。
 
 遗留事项：
 
