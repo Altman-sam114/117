@@ -64,7 +64,12 @@
 - `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 未能运行：当前环境没有 `xcrun`。
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 未能运行：当前环境没有 `ruby`；`python3` 环境也没有 PyYAML，未做等价 YAML 解析。
 - 本机 XCTest 未能运行：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 不存在。
-- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+- 实现 commit：`e45532d95108645558b3a0992a47d02e7ac708b3`（`v0.49 优化回车空项退出判断`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28811743827`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.49-main-e45532d-run28811743827-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28811743827/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.49`、`branch=main`、`commitSha=e45532d95108645558b3a0992a47d02e7ac708b3`、`runId=28811743827`、`runAttempt=1` 与本轮实现 commit 一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
