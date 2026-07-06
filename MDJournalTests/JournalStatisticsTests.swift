@@ -212,6 +212,45 @@ final class JournalStatisticsTests: XCTestCase {
         XCTAssertEqual(stats.dominantMood?.mood, .calm)
     }
 
+    func testStatisticsSortUnorderedEntriesByCreatedDateDescending() throws {
+        let calendar = fixedCalendar()
+        let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
+        let entries = [
+            try makeEntry(
+                title: "较早",
+                body: "one",
+                category: .daily,
+                mood: .calm,
+                day: 1,
+                calendar: calendar,
+                now: now
+            ),
+            try makeEntry(
+                title: "最新",
+                body: "one two three",
+                category: .workStudy,
+                mood: .happy,
+                day: 3,
+                calendar: calendar,
+                now: now
+            ),
+            try makeEntry(
+                title: "中间",
+                body: "one two",
+                category: .health,
+                mood: .focused,
+                day: 2,
+                calendar: calendar,
+                now: now
+            )
+        ]
+
+        let stats = JournalStatistics(entries: entries, calendar: calendar, now: now)
+
+        XCTAssertEqual(stats.entries.map(\.title), ["最新", "中间", "较早"])
+        XCTAssertEqual(stats.latestEntryDate, stats.entries.first?.createdAt)
+    }
+
     private func fixedCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current

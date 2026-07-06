@@ -47,7 +47,7 @@ flowchart TD
   ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：单次解析块级 Markdown、有序列表和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果和小节分组判断，用索引迭代渲染普通预览、列表项或小节分组预览"]
-  Store --> Stats["JournalStatistics：每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
+  Store --> Stats["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
@@ -132,7 +132,7 @@ flowchart LR
   MetricsNode2 --> MetricsData["词数、### 小节、小节数"]
   Summary --> Excerpt["摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片复用"]
-  MetricsData --> Statistics["JournalStatistics：每篇一次 metrics，单轮聚合"]
+  MetricsData --> Statistics["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics，单轮聚合"]
   MetricsData --> EditorHeader["EntryEditorView 头部：词数和 ### 小节懒加载概览"]
   Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]

@@ -52,7 +52,7 @@ struct JournalStatistics {
     }
 
     init(entries: [JournalEntry], calendar: Calendar = .current, now: Date = Date()) {
-        let sortedEntries = entries.sorted { $0.createdAt > $1.createdAt }
+        let sortedEntries = Self.entriesSortedByCreatedAtDescending(entries)
         self.entries = sortedEntries
 
         totalEntries = sortedEntries.count
@@ -224,5 +224,18 @@ struct JournalStatistics {
         }
 
         return longest
+    }
+
+    private static func entriesSortedByCreatedAtDescending(_ entries: [JournalEntry]) -> [JournalEntry] {
+        guard entries.count > 1 else { return entries }
+
+        for index in entries.indices.dropFirst() {
+            let previousIndex = entries.index(before: index)
+            if entries[previousIndex].createdAt < entries[index].createdAt {
+                return entries.sorted { $0.createdAt > $1.createdAt }
+            }
+        }
+
+        return entries
     }
 }
