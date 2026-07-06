@@ -166,9 +166,17 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     }
 
     static func configureMarkdownInputTraits(_ textView: UITextView) {
-        textView.smartDashesType = .no
-        textView.smartQuotesType = .no
-        textView.smartInsertDeleteType = .no
+        if textView.smartDashesType != .no {
+            textView.smartDashesType = .no
+        }
+
+        if textView.smartQuotesType != .no {
+            textView.smartQuotesType = .no
+        }
+
+        if textView.smartInsertDeleteType != .no {
+            textView.smartInsertDeleteType = .no
+        }
     }
 
     private static func clampedRange(_ range: NSRange, in text: String) -> NSRange {

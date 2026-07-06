@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryBodyMetrics` 负责非持久化正文词数和 `###` 小节轻量派生，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，包含选区空白行跳过和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，反缩进会删除一个 tab 或最多两个行首空格，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，`MarkdownBodyTextView` 负责正文输入 traits 按需配置、键盘缩进入口、UIKit bridge 和正文/选区/焦点变化时的去重 binding 写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -78,7 +78,7 @@ JournalEntry.body
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
 3. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片。
 4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；正文、选区和焦点只在真实变化时写回 binding；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。
-5. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
+5. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
 6. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
 7. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。
 8. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.focusWriting()` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染。
@@ -350,7 +350,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.13 `MarkdownBodyTextView`
 
-职责：用最小 `UITextView` bridge 提供正文编辑、Markdown 安全输入 traits、光标/选区同步、焦点同步、回车续写规则入口和 Tab / Shift-Tab 行缩进入口；正文、选区和焦点 binding 只在值真实变化时写回。
+职责：用最小 `UITextView` bridge 提供正文编辑、Markdown 安全输入 traits 按需配置、光标/选区同步、焦点同步、回车续写规则入口和 Tab / Shift-Tab 行缩进入口；正文、选区和焦点 binding 只在值真实变化时写回。
 
 输入：正文 binding、选区 binding、焦点 binding。
 
