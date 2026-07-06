@@ -77,7 +77,7 @@ JournalEntry.body
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
 3. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片。
-4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区。
+4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。
 5. `MarkdownBodyTextView` 会配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除，避免系统自动改写 Markdown 标记。
 6. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项退出当前结构，IME marked text 或普通输入继续走系统默认行为。
 7. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格。

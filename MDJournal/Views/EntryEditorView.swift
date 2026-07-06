@@ -223,7 +223,7 @@ struct EntryEditorView: View {
             Divider()
 
             ZStack(alignment: .topLeading) {
-                if entry.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !bodyContainsVisibleContent {
                     Text("用 ### 小节组织今天的记录。")
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 20)
@@ -341,6 +341,10 @@ struct EntryEditorView: View {
 
         entry.body = result.body
         bodySelectedRange = result.selectedRange
+    }
+
+    private var bodyContainsVisibleContent: Bool {
+        body.contains { !$0.isWhitespace }
     }
 }
 

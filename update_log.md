@@ -34,6 +34,36 @@
 
 ## 历史记录
 
+### v0.38 / 编辑器占位非分配判断
+
+日期：2026-07-06
+
+核心变更：
+
+- `EntryEditorView` 的正文 placeholder 判断从 `trimmingCharacters(in: .whitespacesAndNewlines).isEmpty` 改为非分配字符扫描，长文输入重渲染时不再为占位条件创建临时 trimmed 字符串。
+- 保持空字符串和全空白/换行正文显示 placeholder、包含任意非空白字符时隐藏 placeholder 的原有语义。
+- GitHub Actions 结果包版本更新为 `v0.38`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.38（编辑器占位非分配判断）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化编辑器正文 placeholder 展示条件，不改变正文内容、光标/选区同步、Markdown 输入规则、JSON 持久化、预览或统计口径。
+
 ### v0.37 / Markdown 预览索引迭代
 
 日期：2026-07-06
