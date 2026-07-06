@@ -128,7 +128,7 @@ final class JournalStatisticsTests: XCTestCase {
         let calendar = fixedCalendar()
         let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
         let entries = [
-            makeEntry(
+            try makeEntry(
                 title: "日常",
                 body: "one two",
                 category: .daily,
@@ -137,7 +137,7 @@ final class JournalStatisticsTests: XCTestCase {
                 calendar: calendar,
                 now: now
             ),
-            makeEntry(
+            try makeEntry(
                 title: "工作学习",
                 body: "one two three four",
                 category: .workStudy,
@@ -158,7 +158,7 @@ final class JournalStatisticsTests: XCTestCase {
         let calendar = fixedCalendar()
         let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
         let entries = [
-            makeEntry(
+            try makeEntry(
                 title: "健康",
                 body: "one two",
                 category: .health,
@@ -167,7 +167,7 @@ final class JournalStatisticsTests: XCTestCase {
                 calendar: calendar,
                 now: now
             ),
-            makeEntry(
+            try makeEntry(
                 title: "日常",
                 body: "one two",
                 category: .daily,
@@ -187,7 +187,7 @@ final class JournalStatisticsTests: XCTestCase {
         let calendar = fixedCalendar()
         let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
         let entries = [
-            makeEntry(
+            try makeEntry(
                 title: "开心",
                 body: "one two three",
                 category: .daily,
@@ -196,7 +196,7 @@ final class JournalStatisticsTests: XCTestCase {
                 calendar: calendar,
                 now: now
             ),
-            makeEntry(
+            try makeEntry(
                 title: "平静",
                 body: "one two",
                 category: .workStudy,
