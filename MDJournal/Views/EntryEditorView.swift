@@ -414,7 +414,7 @@ private struct JournalSectionOverview: View {
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    LazyHStack(spacing: 8) {
                         ForEach(sections) { section in
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(section.title)

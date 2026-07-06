@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.36 / 小节概览懒加载
+
+日期：2026-07-06
+
+核心变更：
+
+- `JournalSectionOverview` 的横向 `###` 小节列表从 `HStack` 改为 `LazyHStack`，多小节长文输入时不再 eager 构建全部离屏小节卡片。
+- 保持 `ForEach(sections)`、卡片样式、标题、excerpt、宽度和横向滚动行为不变。
+- GitHub Actions 结果包版本更新为 `v0.36`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.36（小节概览懒加载）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查和云端 artifact 复判待本轮实现提交后记录。
+
+遗留事项：
+
+- 本轮只替换编辑器头部小节概览的 SwiftUI 横向容器，不改变正文 metrics、`###` 小节识别、excerpt 清理、Markdown 预览、写作命令、JSON 持久化或统计口径。
+
 ### v0.35 / Mac 专注写作命令
 
 日期：2026-07-06

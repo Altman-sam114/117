@@ -52,7 +52,7 @@ flowchart TD
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
   Stats --> Dashboard
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
-  Summary --> EditorStats["EntryEditorView：头部词数和小节概览"]
+  Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
   MetricsNode --> Stats
   MetricsNode --> ListOverview
   Store --> Error["errorMessage：读取/保存失败"]
@@ -133,7 +133,7 @@ flowchart LR
   Summary --> Excerpt["摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片复用"]
   MetricsData --> Statistics["JournalStatistics：每篇一次 metrics，单轮聚合"]
-  MetricsData --> EditorHeader["EntryEditorView 头部：词数和 ### 小节概览"]
+  MetricsData --> EditorHeader["EntryEditorView 头部：词数和 ### 小节懒加载概览"]
   Body --> Parse["MarkdownBlockParser.parseDocument"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
