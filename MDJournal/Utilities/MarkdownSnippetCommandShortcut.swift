@@ -17,6 +17,10 @@ struct MarkdownSnippetCommandShortcut: Equatable {
         "\(modifiers.rawValue)-\(key)"
     }
 
+    var displayText: String {
+        "⌘⌥\(String(key).uppercased())"
+    }
+
     private static func key(for snippet: MarkdownSnippet) -> Character {
         switch snippet {
         case .heading:

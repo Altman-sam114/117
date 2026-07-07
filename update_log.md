@@ -34,6 +34,40 @@
 
 ## 历史记录
 
+### v0.54 / Markdown 工具栏快捷键提示
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownSnippetCommandShortcut` 新增 `displayText`，用于统一展示片段菜单快捷键。
+- `MarkdownSnippet` 新增 `helpText`，格式为 `标题（快捷键）`。
+- `MarkdownToolbar` 的 hover help 改为使用 `snippet.helpText`，让 Mac Catalyst 下正文 Markdown 图标工具栏提示显示对应 `⌘⌥` 快捷键。
+- `MarkdownSnippetTests` 覆盖片段 help text 包含标题和快捷键显示文案，并补充代表性快捷键显示断言。
+- GitHub Actions 结果包版本更新为 `v0.54`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownSnippet.swift`
+- `MDJournal/Utilities/MarkdownSnippetCommandShortcut.swift`
+- `MDJournal/Views/MarkdownToolbar.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.54（Markdown工具栏快捷键提示）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只补齐 Markdown 工具栏 hover 提示，不改变 Markdown 片段快捷键映射、菜单命令、插入结果、正文编辑、JSON 持久化、统计口径或 Mac Catalyst 构建方式。
+
 ### v0.53 / CI 结果包 JUnit 错误字段与验收记录修正
 
 日期：2026-07-07

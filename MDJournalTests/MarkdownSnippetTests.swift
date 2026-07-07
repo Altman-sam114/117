@@ -19,9 +19,18 @@ final class MarkdownSnippetTests: XCTestCase {
 
         XCTAssertEqual(identifiers.count, MarkdownSnippet.allCases.count)
         XCTAssertFalse(shortcuts.map(\.key).contains("n"), "Command-N is reserved for creating a new journal entry.")
+        XCTAssertEqual(MarkdownSnippetCommandShortcut(snippet: .bold).displayText, "⌘⌥B")
+        XCTAssertEqual(MarkdownSnippetCommandShortcut(snippet: .orderedList).displayText, "⌘⌥O")
 
         for shortcut in shortcuts {
             XCTAssertEqual(shortcut.modifiers, [.command, .option])
+        }
+    }
+
+    func testSnippetHelpTextIncludesTitleAndShortcut() {
+        for snippet in MarkdownSnippet.allCases {
+            XCTAssertTrue(snippet.helpText.contains(snippet.title))
+            XCTAssertTrue(snippet.helpText.contains(MarkdownSnippetCommandShortcut(snippet: snippet).displayText))
         }
     }
 

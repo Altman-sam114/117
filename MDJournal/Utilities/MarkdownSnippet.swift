@@ -59,6 +59,10 @@ enum MarkdownSnippet: String, CaseIterable, Identifiable {
         }
     }
 
+    var helpText: String {
+        "\(title)（\(MarkdownSnippetCommandShortcut(snippet: self).displayText)）"
+    }
+
     var markdown: String {
         switch self {
         case .heading:

@@ -19,7 +19,7 @@ struct MarkdownToolbar: View {
                     .foregroundStyle(accent)
                     .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
                     .accessibilityLabel(snippet.title)
-                    .help(snippet.title)
+                    .help(snippet.helpText)
                 }
             }
             .padding(.horizontal, 12)

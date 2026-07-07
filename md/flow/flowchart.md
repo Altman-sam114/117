@@ -21,6 +21,8 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键"]
   WritingCommand --> Editor
+  Editor --> MarkdownToolbarNode["Markdown 工具栏：片段 hover 提示复用 ⌘⌥ 快捷键"]
+  MarkdownToolbarNode --> SnippetInsertion
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits，去重同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation

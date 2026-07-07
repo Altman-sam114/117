@@ -142,7 +142,7 @@ JournalEntry.body
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文、专注写作、增加/减少缩进和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文、专注写作、增加缩进、减少缩进和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键；专注写作会隐藏宽屏预览栏并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
+9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ### 2.8 Mac Catalyst 本地构建运行入口
