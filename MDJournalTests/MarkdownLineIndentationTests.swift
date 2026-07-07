@@ -64,6 +64,28 @@ final class MarkdownLineIndentationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: cursorLocation + 2))
     }
 
+    func testTabIndentsLongSelectionUsingUTF16LineOffsets() throws {
+        let lines = (0..<24).map { index in
+            index.isMultiple(of: 3) ? "第\(index)行😀" : "第\(index)行"
+        }
+        let body = lines.joined(separator: "\n")
+        let selectedText = lines.prefix(18).joined(separator: "\n") + "\n"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: 0, length: selectedText.utf16.count),
+                direction: .indent
+            )
+        )
+
+        let expectedLines = lines.enumerated().map { index, line in
+            index < 18 ? "  \(line)" : line
+        }
+        XCTAssertEqual(result.body, expectedLines.joined(separator: "\n"))
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: selectedText.utf16.count + 36))
+    }
+
     func testShiftTabOutdentsTwoLeadingSpaces() throws {
         let body = "  - 子项"
 
@@ -122,6 +144,46 @@ final class MarkdownLineIndentationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "第一行\n第二行\n第三行")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
+    func testShiftTabOutdentsSelectionAcrossEmojiLines() throws {
+        let body = "  第一行😀\n  第二行\n  第三行😀"
+        let selectionStart = "  第一行😀\n".utf16.count
+        let selectionLength = "  第二行\n  第三行😀".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: selectionStart, length: selectionLength),
+                direction: .outdent
+            )
+        )
+
+        XCTAssertEqual(result.body, "  第一行😀\n第二行\n第三行😀")
+        XCTAssertEqual(
+            result.selectedRange,
+            NSRange(location: selectionStart, length: selectionLength - 4)
+        )
+    }
+
+    func testTabIndentsNonZeroSelectionAcrossEmojiLines() throws {
+        let body = "第一行😀\n第二行\n第三行😀"
+        let selectionStart = "第一".utf16.count
+        let selectionLength = "行😀\n第二行\n第三".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: selectionStart, length: selectionLength),
+                direction: .indent
+            )
+        )
+
+        XCTAssertEqual(result.body, "  第一行😀\n  第二行\n  第三行😀")
+        XCTAssertEqual(
+            result.selectedRange,
+            NSRange(location: selectionStart + 2, length: selectionLength + 4)
+        )
     }
 
     func testShiftTabOutdentsSelectedMixedWhitespaceLines() throws {

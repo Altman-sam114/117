@@ -22,6 +22,11 @@ struct MarkdownLineIndentation {
         }
     }
 
+    private struct LineStart {
+        let index: String.Index
+        let location: Int
+    }
+
     private static let indentationUnit = "  "
 
     static func apply(
@@ -30,7 +35,8 @@ struct MarkdownLineIndentation {
         direction: Direction
     ) -> Result? {
         let normalizedRange = clampedNSRange(selectedRange, in: body)
-        let lineStarts = selectedLineStarts(for: normalizedRange, in: body)
+        let allLineStarts = lineStarts(in: body)
+        let lineStarts = selectedLineStarts(for: normalizedRange, from: allLineStarts)
         let operations = lineStarts.compactMap { lineStart in
             operation(for: lineStart, direction: direction, in: body)
         }
@@ -38,7 +44,7 @@ struct MarkdownLineIndentation {
         guard !operations.isEmpty else { return nil }
 
         var updatedBody = body
-        for operation in operations.sorted(by: { $0.location > $1.location }) {
+        for operation in operations.reversed() {
             updatedBody.replaceSubrange(operation.range, with: operation.replacement)
         }
 
@@ -49,46 +55,48 @@ struct MarkdownLineIndentation {
     }
 
     private static func operation(
-        for lineStart: String.Index,
+        for lineStart: LineStart,
         direction: Direction,
         in body: String
     ) -> Operation? {
+        let index = lineStart.index
+
         switch direction {
         case .indent:
             return Operation(
-                range: lineStart..<lineStart,
-                location: NSRange(body.startIndex..<lineStart, in: body).length,
+                range: index..<index,
+                location: lineStart.location,
                 replacedLength: 0,
                 replacement: indentationUnit
             )
         case .outdent:
-            guard lineStart < body.endIndex else { return nil }
+            guard index < body.endIndex else { return nil }
 
-            if body[lineStart...].hasPrefix(indentationUnit) {
-                let end = body.index(lineStart, offsetBy: indentationUnit.count)
+            if body[index...].hasPrefix(indentationUnit) {
+                let end = body.index(index, offsetBy: indentationUnit.count)
                 return Operation(
-                    range: lineStart..<end,
-                    location: NSRange(body.startIndex..<lineStart, in: body).length,
+                    range: index..<end,
+                    location: lineStart.location,
                     replacedLength: indentationUnit.utf16.count,
                     replacement: ""
                 )
             }
 
-            if body[lineStart] == "\t" {
-                let end = body.index(after: lineStart)
+            if body[index] == "\t" {
+                let end = body.index(after: index)
                 return Operation(
-                    range: lineStart..<end,
-                    location: NSRange(body.startIndex..<lineStart, in: body).length,
+                    range: index..<end,
+                    location: lineStart.location,
                     replacedLength: "\t".utf16.count,
                     replacement: ""
                 )
             }
 
-            if body[lineStart] == " " {
-                let end = body.index(after: lineStart)
+            if body[index] == " " {
+                let end = body.index(after: index)
                 return Operation(
-                    range: lineStart..<end,
-                    location: NSRange(body.startIndex..<lineStart, in: body).length,
+                    range: index..<end,
+                    location: lineStart.location,
                     replacedLength: " ".utf16.count,
                     replacement: ""
                 )
@@ -98,8 +106,7 @@ struct MarkdownLineIndentation {
         }
     }
 
-    private static func selectedLineStarts(for range: NSRange, in text: String) -> [String.Index] {
-        let selectionStart = index(atOrBeforeUTF16Offset: range.location, in: text)
+    private static func selectedLineStarts(for range: NSRange, from lineStarts: [LineStart]) -> ArraySlice<LineStart> {
         let effectiveEndOffset: Int
         if range.length > 0 {
             effectiveEndOffset = max(range.location, range.location + range.length - 1)
@@ -107,23 +114,10 @@ struct MarkdownLineIndentation {
             effectiveEndOffset = range.location
         }
 
-        let selectionEnd = index(atOrBeforeUTF16Offset: effectiveEndOffset, in: text)
-        let firstLineStart = lineStart(before: selectionStart, in: text)
-        let lastLineStart = lineStart(before: selectionEnd, in: text)
+        let firstLineIndex = lineStartIndex(containingUTF16Offset: range.location, in: lineStarts)
+        let lastLineIndex = lineStartIndex(containingUTF16Offset: effectiveEndOffset, in: lineStarts)
 
-        var starts = [String.Index]()
-        var currentStart = firstLineStart
-        while true {
-            starts.append(currentStart)
-            guard currentStart != lastLineStart,
-                  let nextStart = nextLineStart(after: currentStart, in: text)
-            else {
-                break
-            }
-            currentStart = nextStart
-        }
-
-        return starts
+        return lineStarts[firstLineIndex...lastLineIndex]
     }
 
     private static func updatedRange(_ range: NSRange, applying operations: [Operation]) -> NSRange {
@@ -131,7 +125,7 @@ struct MarkdownLineIndentation {
         var location = range.location
         var end = range.location + range.length
 
-        for operation in operations.sorted(by: { $0.location < $1.location }) {
+        for operation in operations {
             location = adjustedBoundary(
                 location,
                 for: operation,
@@ -173,25 +167,39 @@ struct MarkdownLineIndentation {
         return operation.location
     }
 
-    private static func lineStart(before index: String.Index, in text: String) -> String.Index {
-        var currentIndex = index
-        while currentIndex > text.startIndex {
-            let previousIndex = text.index(before: currentIndex)
-            guard text[previousIndex] != "\n" else { break }
-            currentIndex = previousIndex
+    private static func lineStarts(in text: String) -> [LineStart] {
+        var starts = [LineStart(index: text.startIndex, location: 0)]
+        var currentIndex = text.startIndex
+        var currentOffset = 0
+
+        while currentIndex < text.endIndex {
+            let nextIndex = text.index(after: currentIndex)
+            currentOffset += text[currentIndex..<nextIndex].utf16.count
+
+            if text[currentIndex] == "\n" {
+                starts.append(LineStart(index: nextIndex, location: currentOffset))
+            }
+
+            currentIndex = nextIndex
         }
-        return currentIndex
+
+        return starts
     }
 
-    private static func nextLineStart(after lineStart: String.Index, in text: String) -> String.Index? {
-        var currentIndex = lineStart
-        while currentIndex < text.endIndex {
-            if text[currentIndex] == "\n" {
-                return text.index(after: currentIndex)
+    private static func lineStartIndex(containingUTF16Offset offset: Int, in lineStarts: [LineStart]) -> Int {
+        var lowerBound = 0
+        var upperBound = lineStarts.count
+
+        while lowerBound < upperBound {
+            let middleIndex = (lowerBound + upperBound) / 2
+            if lineStarts[middleIndex].location <= offset {
+                lowerBound = middleIndex + 1
+            } else {
+                upperBound = middleIndex
             }
-            currentIndex = text.index(after: currentIndex)
         }
-        return nil
+
+        return max(0, lowerBound - 1)
     }
 
     private static func clampedNSRange(_ nsRange: NSRange, in text: String) -> NSRange {
@@ -205,33 +213,5 @@ struct MarkdownLineIndentation {
         let maximumLength = utf16Count - location
         let length = min(max(nsRange.length, 0), maximumLength)
         return NSRange(location: location, length: length)
-    }
-
-    private static func index(atOrBeforeUTF16Offset offset: Int, in text: String) -> String.Index {
-        let targetOffset = min(max(offset, 0), text.utf16.count)
-        var currentIndex = text.startIndex
-        var currentOffset = 0
-
-        while currentIndex < text.endIndex {
-            if currentOffset == targetOffset {
-                return currentIndex
-            }
-
-            let nextIndex = text.index(after: currentIndex)
-            let nextOffset = currentOffset + text[currentIndex..<nextIndex].utf16.count
-
-            if nextOffset == targetOffset {
-                return nextIndex
-            }
-
-            if nextOffset > targetOffset {
-                return currentIndex
-            }
-
-            currentIndex = nextIndex
-            currentOffset = nextOffset
-        }
-
-        return text.endIndex
     }
 }

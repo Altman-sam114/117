@@ -28,7 +28,7 @@ flowchart TD
   WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，空项非分配水平空白判断，单次扫描 fenced code 状态"]
   LineContinuation --> Binding
-  BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进，删除 tab 或最多两个行首空格"]
+  BodyTextView --> LineIndentation["MarkdownLineIndentation：当前行或多行选区缩进/反缩进，单次扫描行首 UTF-16 offset，删除 tab 或最多两个行首空格"]
   LineIndentation --> Binding
   BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果，逐行转换用 LF 单次扫描，跳过选区空白行，保留 CR/CRLF，含有序列表编号"]
   SnippetInsertion --> Binding
@@ -127,7 +127,7 @@ flowchart LR
   Body --> BodyText["MarkdownBodyTextView：正文编辑、rounded body 字体和输入 traits 按需配置、UTF-16 光标/选区去重同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
   ContinueRule --> Body
-  BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，反缩进删除 tab 或最多两个行首空格"]
+  BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，单次扫描行首 UTF-16 offset，反缩进删除 tab 或最多两个行首空格"]
   IndentRule --> Body
   BodyText --> InsertRule["MarkdownSnippetInsertion：空选区插入、选区包裹、逐行前缀、LF 单次扫描、空白行跳过和有序列表编号"]
   InsertRule --> Body
