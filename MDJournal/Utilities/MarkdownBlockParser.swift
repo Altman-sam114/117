@@ -60,25 +60,25 @@ enum MarkdownBlockParser {
         func flushParagraph() {
             guard !paragraphLines.isEmpty else { return }
             blocks.append(.paragraph(paragraphLines.joined(separator: "\n")))
-            paragraphLines.removeAll()
+            paragraphLines.removeAll(keepingCapacity: true)
         }
 
         func flushUnorderedList() {
             guard !unorderedItems.isEmpty else { return }
             blocks.append(.unorderedList(unorderedItems))
-            unorderedItems.removeAll()
+            unorderedItems.removeAll(keepingCapacity: true)
         }
 
         func flushOrderedList() {
             guard !orderedItems.isEmpty else { return }
             blocks.append(.orderedList(orderedItems))
-            orderedItems.removeAll()
+            orderedItems.removeAll(keepingCapacity: true)
         }
 
         func flushChecklist() {
             guard !checklistItems.isEmpty else { return }
             blocks.append(.checklist(checklistItems))
-            checklistItems.removeAll()
+            checklistItems.removeAll(keepingCapacity: true)
         }
 
         func flushInlineBlocks() {
@@ -89,13 +89,11 @@ enum MarkdownBlockParser {
         }
 
         for rawLine in lines {
-            let isBlankLine = rawLine.isHorizontalWhitespaceOnly
-            let trimmedLine = rawLine.leadingWhitespaceTrimmed()
-
             if isReadingCode {
+                let trimmedLine = rawLine.leadingWhitespaceTrimmed()
                 if trimmedLine.hasPrefix("```") {
                     blocks.append(.code(codeLines.joined(separator: "\n")))
-                    codeLines.removeAll()
+                    codeLines.removeAll(keepingCapacity: true)
                     isReadingCode = false
                 } else {
                     codeLines.append(rawLine)
@@ -103,14 +101,17 @@ enum MarkdownBlockParser {
                 continue
             }
 
-            if trimmedLine.hasPrefix("```") {
+            let isBlankLine = rawLine.isHorizontalWhitespaceOnly
+            if isBlankLine {
                 flushInlineBlocks()
-                isReadingCode = true
                 continue
             }
 
-            if isBlankLine {
+            let trimmedLine = rawLine.leadingWhitespaceTrimmed()
+
+            if trimmedLine.hasPrefix("```") {
                 flushInlineBlocks()
+                isReadingCode = true
                 continue
             }
 
@@ -190,7 +191,7 @@ enum MarkdownBlockParser {
                     isIntro: currentIsIntro
                 )
             )
-            currentBlocks.removeAll()
+            currentBlocks.removeAll(keepingCapacity: true)
         }
 
         for block in blocks {

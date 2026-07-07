@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,38 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.60 / Markdown 解析循环轻量化
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownBlockParser.parse(_:)` 调整每行解析顺序，代码块内优先处理围栏状态，避免执行普通空白分隔判断。
+- 非代码块空白行先直接 flush，避免再执行行首裁剪和 marker 识别。
+- 段落、无序列表、有序列表、待办、代码和小节分组的临时缓冲在 flush 后保留容量，减少长文多块解析时的数组容量 churn。
+- `MarkdownBlockParserTests` 增加代码块内空行保留、代码块内 Markdown-like 行不参与小节/列表解析、CR-only 和 CRLF 当前分行行为覆盖。
+- GitHub Actions 结果包版本更新为 `v0.60`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.60（Markdown解析循环轻量化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮 Agent B 本地轻量检查、push 和 Agent C 云端 artifact 复判后补齐。
+
+遗留事项：
+
+- 本轮只优化 `MarkdownBlockParser` 循环顺序和临时缓冲复用，不替换 `.newlines` 分行策略，不改变 CR/CRLF、代码块、列表、`###` 小节、Markdown 预览、JSON 持久化、统计口径或 Mac Catalyst 构建方式。
 
 ### v0.59 / Mac 预览切换状态提示
 

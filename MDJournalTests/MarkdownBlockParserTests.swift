@@ -107,6 +107,18 @@ final class MarkdownBlockParserTests: XCTestCase {
         XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\n \t \nprint(value)")])
     }
 
+    func testParsePreservesEmptyLinesInsideCodeBlock() {
+        let markdown = [
+            "```",
+            "let value = 1",
+            "",
+            "print(value)",
+            "```"
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\n\nprint(value)")])
+    }
+
     func testParseKeepsOrderedListMarkersInsideCodeBlock() {
         let markdown = [
             "```",
@@ -121,6 +133,114 @@ final class MarkdownBlockParserTests: XCTestCase {
             [
                 .code("1. code\n2. still code"),
                 .orderedList([OrderedListItem(number: "1", text: "正文列表")])
+            ]
+        )
+    }
+
+    func testParseKeepsMarkdownLikeLinesInsideCodeBlockOutOfSectionsAndLists() {
+        let markdown = [
+            "开篇",
+            "```",
+            "### 不是小节",
+            "",
+            "1. 不是列表",
+            "```",
+            "### 正文小节",
+            "内容"
+        ].joined(separator: "\n")
+
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
+        XCTAssertEqual(
+            document.blocks,
+            [
+                .paragraph("开篇"),
+                .code("### 不是小节\n\n1. 不是列表"),
+                .heading(level: 3, text: "正文小节"),
+                .paragraph("内容")
+            ]
+        )
+        XCTAssertEqual(document.sectionGroups.count, 2)
+        XCTAssertEqual(
+            document.sectionGroups[0],
+            MarkdownSectionGroup(
+                order: 0,
+                title: "开篇",
+                blocks: [
+                    .paragraph("开篇"),
+                    .code("### 不是小节\n\n1. 不是列表")
+                ],
+                isIntro: true
+            )
+        )
+        XCTAssertEqual(
+            document.sectionGroups[1],
+            MarkdownSectionGroup(
+                order: 1,
+                title: "正文小节",
+                blocks: [.paragraph("内容")],
+                isIntro: false
+            )
+        )
+    }
+
+    func testParseKeepsCurrentCROnlyLineSeparatorBehavior() {
+        let markdown = "### 第一节\r1. 第一项\r正文"
+
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
+        XCTAssertEqual(
+            document.blocks,
+            [
+                .heading(level: 3, text: "第一节"),
+                .orderedList([OrderedListItem(number: "1", text: "第一项")]),
+                .paragraph("正文")
+            ]
+        )
+        XCTAssertEqual(
+            document.sectionGroups,
+            [
+                MarkdownSectionGroup(
+                    order: 0,
+                    title: "第一节",
+                    blocks: [
+                        .orderedList([OrderedListItem(number: "1", text: "第一项")]),
+                        .paragraph("正文")
+                    ],
+                    isIntro: false
+                )
+            ]
+        )
+    }
+
+    func testParseKeepsCurrentCRLFLineSeparatorBehavior() {
+        let markdown = "第一段\r\n\r\n### 第二节\r\n2. 第二项"
+
+        let document = MarkdownBlockParser.parseDocument(markdown)
+
+        XCTAssertEqual(
+            document.blocks,
+            [
+                .paragraph("第一段"),
+                .heading(level: 3, text: "第二节"),
+                .orderedList([OrderedListItem(number: "2", text: "第二项")])
+            ]
+        )
+        XCTAssertEqual(
+            document.sectionGroups,
+            [
+                MarkdownSectionGroup(
+                    order: 0,
+                    title: "开篇",
+                    blocks: [.paragraph("第一段")],
+                    isIntro: true
+                ),
+                MarkdownSectionGroup(
+                    order: 1,
+                    title: "第二节",
+                    blocks: [.orderedList([OrderedListItem(number: "2", text: "第二项")])],
+                    isIntro: false
+                )
             ]
         )
     }
