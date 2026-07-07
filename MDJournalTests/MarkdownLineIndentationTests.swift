@@ -64,6 +64,25 @@ final class MarkdownLineIndentationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, cursor(at: cursorLocation + 2))
     }
 
+    func testTabIndentsEarlyCursorWithoutChangingLongFollowingText() throws {
+        let followingText = (0..<120)
+            .map { "后续第\($0)行😀" }
+            .joined(separator: "\n")
+        let body = "目标😀\n\(followingText)"
+        let cursorLocation = "目标".utf16.count
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: cursor(at: cursorLocation),
+                direction: .indent
+            )
+        )
+
+        XCTAssertEqual(result.body, "  目标😀\n\(followingText)")
+        XCTAssertEqual(result.selectedRange, cursor(at: cursorLocation + 2))
+    }
+
     func testTabIndentsLongSelectionUsingUTF16LineOffsets() throws {
         let lines = (0..<24).map { index in
             index.isMultiple(of: 3) ? "第\(index)行😀" : "第\(index)行"
@@ -84,6 +103,21 @@ final class MarkdownLineIndentationTests: XCTestCase {
         }
         XCTAssertEqual(result.body, expectedLines.joined(separator: "\n"))
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: selectedText.utf16.count + 36))
+    }
+
+    func testTabIndentsTrailingEmptyLineAtEndOfBody() throws {
+        let body = "第一行\n"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: cursor(at: body.utf16.count),
+                direction: .indent
+            )
+        )
+
+        XCTAssertEqual(result.body, "第一行\n  ")
+        XCTAssertEqual(result.selectedRange, cursor(at: result.body.utf16.count))
     }
 
     func testShiftTabOutdentsTwoLeadingSpaces() throws {

@@ -35,8 +35,13 @@ struct MarkdownLineIndentation {
         direction: Direction
     ) -> Result? {
         let normalizedRange = clampedNSRange(selectedRange, in: body)
-        let allLineStarts = lineStarts(in: body)
-        let lineStarts = selectedLineStarts(for: normalizedRange, from: allLineStarts)
+        let effectiveEndOffset = effectiveEndOffset(for: normalizedRange)
+        let allLineStarts = lineStarts(in: body, throughUTF16Offset: effectiveEndOffset)
+        let lineStarts = selectedLineStarts(
+            for: normalizedRange,
+            effectiveEndOffset: effectiveEndOffset,
+            from: allLineStarts
+        )
         let operations = lineStarts.compactMap { lineStart in
             operation(for: lineStart, direction: direction, in: body)
         }
@@ -106,14 +111,11 @@ struct MarkdownLineIndentation {
         }
     }
 
-    private static func selectedLineStarts(for range: NSRange, from lineStarts: [LineStart]) -> ArraySlice<LineStart> {
-        let effectiveEndOffset: Int
-        if range.length > 0 {
-            effectiveEndOffset = max(range.location, range.location + range.length - 1)
-        } else {
-            effectiveEndOffset = range.location
-        }
-
+    private static func selectedLineStarts(
+        for range: NSRange,
+        effectiveEndOffset: Int,
+        from lineStarts: [LineStart]
+    ) -> ArraySlice<LineStart> {
         let firstLineIndex = lineStartIndex(containingUTF16Offset: range.location, in: lineStarts)
         let lastLineIndex = lineStartIndex(containingUTF16Offset: effectiveEndOffset, in: lineStarts)
 
@@ -167,8 +169,19 @@ struct MarkdownLineIndentation {
         return operation.location
     }
 
-    private static func lineStarts(in text: String) -> [LineStart] {
+    private static func effectiveEndOffset(for range: NSRange) -> Int {
+        if range.length > 0 {
+            max(range.location, range.location + range.length - 1)
+        } else {
+            range.location
+        }
+    }
+
+    private static func lineStarts(in text: String, throughUTF16Offset limit: Int) -> [LineStart] {
+        let clampedLimit = min(max(limit, 0), text.utf16.count)
         var starts = [LineStart(index: text.startIndex, location: 0)]
+        guard clampedLimit > 0 else { return starts }
+
         var currentIndex = text.startIndex
         var currentOffset = 0
 
@@ -181,6 +194,10 @@ struct MarkdownLineIndentation {
             }
 
             currentIndex = nextIndex
+
+            if currentOffset >= clampedLimit {
+                break
+            }
         }
 
         return starts
