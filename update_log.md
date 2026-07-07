@@ -61,7 +61,14 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查和云端结果包验收待本轮实现完成后记录。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.56` 存在；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读复核：确认推荐形态是给行首扫描增加 effective end UTF-16 offset 上界；强调必须保留 `location + length - 1`、尾随空行、UTF-16/emoji 和 CRLF 既有语义。本轮按该建议实现，并补充长后续正文和尾随空行测试。
+- 实现 commit：`9391b1c1dbe8feeb711ce79b091c268fbd9ac5dd`（`v0.56 收窄行缩进扫描范围`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28844831867`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.56-main-9391b1c-run28844831867-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28844831867/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.56`、`branch=main`、`commitSha=9391b1c1dbe8feeb711ce79b091c268fbd9ac5dd`、`runId=28844831867`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
