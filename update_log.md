@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.58 / Mac 专注写作正文输入区宽度优化
+
+日期：2026-07-07
+
+核心变更：
+
+- `EntryEditorView` 在宽屏且右侧预览栏隐藏时，将正文输入区居中并限制最大宽度。
+- 保持预览栏可见时的原左右双栏布局，保留窄屏 segmented 编辑/预览行为。
+- 保持 Mac Catalyst 写作工具栏、菜单命令、focused scene value、Markdown 片段和缩进入口不变。
+- GitHub Actions 结果包版本更新为 `v0.58`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.58（Mac专注写作正文宽度优化）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查和云端 artifact 结果待本轮 Agent B commit / push 后补齐。
+
+遗留事项：
+
+- 本轮只优化 Mac Catalyst 宽屏隐藏预览时的正文输入区宽度，不改变双栏预览、窄屏模式、Markdown 规则、JSON 持久化、统计口径或 Mac Catalyst 构建方式。
+
 ### v0.57 / Markdown 行缩进正文单次构造
 
 日期：2026-07-07

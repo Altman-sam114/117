@@ -32,7 +32,7 @@ flowchart TD
   LineIndentation --> Binding
   BodyTextView --> SnippetInsertion["MarkdownSnippetInsertion：按光标/选区生成 Markdown 片段替换结果，逐行转换用 LF 单次扫描，跳过选区空白行，保留 CR/CRLF，含有序列表编号"]
   SnippetInsertion --> Binding
-  Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏与专注写作"]
+  Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏与专注写作：隐藏预览时居中限制正文输入区宽度"]
   PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]

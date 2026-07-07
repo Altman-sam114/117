@@ -15,6 +15,8 @@ struct EntryEditorView: View {
     @State private var editorFocused = false
     @State private var bodySelectedRange = NSRange(location: NSNotFound, length: 0)
 
+    private let focusedWritingMaxWidth: CGFloat = 920
+
     var body: some View {
         GeometryReader { proxy in
             let isWideLayout = proxy.size.width >= 820
@@ -217,27 +219,41 @@ struct EntryEditorView: View {
         }
     }
 
-    private var editor: some View {
+    private func editor(limitsWritingWidth: Bool = false) -> some View {
         VStack(spacing: 0) {
             MarkdownToolbar(accent: entry.category.tint, onInsert: insertSnippet)
             Divider()
 
-            ZStack(alignment: .topLeading) {
-                if !bodyContainsVisibleContent {
-                    Text("用 ### 小节组织今天的记录。")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
+            if limitsWritingWidth {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    bodyEditorArea
+                        .frame(maxWidth: focusedWritingMaxWidth)
+                    Spacer(minLength: 0)
                 }
-
-                MarkdownBodyTextView(
-                    text: $entry.body,
-                    selectedRange: $bodySelectedRange,
-                    isFocused: $editorFocused
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                bodyEditorArea
+                    .frame(maxWidth: .infinity)
             }
             .background(Color(.systemBackground))
+        }
+    }
+
+    private var bodyEditorArea: some View {
+        ZStack(alignment: .topLeading) {
+            if !bodyContainsVisibleContent {
+                Text("用 ### 小节组织今天的记录。")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 18)
+            }
+
+            MarkdownBodyTextView(
+                text: $entry.body,
+                selectedRange: $bodySelectedRange,
+                isFocused: $editorFocused
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -253,7 +269,7 @@ struct EntryEditorView: View {
             .padding(.vertical, 10)
 
             if mode == .edit {
-                editor
+                editor()
             } else {
                 MarkdownPreviewView(markdown: entry.body, accent: entry.category.tint)
             }
@@ -262,11 +278,8 @@ struct EntryEditorView: View {
 
     private var wideEditor: some View {
         HStack(spacing: 0) {
-            VStack(spacing: 0) {
-                WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
-                editor
-            }
-            .frame(maxWidth: .infinity)
+            editorColumn(limitsWritingWidth: !isPreviewColumnVisible)
+                .frame(maxWidth: .infinity)
 
             if isPreviewColumnVisible {
                 Divider()
@@ -279,6 +292,13 @@ struct EntryEditorView: View {
             }
         }
         .background(Color(.secondarySystemGroupedBackground))
+    }
+
+    private func editorColumn(limitsWritingWidth: Bool) -> some View {
+        VStack(spacing: 0) {
+            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
+            editor(limitsWritingWidth: limitsWritingWidth)
+        }
     }
 
     private var previewToggleTitle: String {
