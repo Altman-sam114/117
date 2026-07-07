@@ -134,35 +134,32 @@ struct MarkdownSnippetInsertion {
 
     private static func transformSelectedLines(
         _ selectedText: String,
-        transformLine: (Substring, Bool, inout String) -> Void
+        transformLine: (String, Bool, inout String) -> Void
     ) -> String {
         var text = String()
         text.reserveCapacity(selectedText.utf16.count)
 
-        var lineStart = selectedText.startIndex
-        var currentIndex = selectedText.startIndex
+        var line = String()
+        line.reserveCapacity(selectedText.utf16.count)
 
-        while currentIndex < selectedText.endIndex {
-            if selectedText[currentIndex] == "\n" {
-                let line = selectedText[lineStart..<currentIndex]
+        for scalar in selectedText.unicodeScalars {
+            if scalar == "\n" {
                 transformLine(line, isBlankLine(line), &text)
                 text.append("\n")
-                currentIndex = selectedText.index(after: currentIndex)
-                lineStart = currentIndex
+                line.removeAll(keepingCapacity: true)
             } else {
-                currentIndex = selectedText.index(after: currentIndex)
+                line.unicodeScalars.append(scalar)
             }
         }
 
-        if lineStart < selectedText.endIndex {
-            let line = selectedText[lineStart..<selectedText.endIndex]
+        if !line.isEmpty {
             transformLine(line, isBlankLine(line), &text)
         }
 
         return text
     }
 
-    private static func isBlankLine(_ line: Substring) -> Bool {
+    private static func isBlankLine(_ line: String) -> Bool {
         line.unicodeScalars.allSatisfy {
             CharacterSet.whitespacesAndNewlines.contains($0)
         }
