@@ -61,7 +61,15 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查和云端 artifact 结果待本轮 Agent B commit / push 后补齐。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.57` 存在；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读复核：确认单次构造应使用原始 `body` 的升序 operation range，不能混用变更后字符串索引；建议补充 CRLF 和混合反缩进选区测试。本轮按该建议实现并补充对应覆盖。
+- 子 agent staged diff 复核：未发现 `String.Index` 复用、`selectedRange` UTF-16 调整、CRLF 选区结束、尾随空行或新增测试期望问题。
+- 实现 commit：`db368da0b96bdf33167b822d16534c18d38ccaca`（`v0.57 优化行缩进正文构造`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28846354022`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.57-main-db368da-run28846354022-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28846354022/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.57`、`branch=main`、`commitSha=db368da0b96bdf33167b822d16534c18d38ccaca`、`runId=28846354022`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
