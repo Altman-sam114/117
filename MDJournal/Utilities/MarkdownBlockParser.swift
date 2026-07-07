@@ -89,7 +89,7 @@ enum MarkdownBlockParser {
         }
 
         for rawLine in lines {
-            let isBlankLine = rawLine.trimmingCharacters(in: .whitespaces).isEmpty
+            let isBlankLine = rawLine.isHorizontalWhitespaceOnly
             let trimmedLine = rawLine.trimmingLeadingWhitespace()
 
             if isReadingCode {
@@ -273,6 +273,10 @@ enum MarkdownBlockParser {
 }
 
 private extension String {
+    var isHorizontalWhitespaceOnly: Bool {
+        unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
+    }
+
     func trimmingLeadingWhitespace() -> String {
         String(drop(while: { $0 == " " || $0 == "\t" }))
     }

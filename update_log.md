@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.51 / Markdown 解析空行判断非分配
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownBlockParser` 将普通块解析中的空行判断从 `trimmingCharacters(in: .whitespaces).isEmpty` 改为直接扫描 `unicodeScalars` 的 `CharacterSet.whitespaces`。
+- 保持原有语义：空字符串、普通空格、tab 和 `.whitespaces` 覆盖的水平空白行仍作为空白分隔；代码块内水平空白行继续作为 code 内容保留。
+- `MarkdownBlockParserTests` 扩展覆盖水平空白行分隔段落和 fenced code block 内水平空白行保留。
+- GitHub Actions 结果包版本更新为 `v0.51`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.51（Markdown解析空行判断非分配）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化 Markdown 解析空行判断的中间分配，不改变分行策略、标题/引用/列表/待办/代码块/分割线解析、`###` 小节分组、Markdown 预览渲染、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.50 / Markdown 选区片段转换单次扫描
 
 日期：2026-07-06

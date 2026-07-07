@@ -83,6 +83,30 @@ final class MarkdownBlockParserTests: XCTestCase {
         XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\nprint(value)")])
     }
 
+    func testParseTreatsHorizontalWhitespaceLinesAsBlankSeparators() {
+        let markdown = "第一段\n \t \n第二段"
+
+        XCTAssertEqual(
+            MarkdownBlockParser.parse(markdown),
+            [
+                .paragraph("第一段"),
+                .paragraph("第二段")
+            ]
+        )
+    }
+
+    func testParsePreservesHorizontalWhitespaceLinesInsideCodeBlock() {
+        let markdown = [
+            "```",
+            "let value = 1",
+            " \t ",
+            "print(value)",
+            "```"
+        ].joined(separator: "\n")
+
+        XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\n \t \nprint(value)")])
+    }
+
     func testParseKeepsOrderedListMarkersInsideCodeBlock() {
         let markdown = [
             "```",
