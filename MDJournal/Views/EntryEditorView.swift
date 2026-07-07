@@ -224,16 +224,18 @@ struct EntryEditorView: View {
             MarkdownToolbar(accent: entry.category.tint, onInsert: insertSnippet)
             Divider()
 
-            if limitsWritingWidth {
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
+            Group {
+                if limitsWritingWidth {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        bodyEditorArea
+                            .frame(maxWidth: focusedWritingMaxWidth)
+                        Spacer(minLength: 0)
+                    }
+                } else {
                     bodyEditorArea
-                        .frame(maxWidth: focusedWritingMaxWidth)
-                    Spacer(minLength: 0)
+                        .frame(maxWidth: .infinity)
                 }
-            } else {
-                bodyEditorArea
-                    .frame(maxWidth: .infinity)
             }
             .background(Color(.systemBackground))
         }
