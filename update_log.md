@@ -62,7 +62,15 @@
 
 验证结果：
 
-- 待本轮 commit push 后由 GitHub Actions 回传结果包复判。
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.54` 存在；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读复核：确认 `MarkdownSnippet.helpText` 与 `MarkdownSnippetCommandShortcut.displayText` 没有循环或访问级别风险；`MarkdownToolbar` 保留 `accessibilityLabel(snippet.title)` 只改 hover help；测试与文档同步未见问题。
+- 实现 commit：`063e6e1e97086e6335d893b7463df84c7ce1c2ad`（`v0.54 补齐 Markdown 工具栏提示`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28841844278`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.54-main-063e6e1-run28841844278-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28841844278/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.54`、`branch=main`、`commitSha=063e6e1e97086e6335d893b7463df84c7ce1c2ad`、`runId=28841844278`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
