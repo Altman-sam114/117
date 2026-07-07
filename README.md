@@ -122,7 +122,7 @@ test -x script/build_and_run.sh
   test
 ```
 
-除非人工明确要求，本机不默认跑完整构建；Agent B 提交后 push 到 `origin/main`，由 `MD Journal CI Results` workflow 执行 generic iOS Debug build、Mac Catalyst Debug build 和 XCTest，并上传未加密结果包。人工明确要求本机 iOS build 时使用：
+除非人工明确要求，本机不默认跑完整构建；Agent B 提交后 push 到 `origin/main`，由 `MD Journal CI Results` workflow 执行 generic iOS Debug build、Mac Catalyst Debug build 和 XCTest，并上传未加密结果包。结果包中的 `junit.xml` 会显式记录 `tests`、`failures`、`errors` 和 `skipped`，供 Agent C 机器复判。人工明确要求本机 iOS build 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -154,6 +154,7 @@ test -x script/build_and_run.sh
 
 ## 完成记录
 
+- 2026-07-07：v0.53 修正 CI 结果包 JUnit 错误字段和验收记录；`junit.xml` 显式写入 `errors="0"`，并区分 v0.52 实现 commit 与最终记录 commit 的 artifact 复判。
 - 2026-07-07：v0.52 优化 Markdown 解析行首裁剪；`MarkdownBlockParser` 的行首空格/tab 裁剪改为返回 `Substring`，减少长文预览解析中的临时行字符串。
 - 2026-07-07：v0.51 优化 Markdown 解析空行判断；`MarkdownBlockParser` 改为直接扫描水平空白识别空白行，减少长文预览解析中的临时 trimmed 字符串。
 - 2026-07-06：v0.50 优化 Markdown 选区片段转换；引用、无序列表、待办和有序列表对多行选区改用 LF 单次扫描和增量构造，保留 CR/CRLF、尾随换行、空白行跳过、有序编号和 UTF-16 选区语义。

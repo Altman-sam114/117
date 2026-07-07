@@ -34,6 +34,36 @@
 
 ## 历史记录
 
+### v0.53 / CI 结果包 JUnit 错误字段与验收记录修正
+
+日期：2026-07-07
+
+核心变更：
+
+- `MD Journal CI Results` workflow 的结果包版本更新为 `v0.53`。
+- CI 生成的 `junit.xml` 在 `testsuite` 上显式写入 `errors="0"`，减少 Agent C 机器复判时对缺失字段的默认推断。
+- `md/test/test.md` 将 manifest 和 artifact 示例从旧固定版本改为泛化占位，并要求 Agent C 核对 `failures`、`errors` 和 `skipped`。
+- 修正 v0.52 记录，区分实现 commit artifact 和最终记录 commit artifact，避免“最新 origin/main”表述在后续记录提交后产生歧义。
+- 同步 README、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `.github/workflows/ci-results.yml`
+- `md/test/test.md`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（协作云端化）/v0.53（CI结果包JUnit错误字段与验收记录修正）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化 CI 结果包和验收记录表述，不改变 Swift 业务逻辑、Markdown 解析、正文编辑、JSON 持久化、统计口径或 Mac Catalyst UI 行为。
+
 ### v0.52 / Markdown 解析行首裁剪非分配
 
 日期：2026-07-07
@@ -65,9 +95,11 @@
 - 实现 commit：`9df582dceaf02563f214413b3fd6c86a68fc4502`（`v0.52 优化解析行首裁剪`），已 push 到 `origin/main`。
 - GitHub Actions：`MD Journal CI Results` run `28840203924`，attempt `1`，结论 `success`。
 - 未加密 artifact：`mdjournal-ci-v0.52-main-9df582d-run28840203924-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28840203924/` 复判。
-- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.52`、`branch=main`、`commitSha=9df582dceaf02563f214413b3fd6c86a68fc4502`、`runId=28840203924`、`runAttempt=1` 与最新 `origin/main` 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
-- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- Agent C 对实现 commit 的复判结果：`ci-artifact-manifest.json` 中 `version=v0.52`、`branch=main`、`commitSha=9df582dceaf02563f214413b3fd6c86a68fc4502`、`runId=28840203924`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`skipped=0`，`errors` 按缺失字段默认 0 复判；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
 - `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
+- 最终记录 commit：`6abbdb8f03630e70277cd7f1f90c1f6e79da1cd0`（`v0.52 记录云端验收结果`），已 push 到 `origin/main`。
+- Agent C 对最终记录 commit 的复判结果：GitHub Actions run `28840526850`，attempt `1`，artifact `mdjournal-ci-v0.52-main-6abbdb8-run28840526850-attempt1`；manifest 中 `branch=main`、`commitSha=6abbdb8f03630e70277cd7f1f90c1f6e79da1cd0`、`runId=28840526850`、`runAttempt=1` 与最终 `origin/main` 完全一致，四个 outcome 均为 `success`，JUnit 失败和错误均为 0，三个 `.xcresult/Info.plist` 均可解析。
 
 遗留事项：
 

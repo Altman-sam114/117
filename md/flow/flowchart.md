@@ -213,7 +213,7 @@ flowchart LR
   Artifact --> CatalystResult["MDJournalMacCatalyst.xcresult（可用时）"]
   Artifact --> TestResult["MDJournalTests.xcresult（可用时）"]
   Manifest --> Match{"branch、commitSha、runId、runAttempt 是否匹配？"}
-  JUnit --> Outcome{"检查和构建是否通过？"}
+  JUnit --> Outcome{"failures/errors/skipped 与日志是否通过？"}
   BuildLog --> Outcome
   CatalystLog --> Outcome
   TestLog --> Outcome

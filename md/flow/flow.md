@@ -224,7 +224,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 1. 确认 `origin/main` 最新 commit。
 2. 使用 `gh auth login` 后下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`。
-3. 打开并核对 `ci-artifact-manifest.json`、`junit.xml`、主日志和失败摘要。
+3. 打开并核对 `ci-artifact-manifest.json`、`junit.xml`、主日志和失败摘要；`junit.xml` 必须能明确读出 `failures`、`errors` 和 `skipped`。
 4. 只验收 manifest 中 `branch=main` 且 `commitSha`、`runId`、`runAttempt` 与最新 `origin/main` 和 GitHub Actions run 完全一致的结果包。
 5. 通过则确认文档和 `update_log.md` 已同步；失败则退回 Agent B 在 `main` 上追加修复 commit 并重新 push。
 

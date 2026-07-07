@@ -245,7 +245,7 @@ manifest 至少包含：
 
 ```json
 {
-  "version": "v0.39",
+  "version": "<version>",
   "branch": "main",
   "commitSha": "...",
   "shortSha": "...",
@@ -278,7 +278,7 @@ manifest 至少包含：
 artifact 命名规则：
 
 ```text
-mdjournal-ci-v0.39-main-<short_sha>-run<run_id>-attempt<run_attempt>
+mdjournal-ci-<version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
 
 ## 3. Agent C 下载和复判
@@ -307,7 +307,7 @@ Agent C 必须核对：
 - `origin/main` 最新 commit SHA。
 - GitHub Actions run id 和 run attempt。
 - `ci-artifact-manifest.json` 的 `branch`、`commitSha`、`runId`、`runAttempt`。
-- `junit.xml` 或等价摘要中失败数，并确认 XCTest 不是 skipped。
+- `junit.xml` 或等价摘要中的 `failures`、`errors` 和 `skipped`，并确认 XCTest 不是 skipped。
 - `static-checks.log`、`xcodebuild.log` 和 `xctest.log` 的关键错误。
 - `maccatalyst-build.log` 的结尾和 `macCatalystBuildOutcome`。
 - `ci-failure-summary.md` 是否与实际 outcome 一致。
