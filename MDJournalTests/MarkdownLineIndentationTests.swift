@@ -48,6 +48,21 @@ final class MarkdownLineIndentationTests: XCTestCase {
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: "  第一行\n".utf16.count))
     }
 
+    func testSelectionEndingAtNextCRLFLineStartDoesNotIndentFollowingLine() throws {
+        let body = "第一行\r\n第二行"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: 0, length: "第一行\r\n".utf16.count),
+                direction: .indent
+            )
+        )
+
+        XCTAssertEqual(result.body, "  第一行\r\n第二行")
+        XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: "  第一行\r\n".utf16.count))
+    }
+
     func testTabIndentsLineContainingUTF16Emoji() throws {
         let body = "记录😀\n下一行"
         let cursorLocation = "记录😀".utf16.count
@@ -233,6 +248,26 @@ final class MarkdownLineIndentationTests: XCTestCase {
 
         XCTAssertEqual(result.body, "第一行\n第二行\n第三行\n第四行")
         XCTAssertEqual(result.selectedRange, NSRange(location: 0, length: result.body.utf16.count))
+    }
+
+    func testShiftTabOutdentsLongMixedSelectionWithOneBodyConstruction() throws {
+        let body = "前言😀\n  第一行\n第二行\n\t第三行\n 第四行\n第五行"
+        let selectionStart = "前言😀\n".utf16.count
+        let selectedText = "  第一行\n第二行\n\t第三行\n 第四行"
+
+        let result = try XCTUnwrap(
+            MarkdownLineIndentation.apply(
+                to: body,
+                selectedRange: NSRange(location: selectionStart, length: selectedText.utf16.count),
+                direction: .outdent
+            )
+        )
+
+        XCTAssertEqual(result.body, "前言😀\n第一行\n第二行\n第三行\n第四行\n第五行")
+        XCTAssertEqual(
+            result.selectedRange,
+            NSRange(location: selectionStart, length: selectedText.utf16.count - 4)
+        )
     }
 
     func testShiftTabReturnsNilWhenNoSelectedLineCanOutdent() {

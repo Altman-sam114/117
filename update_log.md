@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,39 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.57 / Markdown 行缩进正文单次构造
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownLineIndentation` 新增基于原正文索引切片的单次构造 helper，用升序 operation 追加未变片段和 replacement。
+- 多行 Tab / Shift-Tab 不再对同一个 `String` 执行多次反向 `replaceSubrange`，减少长多行选区改写时的中间字符串变更成本。
+- 保持既有 UTF-16 `selectedRange` 调整逻辑、缩进单位、反缩进规则、尾随空行和 emoji 边界语义。
+- `MarkdownLineIndentationTests` 增加 CRLF 选区结束边界和混合多行反缩进单次构造覆盖。
+- GitHub Actions 结果包版本更新为 `v0.57`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownLineIndentation.swift`
+- `MDJournalTests/MarkdownLineIndentationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.57（Markdown行缩进单次构造正文）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查和云端 artifact 结果待本轮 Agent B commit / push 后补齐。
+
+遗留事项：
+
+- 本轮只优化 Markdown 行缩进的正文构造方式，不改变缩进单位、选区更新规则、CR/CRLF 分行语义、Markdown 片段插入、回车续写、预览解析、JSON 持久化、统计口径或 Mac Catalyst 构建方式。
 
 ### v0.56 / Markdown 行缩进扫描范围收窄
 

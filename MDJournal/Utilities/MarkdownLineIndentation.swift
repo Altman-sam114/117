@@ -48,15 +48,27 @@ struct MarkdownLineIndentation {
 
         guard !operations.isEmpty else { return nil }
 
-        var updatedBody = body
-        for operation in operations.reversed() {
-            updatedBody.replaceSubrange(operation.range, with: operation.replacement)
-        }
-
         return Result(
-            body: updatedBody,
+            body: bodyByApplying(operations, to: body),
             selectedRange: updatedRange(normalizedRange, applying: operations)
         )
+    }
+
+    private static func bodyByApplying(_ operations: [Operation], to body: String) -> String {
+        let delta = operations.reduce(0) { partialResult, operation in
+            partialResult + operation.replacementLength - operation.replacedLength
+        }
+        var updatedBody = String()
+        updatedBody.reserveCapacity(max(0, body.utf16.count + delta))
+
+        var currentIndex = body.startIndex
+        for operation in operations {
+            updatedBody.append(contentsOf: body[currentIndex..<operation.range.lowerBound])
+            updatedBody.append(operation.replacement)
+            currentIndex = operation.range.upperBound
+        }
+        updatedBody.append(contentsOf: body[currentIndex...])
+        return updatedBody
     }
 
     private static func operation(
