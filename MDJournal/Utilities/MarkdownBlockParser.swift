@@ -90,7 +90,7 @@ enum MarkdownBlockParser {
 
         for rawLine in lines {
             let isBlankLine = rawLine.isHorizontalWhitespaceOnly
-            let trimmedLine = rawLine.trimmingLeadingWhitespace()
+            let trimmedLine = rawLine.leadingWhitespaceTrimmed()
 
             if isReadingCode {
                 if trimmedLine.hasPrefix("```") {
@@ -209,7 +209,7 @@ enum MarkdownBlockParser {
         return groups
     }
 
-    private static func heading(from line: String) -> (level: Int, text: String)? {
+    private static func heading(from line: Substring) -> (level: Int, text: String)? {
         let markerCount = line.prefix { $0 == "#" }.count
         guard (1...3).contains(markerCount) else { return nil }
 
@@ -220,12 +220,12 @@ enum MarkdownBlockParser {
         return (markerCount, text)
     }
 
-    private static func quote(from line: String) -> String? {
+    private static func quote(from line: Substring) -> String? {
         guard line.hasPrefix("> ") else { return nil }
         return String(line.dropFirst(2))
     }
 
-    private static func unorderedItem(from line: String) -> String? {
+    private static func unorderedItem(from line: Substring) -> String? {
         if line.hasPrefix("- ") || line.hasPrefix("* ") {
             return String(line.dropFirst(2))
         }
@@ -233,7 +233,7 @@ enum MarkdownBlockParser {
         return nil
     }
 
-    private static func orderedItem(from line: String) -> OrderedListItem? {
+    private static func orderedItem(from line: Substring) -> OrderedListItem? {
         var numberEnd = line.startIndex
         while numberEnd < line.endIndex, line[numberEnd].isNumber {
             numberEnd = line.index(after: numberEnd)
@@ -259,7 +259,7 @@ enum MarkdownBlockParser {
         )
     }
 
-    private static func checklistItem(from line: String) -> ChecklistItem? {
+    private static func checklistItem(from line: Substring) -> ChecklistItem? {
         if line.hasPrefix("- [ ] ") {
             return ChecklistItem(isChecked: false, text: String(line.dropFirst(6)))
         }
@@ -277,7 +277,7 @@ private extension String {
         unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
     }
 
-    func trimmingLeadingWhitespace() -> String {
-        String(drop(while: { $0 == " " || $0 == "\t" }))
+    func leadingWhitespaceTrimmed() -> Substring {
+        drop(while: { $0 == " " || $0 == "\t" })
     }
 }

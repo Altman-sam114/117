@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.52 / Markdown 解析行首裁剪非分配
+
+日期：2026-07-07
+
+核心变更：
+
+- `MarkdownBlockParser` 将行首空格/tab 裁剪 helper 从构造新 `String` 改为返回原行 `Substring` 切片。
+- heading、引用、无序列表、有序列表和待办 marker 解析 helper 改为直接消费 `Substring`。
+- 保持原有语义：只跳过普通空格和 tab，不改变 `.newlines` 分行、CR/CRLF、段落、代码块、列表、分割线或 `###` 小节分组规则。
+- GitHub Actions 结果包版本更新为 `v0.52`，保证 manifest 和 artifact 名称对应本轮提交。
+- 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.52（Markdown解析行首裁剪非分配）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+
+遗留事项：
+
+- 本轮只优化 Markdown 解析行首 marker 判断的中间分配，不改变整篇分行策略、CR/CRLF 归一化、块级 Markdown 解析结果、Markdown 预览渲染、JSON 持久化、统计口径或 Mac Catalyst 菜单行为。
+
 ### v0.51 / Markdown 解析空行判断非分配
 
 日期：2026-07-07
