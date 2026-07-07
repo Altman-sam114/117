@@ -60,7 +60,15 @@
 
 验证结果：
 
-- 待本轮 Agent B 本地轻量检查、push 和 Agent C 云端 artifact 复判后补齐。
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok`；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.59` 存在；`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 返回 0 且无输出；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读选题复核：确认 Mac Catalyst 预览切换 toolbar `.help` 仍是静态“显示/隐藏预览（⌘⌥P）”，建议将状态化标题和 help text 抽成纯 helper 并在 `MarkdownSnippetTests` 覆盖；本轮已采纳。子 agent staged diff 复核未发现问题。
+- 实现 commit：`2973b04226f3902c2229be68801655fcb2891d45`（`v0.59 优化 Mac 预览切换提示`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28849835949`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.59-main-2973b04-run28849835949-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28849835949/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.59`、`branch=main`、`commitSha=2973b04226f3902c2229be68801655fcb2891d45`、`runId=28849835949`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
