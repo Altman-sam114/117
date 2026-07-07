@@ -61,7 +61,14 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查和云端结果包验收待本轮实现完成后记录。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.55` 存在；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读复核：确认本轮消除了每个 operation 从正文开头重复计算 UTF-16 location 的热点；建议并已采纳去掉选中行数组复制和两次 operation 排序，并补充非零起点跨 emoji 行选区测试；确认未改变 Tab / Shift-Tab、选区结束边界和 UTF-16 语义。
+- 实现 commit：`70de69fad8f86d1d2ed73a80d3062c275e2172cf`（`v0.55 优化行缩进偏移计算`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28843027716`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.55-main-70de69f-run28843027716-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28843027716/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.55`、`branch=main`、`commitSha=70de69fad8f86d1d2ed73a80d3062c275e2172cf`、`runId=28843027716`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
