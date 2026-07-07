@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.59 / Mac 预览切换状态提示
+
+日期：2026-07-07
+
+核心变更：
+
+- `EditorWritingCommand` 新增预览切换标题 helper 和可传入状态标题的 help text helper。
+- `EntryEditorView` 的 Mac Catalyst 预览切换 toolbar 按钮使用当前状态标题生成 hover help，并显式设置同名辅助功能标签。
+- `MarkdownSnippetTests` 覆盖宽屏/窄屏预览切换标题，以及“隐藏预览”“显示预览”“回到编辑”组合 `⌘⌥P` 的提示文案。
+- GitHub Actions 结果包版本更新为 `v0.59`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/EditorWritingCommand.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（macOS适配）/v0.59（Mac预览切换状态提示）.md`
+- `update_log.md`
+
+验证结果：
+
+- 待本轮 Agent B 本地轻量检查、push 和 Agent C 云端 artifact 复判后补齐。
+
+遗留事项：
+
+- 本轮只优化 Mac Catalyst 写作工具栏预览切换按钮的提示和辅助功能标签，不改变菜单通用标题、快捷键、布局、Markdown 规则、JSON 持久化、统计口径或 Mac Catalyst 构建方式。
+
 ### v0.58 / Mac 专注写作正文输入区宽度优化
 
 日期：2026-07-07

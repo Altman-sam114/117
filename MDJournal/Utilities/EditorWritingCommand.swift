@@ -40,7 +40,23 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
     }
 
     var helpText: String {
-        "\(title)（\(EditorWritingCommandShortcut(command: self).displayText)）"
+        helpText(title: title)
+    }
+
+    func helpText(title displayTitle: String) -> String {
+        "\(displayTitle)（\(EditorWritingCommandShortcut(command: self).displayText)）"
+    }
+
+    static func previewToggleTitle(
+        isWideLayoutActive: Bool,
+        isPreviewColumnVisible: Bool,
+        isPreviewModeActive: Bool
+    ) -> String {
+        if isWideLayoutActive {
+            return isPreviewColumnVisible ? "隐藏预览" : "显示预览"
+        }
+
+        return isPreviewModeActive ? "回到编辑" : "显示预览"
     }
 
     var indentationDirection: MarkdownLineIndentation.Direction? {

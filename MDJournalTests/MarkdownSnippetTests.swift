@@ -45,6 +45,48 @@ final class MarkdownSnippetTests: XCTestCase {
         }
     }
 
+    func testEditorWritingCommandHelpTextCanUseStateSpecificTitle() {
+        XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "隐藏预览"), "隐藏预览（⌘⌥P）")
+        XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "显示预览"), "显示预览（⌘⌥P）")
+        XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "回到编辑"), "回到编辑（⌘⌥P）")
+        XCTAssertEqual(EditorWritingCommand.focusBody.helpText, "聚焦正文（⌘⌥E）")
+    }
+
+    func testEditorWritingCommandPreviewToggleTitleReflectsLayoutState() {
+        XCTAssertEqual(
+            EditorWritingCommand.previewToggleTitle(
+                isWideLayoutActive: true,
+                isPreviewColumnVisible: true,
+                isPreviewModeActive: false
+            ),
+            "隐藏预览"
+        )
+        XCTAssertEqual(
+            EditorWritingCommand.previewToggleTitle(
+                isWideLayoutActive: true,
+                isPreviewColumnVisible: false,
+                isPreviewModeActive: false
+            ),
+            "显示预览"
+        )
+        XCTAssertEqual(
+            EditorWritingCommand.previewToggleTitle(
+                isWideLayoutActive: false,
+                isPreviewColumnVisible: true,
+                isPreviewModeActive: true
+            ),
+            "回到编辑"
+        )
+        XCTAssertEqual(
+            EditorWritingCommand.previewToggleTitle(
+                isWideLayoutActive: false,
+                isPreviewColumnVisible: true,
+                isPreviewModeActive: false
+            ),
+            "显示预览"
+        )
+    }
+
     func testEditorWritingIndentationCommandsExposeDirections() {
         XCTAssertNil(EditorWritingCommand.focusBody.indentationDirection)
         XCTAssertNil(EditorWritingCommand.focusWriting.indentationDirection)

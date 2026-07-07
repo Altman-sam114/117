@@ -19,7 +19,7 @@ flowchart TD
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
-  Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键"]
+  Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键并按状态表达预览切换动作"]
   WritingCommand --> Editor
   Editor --> MarkdownToolbarNode["Markdown 工具栏：片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion

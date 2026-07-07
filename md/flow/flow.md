@@ -142,7 +142,7 @@ JournalEntry.body
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文、专注写作、增加/减少缩进和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文、专注写作、增加缩进、减少缩进和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
+9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，预览切换按钮的 hover/help 和辅助功能标签按当前状态表达“隐藏预览”“显示预览”或“回到编辑”，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ### 2.8 Mac Catalyst 本地构建运行入口
@@ -312,11 +312,11 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.9 `EditorWritingCommand`
 
-职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标、快捷键映射和可选缩进方向。
+职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标、快捷键映射、预览切换状态标题、help text 组合和可选缩进方向。
 
 输入：写作命令枚举值。
 
-输出：菜单标题、系统图标、键盘快捷键、专注写作和缩进命令的路由依据。
+输出：菜单标题、系统图标、键盘快捷键、预览切换标题、带快捷键的提示文案、专注写作和缩进命令的路由依据。
 
 禁止：直接修改日记正文、持久化数据或 Markdown 片段内容；与已有新建和 Markdown 片段快捷键重复。
 
@@ -386,7 +386,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - App 启动后进入 `ContentView`。
 - 左侧/主列表：查看、搜索、筛选、新建、删除、打开统计。
 - 详情编辑器：修改标题、日期、分类、心情、正文，按光标/选区插入 Markdown 片段，分享文档。
-- 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏，也可通过专注写作直接隐藏宽屏预览栏并聚焦正文。
+- 预览：窄屏切换查看，宽屏与编辑器并排查看；Mac Catalyst 可从写作工具栏或“写作”菜单隐藏/显示预览栏，也可通过专注写作直接隐藏宽屏预览栏并聚焦正文；写作工具栏预览按钮按状态提示隐藏、显示或回到编辑。
 - 统计看板：从列表工具栏打开。
 - Mac Catalyst：在 macOS 上运行同一 app target，列表支持右键删除，“日记”菜单支持新建和显示统计，“写作”菜单支持聚焦正文、专注写作、增加缩进、减少缩进和显示/隐藏预览，`⌘N` 新建由菜单命令承载，统计以独立窗口展示；“插入 Markdown”菜单和写作工具栏支持按光标/选区插入常用 Markdown 片段，包含有序列表入口。
 - 本地 Mac 运行：使用 `./script/build_and_run.sh` 或 Codex `Run` action 构建并启动 Mac Catalyst app。

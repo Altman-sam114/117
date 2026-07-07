@@ -95,7 +95,8 @@ struct EntryEditorView: View {
                         systemImage: EditorWritingCommand.togglePreview.systemImage
                     )
                 }
-                .help(EditorWritingCommand.togglePreview.helpText)
+                .help(EditorWritingCommand.togglePreview.helpText(title: previewToggleTitle))
+                .accessibilityLabel(previewToggleTitle)
             }
             #endif
 
@@ -304,11 +305,11 @@ struct EntryEditorView: View {
     }
 
     private var previewToggleTitle: String {
-        if isWideLayoutActive {
-            return isPreviewColumnVisible ? "隐藏预览" : "显示预览"
-        }
-
-        return mode == .preview ? "回到编辑" : "显示预览"
+        EditorWritingCommand.previewToggleTitle(
+            isWideLayoutActive: isWideLayoutActive,
+            isPreviewColumnVisible: isPreviewColumnVisible,
+            isPreviewModeActive: mode == .preview
+        )
     }
 
     private func focusBody() {
