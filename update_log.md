@@ -42,6 +42,7 @@
 
 - `MarkdownSnippetInsertion` 将引用、无序列表、待办和有序列表的多行选区转换从 `components(separatedBy: "\n")` + `map` + `joined` 改为按 LF 单次扫描并增量构造 replacement。
 - 保持原有语义：只按 LF 分行，CR 保留为行内容参与 `.whitespacesAndNewlines` 空白判断和输出；尾随 LF 不生成额外空项；有序列表只给非空行从 `1. ` 开始连续编号；替换后选区仍覆盖 replacement 全文。
+- 追加修复 CRLF 片段扫描边界：逐 unicode scalar 累积当前行，避免按 `Character` 遍历时 CRLF 被合并为单个换行字符而丢失 `\r`。
 - `MarkdownSnippetTests` 扩展覆盖 CRLF、CR-only 空白行、尾随换行、emoji/UTF-16 选区长度和有序编号跳过空白行边界。
 - GitHub Actions 结果包版本更新为 `v0.50`，保证 manifest 和 artifact 名称对应本轮提交。
 - 同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
@@ -64,7 +65,13 @@
 - `xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 未能运行：当前环境没有 `xcrun`，且 `swiftc` 不在 PATH。
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 未能运行：当前环境没有 `ruby`。
 - 本机 XCTest 未能运行：`/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild` 不存在。
-- GitHub Actions 云端结果包：待本轮实现 commit push 后由 Agent C 下载并核对最新 `origin/main` 对应 artifact。
+- 初始实现 commit：`d46ce4b7de0cbbb4c76da21dcb1e259635e4ecfb`（`v0.50 优化选区片段转换`），已 push 到 `origin/main`；对应 GitHub Actions run `28813704522`，attempt `1`，结论 `failure`，未作为通过版本验收。
+- 追加修复 commit：`0086ab1f5d491a7149aa7d9111b3e39f09569c04`（`Fix CRLF snippet line scanning`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28831907520`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.50-main-0086ab1-run28831907520-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28831907520/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.50`、`branch=main`、`commitSha=0086ab1f5d491a7149aa7d9111b3e39f09569c04`、`runId=28831907520`、`runAttempt=1` 与最新 `origin/main` 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
@@ -137,7 +144,9 @@
 
 验证结果：
 
-- 待本轮实现 commit push 后由 GitHub Actions 回传结果包复判。
+- 实现 commit：`1c8e8d4de9f290afacefed07ec1dd45c2e3fe37c`（`v0.48 优化回车续写围栏判断`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28809539431`，attempt `1`，结论 `success`。
+- 本轮恢复工作时最新 `origin/main` 已推进到 `0086ab1f5d491a7149aa7d9111b3e39f09569c04`；按 Agent C 只验收最新 `origin/main` 的规则，未再下载旧 v0.48 artifact 单独冒充最终验收。v0.48 代码已包含在最新 v0.50 主线 artifact `mdjournal-ci-v0.50-main-0086ab1-run28831907520-attempt1` 的累计构建、Mac Catalyst 构建和 XCTest 复判中。
 
 遗留事项：
 
