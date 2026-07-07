@@ -59,7 +59,15 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查和云端 artifact 结果待本轮 Agent B commit / push 后补齐。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.58` 存在；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读复核因服务临时不可用中断；本轮未采用其输出，改由主线程完成 diff 复核和云端 artifact 验收。
+- 初次实现 commit：`b40cacb918886875faab78326bfdc2c4b4881b27`（`v0.58 优化 Mac 专注写作宽度`），已 push 到 `origin/main`；GitHub Actions run `28848405536`，attempt `1` 失败。Agent C 下载 artifact `mdjournal-ci-v0.58-main-b40cacb-run28848405536-attempt1` 后确认 manifest 中 `buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `failure`，日志显示 `EntryEditorView.swift` 的 SwiftUI result builder 中条件布局后直接接 `.background` 导致构建失败。
+- 修复 commit：`9a036fd189fe84dd8466093c9084e99fc5030342`（`v0.58 修复专注写作布局构建`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28848617546`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.58-main-9a036fd-run28848617546-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28848617546/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.58`、`branch=main`、`commitSha=9a036fd189fe84dd8466093c9084e99fc5030342`、`runId=28848617546`、`runAttempt=1` 与本轮修复 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
