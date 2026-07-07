@@ -60,7 +60,15 @@
 
 验证结果：
 
-- 待本轮 Agent B 本地轻量检查、push 和 Agent C 云端 artifact 复判后补齐。
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok`；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.60` 存在；`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 返回 0 且无输出；staged 后 `git diff --cached --check` 返回 0 且无输出。
+- 子 agent 只读选题复核：确认 `parseDocument(_:)` 没有双重解析，`components(separatedBy: .newlines)` 是剩余较大分配点但本轮不宜直接替换，建议先做循环重排、`removeAll(keepingCapacity: true)` 和 CR/CRLF characterization；本轮已采纳。子 agent staged diff 复核未发现问题。
+- 实现 commit：`f3d2ba112840cb36f9859f7978bab1edd51bd165`（`v0.60 优化 Markdown 解析循环`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `28854267956`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.60-main-f3d2ba1-run28854267956-attempt1`，下载到 `/private/tmp/mdjournal-c-review-28854267956/` 复判。
+- Agent C 复判结果：`ci-artifact-manifest.json` 中 `version=v0.60`、`branch=main`、`commitSha=f3d2ba112840cb36f9859f7978bab1edd51bd165`、`runId=28854267956`、`runAttempt=1` 与本轮实现 commit 完全一致；`staticChecksOutcome`、`buildOutcome`、`macCatalystBuildOutcome`、`testOutcome` 均为 `success`。
+- `junit.xml` 显式显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；`xcodebuild.log` 和 `maccatalyst-build.log` 均包含 `** BUILD SUCCEEDED **`，`xctest.log` 包含 `** TEST SUCCEEDED **`；`ci-failure-summary.md` 确认所有配置的 CI 阶段通过。
+- `MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均存在，且 `Info.plist` 可用 `python3 plistlib` 解析。
 
 遗留事项：
 
