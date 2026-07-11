@@ -39,6 +39,9 @@ enum EditorWritingCommand: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Mac Catalyst 写作工具栏“插入”菜单的辅助功能标签，与 help 文案对齐。
+    static let insertMarkdownAccessibilityLabel = "插入 Markdown"
+
     var helpText: String {
         helpText(title: title)
     }

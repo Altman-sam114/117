@@ -47,6 +47,7 @@ struct EntryEditorView: View {
                     Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
                 }
                 .help(EditorWritingCommand.focusBody.helpText)
+                .accessibilityLabel(EditorWritingCommand.focusBody.title)
 
                 Button(action: focusWriting) {
                     Label(
@@ -55,6 +56,7 @@ struct EntryEditorView: View {
                     )
                 }
                 .help(EditorWritingCommand.focusWriting.helpText)
+                .accessibilityLabel(EditorWritingCommand.focusWriting.title)
 
                 Button {
                     applyIndentation(.outdent)
@@ -65,6 +67,7 @@ struct EntryEditorView: View {
                     )
                 }
                 .help(EditorWritingCommand.outdentLines.helpText)
+                .accessibilityLabel(EditorWritingCommand.outdentLines.title)
 
                 Button {
                     applyIndentation(.indent)
@@ -75,6 +78,7 @@ struct EntryEditorView: View {
                     )
                 }
                 .help(EditorWritingCommand.indentLines.helpText)
+                .accessibilityLabel(EditorWritingCommand.indentLines.title)
 
                 Menu {
                     ForEach(MarkdownSnippet.allCases) { snippet in
@@ -87,7 +91,8 @@ struct EntryEditorView: View {
                 } label: {
                     Label("插入", systemImage: "plus.rectangle.on.rectangle")
                 }
-                .help("插入 Markdown")
+                .help(EditorWritingCommand.insertMarkdownAccessibilityLabel)
+                .accessibilityLabel(EditorWritingCommand.insertMarkdownAccessibilityLabel)
 
                 Button(action: togglePreviewVisibility) {
                     Label(

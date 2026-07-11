@@ -45,6 +45,21 @@ final class MarkdownSnippetTests: XCTestCase {
         }
     }
 
+    func testEditorWritingToolbarAccessibilityLabelsUseCommandTitles() {
+        XCTAssertEqual(EditorWritingCommand.focusBody.title, "聚焦正文")
+        XCTAssertEqual(EditorWritingCommand.focusWriting.title, "专注写作")
+        XCTAssertEqual(EditorWritingCommand.outdentLines.title, "减少缩进")
+        XCTAssertEqual(EditorWritingCommand.indentLines.title, "增加缩进")
+        XCTAssertEqual(
+            EditorWritingCommand.insertMarkdownAccessibilityLabel,
+            "插入 Markdown"
+        )
+
+        for command in [EditorWritingCommand.focusBody, .focusWriting, .outdentLines, .indentLines] {
+            XCTAssertFalse(command.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
     func testEditorWritingCommandHelpTextCanUseStateSpecificTitle() {
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "隐藏预览"), "隐藏预览（⌘⌥P）")
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "显示预览"), "显示预览（⌘⌥P）")

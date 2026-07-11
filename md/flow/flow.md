@@ -142,7 +142,7 @@ JournalEntry.body
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文、专注写作、增加/减少缩进和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文、专注写作、增加缩进、减少缩进和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，预览切换按钮的 hover/help 和辅助功能标签按当前状态表达“隐藏预览”“显示预览”或“回到编辑”，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
+9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，聚焦正文、专注写作、缩进、反缩进和插入 Markdown 的辅助功能标签与命令标题对齐，预览切换按钮的 hover/help 和辅助功能标签按当前状态表达“隐藏预览”“显示预览”或“回到编辑”，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ### 2.8 Mac Catalyst 本地构建运行入口
@@ -312,11 +312,11 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.9 `EditorWritingCommand`
 
-职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标、快捷键映射、预览切换状态标题、help text 组合和可选缩进方向。
+职责：集中描述 Mac Catalyst 写作菜单命令、标题、图标、快捷键映射、预览切换状态标题、help text 组合、插入 Markdown 辅助功能标签和可选缩进方向。
 
 输入：写作命令枚举值。
 
-输出：菜单标题、系统图标、键盘快捷键、预览切换标题、带快捷键的提示文案、专注写作和缩进命令的路由依据。
+输出：菜单标题、系统图标、键盘快捷键、预览切换标题、带快捷键的提示文案、插入 Markdown 辅助功能标签、专注写作和缩进命令的路由依据。
 
 禁止：直接修改日记正文、持久化数据或 Markdown 片段内容；与已有新建和 Markdown 片段快捷键重复。
 
