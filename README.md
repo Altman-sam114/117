@@ -156,6 +156,7 @@ test -x script/build_and_run.sh
 
 - 2026-07-07：v0.61 优化 Markdown 解析分行；`MarkdownBlockParser` 改为逐行迭代正文，避免长文预览解析前构造整篇行数组，并补充尾随换行和 CRLF code block 语义覆盖。
 - 2026-07-07：v0.60 优化 Markdown 解析循环；`MarkdownBlockParser` 减少代码块和空白行的无关扫描，并让解析临时缓冲在 flush 后保留容量，保持 CR/CRLF 和代码块语义不变。
+- 2026-07-12：v0.63 约束 CI XCTest 超时；job 限时 25 分钟，模拟器选择优先 iPhone 16，xcodebuild test 增加 destination 超时与 720 秒 alarm。
 - 2026-07-12：v0.62 补齐 Mac 写作工具栏辅助功能标签；聚焦正文、专注写作、缩进、反缩进和插入 Markdown 的辅助功能标签与命令标题对齐。
 - 2026-07-07：v0.59 优化 Mac 预览切换提示；写作工具栏预览切换按钮的 hover help 和辅助功能标签跟随当前状态，并继续显示 `⌘⌥P` 快捷键。
 - 2026-07-07：v0.58 优化 Mac 专注写作正文宽度；宽屏隐藏预览栏时，正文输入区居中并限制最大宽度，让 Mac 长文输入保持更舒适的行长。

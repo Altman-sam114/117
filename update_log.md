@@ -34,6 +34,37 @@
 
 ## 历史记录
 
+### v0.63 / CI XCTest 超时与模拟器选择
+
+日期：2026-07-12
+
+核心变更：
+
+- CI job 增加 `timeout-minutes: 25`，避免 workflow 无限挂起。
+- XCTest 使用 `perl alarm 720` 与 `-destination-timeout 60`，限制模拟器 boot/test 阻塞时间。
+- 模拟器 destination 解析优先 `iPhone 16`，否则选择较新 iOS runtime 的可用 iPhone。
+- 结果包 `VERSION` 更新为 `v0.63`。
+- 同步 README、测试规范、核心流程和本轮 Agent A 提示词。
+
+关键文件：
+
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/prompt/v0（协作云端化）/v0.63（CI XCTest超时与模拟器选择）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app。
+- 本地轻量检查与云端 run 待 commit/push 后补齐。
+
+遗留事项：
+
+- 本轮只修复云端 XCTest 挂起风险，不改业务逻辑。
+- 通过后继续 Mac / UI polish；并补齐 v0.62 的云端验收结论（若本轮 test 通过则一并确认 v0.62 代码仍在 main）。
+
 ### v0.62 / Mac 写作工具栏辅助功能标签
 
 日期：2026-07-12
@@ -62,8 +93,10 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
-- 本地轻量检查待记录。
-- 实现 commit 与云端 run 待 push 后补齐。
+- 本地轻量检查：`git diff --check`、workflow YAML parse、`VERSION: v0.62` 断言、`xcrun swiftc -parse` 通过。
+- 实现 commit：`0adc473862bc01d75b8dc89cf62528175681d0b1`（`v0.62 补齐 Mac 写作工具栏辅助功能标签`），已 push 到 `origin/main`。
+- GitHub Actions run `29165393920` attempt `1` 在 XCTest 挂起后被取消；attempt `2` 同样在 XCTest 长时间 in_progress 后被取消，未能产出可验收 artifact。
+- 因此 v0.62 业务改动已上 main，但云端完整 artifact 验收未完成；由 v0.63 修复 CI 超时与模拟器选择后重新验证。
 
 遗留事项：
 

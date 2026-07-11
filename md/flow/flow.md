@@ -206,7 +206,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ### 3.5 GitHub Actions 结果包
 
 1. `.github/workflows/ci-results.yml` 在 `main` push 和 `workflow_dispatch` 时运行。
-2. CI 执行静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 `MDJournalTests` XCTest。
+2. CI 执行静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 `MDJournalTests` XCTest；job 限时 25 分钟，XCTest 对模拟器 destination 使用超时与 720 秒 alarm，并优先选择 `iPhone 16`。
 3. CI 上传未加密 artifact，至少包含：
    - `ci-artifact-manifest.json`
    - `ci-failure-summary.md`

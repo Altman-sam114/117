@@ -13,9 +13,10 @@ jobs:
   ci-results:
     name: Build and Package Results
     runs-on: macos-15
+    timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.62
+      VERSION: v0.63
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
@@ -118,6 +119,7 @@ jobs:
                   text=True,
               )
               data = json.loads(result.stdout)
+              candidates = []
               for runtime, devices in data.get("devices", {}).items():
                   if "iOS" not in runtime:
                       continue
@@ -125,8 +127,16 @@ jobs:
                       name = device.get("name", "")
                       udid = device.get("udid")
                       if device.get("isAvailable") and udid and "iPhone" in name:
-                          print(f"platform=iOS Simulator,id={udid}")
-                          raise SystemExit
+                          candidates.append((runtime, name, udid))
+              # Prefer iPhone 16, then any iPhone, newest runtime last listed last -> reverse
+              preferred = [c for c in candidates if "iPhone 16" in c[1]]
+              ordered = preferred or candidates
+              if ordered:
+                  # sort by runtime string descending so later iOS runtimes win
+                  ordered.sort(key=lambda item: item[0], reverse=True)
+                  runtime, name, udid = ordered[0]
+                  print(f"platform=iOS Simulator,id={udid}")
+                  raise SystemExit
           except Exception:
               pass
 
@@ -149,11 +159,14 @@ jobs:
             echo "## XCTest destination"
             echo "$destination"
             echo
-            /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+            # Bound simulator boot/test so a hung destination cannot block the result package forever.
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
+              /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
               -project MDJournal.xcodeproj \
               -scheme "$SCHEME" \
               -configuration Debug \
               -destination "$destination" \
+              -destination-timeout 60 \
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \

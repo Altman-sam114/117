@@ -394,6 +394,7 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 
 - 当前仓库已有 `MDJournalTests` 单元测试基线。
 - 自动化重验证由 `MD Journal CI Results` workflow 承担，包含静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 XCTest。
+- CI job 限时 25 分钟；XCTest 优先解析可用 `iPhone 16`（否则较新 iOS runtime 的 iPhone），并使用 `-destination-timeout 60` 与 720 秒 alarm，避免模拟器挂起阻塞结果包上传。
 
 ## 7. 规则
 
