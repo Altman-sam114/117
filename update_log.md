@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -33,6 +33,42 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.61 / Markdown 解析逐行迭代
+
+日期：2026-07-11
+
+核心变更：
+
+- `MarkdownBlockParser.parse(_:)` 从 `components(separatedBy: .newlines)` 改为私有逐行迭代 helper，避免长文预览解析前先构造整篇行数组。
+- 逐行 helper 使用 newline 字符范围推进，并显式把 CRLF 作为同一个分隔边界处理，保持当前 CR-only / CRLF 解析语义。
+- parser 在需要写入段落或代码缓冲时才将当前 `Substring` 转为 `String`，其他 marker 识别继续复用原正文切片。
+- `MarkdownBlockParserTests` 增加普通文本尾随 LF / CR / CRLF、未闭合代码块尾随换行和 CRLF fenced code 空行保留覆盖。
+- GitHub Actions 结果包版本更新为 `v0.61`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/MarkdownBlockParser.swift`
+- `MDJournalTests/MarkdownBlockParserTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.61（Markdown解析逐行迭代）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 本地轻量检查：`git diff --check` 返回 0 且无输出；`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 输出 `yaml ok`；`python3` 有限检查确认 `.github/workflows/ci-results.yml` 中 `VERSION: v0.61` 存在；`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 返回 0 且无输出。
+- 子 agent 只读复核：确认 `components(separatedBy: .newlines)` 是 `MarkdownBlockParser` 剩余明确分配点，本轮适合做等价替换；建议锁定 CR-only、CRLF、尾随换行、代码块空行、`###` 分组和列表语义。本轮已按建议实现和补充测试。
+- GitHub Actions、artifact 和 Agent C 复判结果将在 push 后补齐到最终记录 commit。
+
+遗留事项：
+
+- 本轮只优化 `MarkdownBlockParser` 分行输入策略，不改变 Markdown 支持范围、代码块 join 使用 `\n` 的当前行为、`###` 小节识别、Markdown 预览渲染、JSON 持久化、统计口径、Xcode target 或 Mac Catalyst 构建方式。
+- 用户总目标已扩展到“全面优化界面、UI”；本轮完成后 Agent X 下一轮应优先选择 Mac / UI polish 小目标，而不是继续只做底层性能优化。
 
 ### v0.60 / Markdown 解析循环轻量化
 

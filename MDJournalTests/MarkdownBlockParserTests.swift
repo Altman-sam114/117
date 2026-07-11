@@ -245,6 +245,38 @@ final class MarkdownBlockParserTests: XCTestCase {
         )
     }
 
+    func testParseKeepsCurrentTrailingNewlineBehavior() {
+        let separators = ["\n", "\r", "\r\n"]
+
+        for separator in separators {
+            XCTAssertEqual(
+                MarkdownBlockParser.parse("第一段\(separator)"),
+                [.paragraph("第一段")],
+                "Unexpected trailing newline behavior for \(separator.debugDescription)"
+            )
+        }
+    }
+
+    func testParseKeepsTrailingNewlineInsideUnclosedCodeBlock() {
+        let separators = ["\n", "\r", "\r\n"]
+
+        for separator in separators {
+            let markdown = "```\(separator)let value = 1\(separator)"
+
+            XCTAssertEqual(
+                MarkdownBlockParser.parse(markdown),
+                [.code("let value = 1\n")],
+                "Unexpected unclosed code trailing newline behavior for \(separator.debugDescription)"
+            )
+        }
+    }
+
+    func testParseKeepsCRLFEmptyLinesInsideCodeBlock() {
+        let markdown = "```\r\nlet value = 1\r\n\r\nprint(value)\r\n```"
+
+        XCTAssertEqual(MarkdownBlockParser.parse(markdown), [.code("let value = 1\n\nprint(value)")])
+    }
+
     func testParseRejectsUnsupportedOrderedListMarkers() {
         let markdown = [
             "1.",

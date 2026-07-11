@@ -48,7 +48,6 @@ enum MarkdownBlockParser {
     }
 
     static func parse(_ markdown: String) -> [MarkdownBlock] {
-        let lines = markdown.components(separatedBy: .newlines)
         var blocks: [MarkdownBlock] = []
         var paragraphLines: [String] = []
         var unorderedItems: [String] = []
@@ -88,7 +87,7 @@ enum MarkdownBlockParser {
             flushChecklist()
         }
 
-        for rawLine in lines {
+        forEachLineComponent(in: markdown) { rawLine in
             if isReadingCode {
                 let trimmedLine = rawLine.leadingWhitespaceTrimmed()
                 if trimmedLine.hasPrefix("```") {
@@ -96,15 +95,15 @@ enum MarkdownBlockParser {
                     codeLines.removeAll(keepingCapacity: true)
                     isReadingCode = false
                 } else {
-                    codeLines.append(rawLine)
+                    codeLines.append(String(rawLine))
                 }
-                continue
+                return
             }
 
             let isBlankLine = rawLine.isHorizontalWhitespaceOnly
             if isBlankLine {
                 flushInlineBlocks()
-                continue
+                return
             }
 
             let trimmedLine = rawLine.leadingWhitespaceTrimmed()
@@ -112,25 +111,25 @@ enum MarkdownBlockParser {
             if trimmedLine.hasPrefix("```") {
                 flushInlineBlocks()
                 isReadingCode = true
-                continue
+                return
             }
 
             if trimmedLine == "---" || trimmedLine == "***" {
                 flushInlineBlocks()
                 blocks.append(.divider)
-                continue
+                return
             }
 
             if let heading = heading(from: trimmedLine) {
                 flushInlineBlocks()
                 blocks.append(.heading(level: heading.level, text: heading.text))
-                continue
+                return
             }
 
             if let quote = quote(from: trimmedLine) {
                 flushInlineBlocks()
                 blocks.append(.quote(quote))
-                continue
+                return
             }
 
             if let item = checklistItem(from: trimmedLine) {
@@ -138,7 +137,7 @@ enum MarkdownBlockParser {
                 flushUnorderedList()
                 flushOrderedList()
                 checklistItems.append(item)
-                continue
+                return
             }
 
             if let item = unorderedItem(from: trimmedLine) {
@@ -146,7 +145,7 @@ enum MarkdownBlockParser {
                 flushOrderedList()
                 flushChecklist()
                 unorderedItems.append(item)
-                continue
+                return
             }
 
             if let item = orderedItem(from: trimmedLine) {
@@ -154,13 +153,13 @@ enum MarkdownBlockParser {
                 flushUnorderedList()
                 flushChecklist()
                 orderedItems.append(item)
-                continue
+                return
             }
 
             flushUnorderedList()
             flushOrderedList()
             flushChecklist()
-            paragraphLines.append(rawLine)
+            paragraphLines.append(String(rawLine))
         }
 
         if isReadingCode {
@@ -208,6 +207,21 @@ enum MarkdownBlockParser {
 
         flushGroup()
         return groups
+    }
+
+    private static func forEachLineComponent(in markdown: String, _ body: (Substring) -> Void) {
+        var componentStart = markdown.startIndex
+
+        while componentStart < markdown.endIndex,
+              let separatorRange = markdown.rangeOfCharacter(
+                from: .newlines,
+                range: componentStart..<markdown.endIndex
+              ) {
+            body(markdown[componentStart..<separatorRange.lowerBound])
+            componentStart = markdown.indexAfterNewline(at: separatorRange)
+        }
+
+        body(markdown[componentStart..<markdown.endIndex])
     }
 
     private static func heading(from line: Substring) -> (level: Int, text: String)? {
@@ -273,12 +287,25 @@ enum MarkdownBlockParser {
     }
 }
 
-private extension String {
+private extension Substring {
     var isHorizontalWhitespaceOnly: Bool {
         unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
     }
 
     func leadingWhitespaceTrimmed() -> Substring {
         drop(while: { $0 == " " || $0 == "\t" })
+    }
+}
+
+private extension String {
+    func indexAfterNewline(at range: Range<String.Index>) -> String.Index {
+        guard self[range] == "\r",
+              range.upperBound < endIndex,
+              self[range.upperBound] == "\n"
+        else {
+            return range.upperBound
+        }
+
+        return index(after: range.upperBound)
     }
 }
