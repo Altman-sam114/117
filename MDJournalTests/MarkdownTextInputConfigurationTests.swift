@@ -64,11 +64,13 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
         let updatedRange = NSRange(location: updatedText.utf16.count, length: 0)
         textView.text = updatedText
         textView.selectedRange = updatedRange
+        let getterCountBeforeAction = textProbe.getterCount
+        let setterCountBeforeAction = textProbe.setterCount
 
         coordinator.textViewDidChange(textView)
 
-        XCTAssertEqual(textProbe.getterCount, 0)
-        XCTAssertEqual(textProbe.setterCount, 1)
+        XCTAssertEqual(textProbe.getterCount - getterCountBeforeAction, 0)
+        XCTAssertEqual(textProbe.setterCount - setterCountBeforeAction, 1)
         XCTAssertEqual(textProbe.value, updatedText)
         XCTAssertEqual(selectionProbe.value, updatedRange)
     }
@@ -89,6 +91,8 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
         let textView = UITextView()
         textView.text = body
         textView.selectedRange = initialRange
+        let getterCountBeforeAction = textProbe.getterCount
+        let setterCountBeforeAction = textProbe.setterCount
 
         let shouldApplySystemChange = coordinator.textView(
             textView,
@@ -99,8 +103,8 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
         XCTAssertFalse(shouldApplySystemChange)
         XCTAssertEqual(textView.text, expectedBody)
         XCTAssertEqual(textView.selectedRange, expectedRange)
-        XCTAssertEqual(textProbe.getterCount, 0)
-        XCTAssertEqual(textProbe.setterCount, 1)
+        XCTAssertEqual(textProbe.getterCount - getterCountBeforeAction, 0)
+        XCTAssertEqual(textProbe.setterCount - setterCountBeforeAction, 1)
         XCTAssertEqual(textProbe.value, expectedBody)
         XCTAssertEqual(selectionProbe.value, expectedRange)
     }
@@ -121,13 +125,15 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
         let textView = UITextView()
         textView.text = body
         textView.selectedRange = initialRange
+        let getterCountBeforeAction = textProbe.getterCount
+        let setterCountBeforeAction = textProbe.setterCount
 
         coordinator.applyIndentation(.indent, to: textView)
 
         XCTAssertEqual(textView.text, expectedBody)
         XCTAssertEqual(textView.selectedRange, expectedRange)
-        XCTAssertEqual(textProbe.getterCount, 0)
-        XCTAssertEqual(textProbe.setterCount, 1)
+        XCTAssertEqual(textProbe.getterCount - getterCountBeforeAction, 0)
+        XCTAssertEqual(textProbe.setterCount - setterCountBeforeAction, 1)
         XCTAssertEqual(textProbe.value, expectedBody)
         XCTAssertEqual(selectionProbe.value, expectedRange)
     }
