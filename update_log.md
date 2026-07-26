@@ -58,12 +58,17 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app。
-- 本地轻量检查与云端 run 待 commit/push 后补齐。
+- 实现 commit：`f893c7f69a9913f4bca7175926a1ebe2b9f2c31b`（`v0.63 约束 CI XCTest 超时`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `29170697274`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.63-main-f893c7f-run29170697274-attempt1`，下载到 `/private/tmp/mdjournal-c-review-29170697274/` 复判。
+- Agent C 复判结果：manifest 中 `version=v0.63`、`branch=main`、`commitSha=f893c7f69a9913f4bca7175926a1ebe2b9f2c31b`、`runId=29170697274`、`runAttempt=1` 完全匹配；静态检查、iOS build、Mac Catalyst build 和 XCTest outcome 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；iOS 与 Mac Catalyst 日志均包含 `** BUILD SUCCEEDED **`，XCTest 日志包含 `** TEST SUCCEEDED **`，三个 `.xcresult` 的 `Info.plist` 均可解析。
+- v0.63 最新 `main` 包含 v0.62 Mac 写作工具栏辅助功能标签改动，因此本次 artifact 同时完成 v0.62 的后续云端重验证。
 
 遗留事项：
 
 - 本轮只修复云端 XCTest 挂起风险，不改业务逻辑。
-- 通过后继续 Mac / UI polish；并补齐 v0.62 的云端验收结论（若本轮 test 通过则一并确认 v0.62 代码仍在 main）。
+- 下一轮继续 Mac / UI polish。
 
 ### v0.62 / Mac 写作工具栏辅助功能标签
 
