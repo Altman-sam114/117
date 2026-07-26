@@ -220,7 +220,17 @@ private struct SummaryBadge: View {
     }
 }
 
+enum CategoryFilterChipContract {
+    static let minimumInteractiveHeight: CGFloat = 44
+
+    static func accessibilityLabel(title: String, count: Int) -> String {
+        "\(title)，\(count) 篇"
+    }
+}
+
 private struct CategoryFilterChip: View {
+    @ScaledMetric(relativeTo: .footnote) private var selectionIndicatorWidth: CGFloat = 14
+
     let title: String
     let count: Int
     let systemImage: String
@@ -230,16 +240,26 @@ private struct CategoryFilterChip: View {
 
     var body: some View {
         Button(action: action) {
-            Label {
-                Text("\(title) \(count)")
-                    .font(.footnote.weight(.semibold))
-            } icon: {
-                Image(systemName: systemImage)
+            HStack(spacing: 6) {
+                Label {
+                    Text("\(title) \(count)")
+                        .font(.footnote.weight(.semibold))
+                } icon: {
+                    Image(systemName: systemImage)
+                        .font(.caption.weight(.bold))
+                }
+
+                Image(systemName: "checkmark")
                     .font(.caption.weight(.bold))
+                    .frame(width: selectionIndicatorWidth)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
             }
             .lineLimit(1)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .frame(minHeight: CategoryFilterChipContract.minimumInteractiveHeight)
+            .contentShape(Rectangle())
             .background(
                 isSelected ? tint.opacity(0.18) : Color(.secondarySystemGroupedBackground),
                 in: RoundedRectangle(cornerRadius: 8)
@@ -251,5 +271,7 @@ private struct CategoryFilterChip: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(isSelected ? tint : .secondary)
+        .accessibilityLabel(CategoryFilterChipContract.accessibilityLabel(title: title, count: count))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

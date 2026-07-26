@@ -2,6 +2,21 @@ import XCTest
 @testable import MDJournal
 
 final class JournalEntryListSnapshotTests: XCTestCase {
+    func testCategoryFilterChipContractUsesMinimumInteractiveHeight() {
+        XCTAssertEqual(CategoryFilterChipContract.minimumInteractiveHeight, 44)
+    }
+
+    func testCategoryFilterChipAccessibilityLabelsIncludeTitleAndEntryCount() {
+        XCTAssertEqual(
+            CategoryFilterChipContract.accessibilityLabel(title: "全部", count: 0),
+            "全部，0 篇"
+        )
+        XCTAssertEqual(
+            CategoryFilterChipContract.accessibilityLabel(title: "工作学习", count: 3),
+            "工作学习，3 篇"
+        )
+    }
+
     func testBlankSearchReturnsAllEntriesAndCountsCategories() {
         let entries = makeEntries()
 

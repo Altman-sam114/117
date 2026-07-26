@@ -35,6 +35,40 @@
 
 ## 历史记录
 
+### v0.69 / 分类筛选辅助功能
+
+日期：2026-07-26
+
+核心变更：
+
+- 分类筛选 chip 使用视图实际消费的 `44pt` 最小交互高度契约，并保留语义字体与垂直 padding，允许 Dynamic Type 自然增高。
+- Button label 在最终最小高度后设置矩形命中形状；始终保留可缩放的 checkmark 槽位，以透明度切换可见性，避免选中切换造成布局跳动。
+- checkmark 从辅助功能树隐藏；Button 使用明确的“标题，数量 篇”文案，并只在选中时添加 `.isSelected` trait。
+- 新增最小高度与可访问文案纯契约测试；筛选算法、分类计数、横向滚动、视觉主题、Store、JSON 和 Xcode 工程均未改变。
+- GitHub Actions 结果包版本更新为 `v0.69`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournalTests/JournalEntryListSnapshotTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.69（分类筛选辅助功能）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本地轻量检查、实现 commit、push、GitHub Actions run、attempt、artifact、XCTest 结果和 Agent C 结论待本轮执行后补录。
+- 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
+
+遗留事项：
+
+- 契约测试只证明视图消费的最小高度常量和可访问文案，不证明真实 frame、hit testing、Dynamic Type 渲染、VoiceOver 朗读、Mac Catalyst focus ring 或切换视觉；这些仍需人工 iOS / Mac Catalyst 交互验收。
+- 稳定勾选槽会使 chip 略宽，极端 Dynamic Type 下横向滚动长度会增加，这是保持清晰文案、触控面积和布局稳定性的预期取舍。
+
 ### v0.68 / Mac 键盘切换日记
 
 日期：2026-07-26

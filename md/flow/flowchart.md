@@ -154,7 +154,7 @@ flowchart LR
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
   Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数和集合空状态"]
-  ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip、空结果恢复"]
+  ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、44pt 分类 chip、稳定勾选与 selected 辅助功能语义、空结果恢复"]
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
   OverviewWordCount --> ListOverview2
   SectionPresence2 --> ListOverview2

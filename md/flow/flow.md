@@ -105,7 +105,7 @@ JournalEntry.body
 2. `JournalListOverviewSnapshot` 用 `entries`、`JournalEntryBodyMetrics.wordCount(in:)` 和 `JournalSection.containsLevelThreeSection(in:)` 单轮聚合列表概览卡需要的总篇数、总词数、连续天数和洞察文案；小节存在性扫描遇到首个合法 `### ` 标题便返回，不构造完整统计看板、正文摘要或小节数组。
 3. `JournalEntryListSnapshot` 用当前搜索文本和选中分类对 `entries` 做单次派生。
 4. 搜索文本先 trim，非空时匹配标题、正文、分类、心情。
-5. 分类芯片通过 `selectedCategory` 过滤列表，chip 数量保持基于全部 entries 的分类分布。
+5. 分类芯片的 Button label 通过明确文案、稳定勾选槽和 `.isSelected` trait 表达同一选中状态；点击后仍只更新 `selectedCategory` 过滤列表，chip 数量保持基于全部 entries 的分类分布。
 6. `EntryListView` 使用列表快照渲染过滤结果、section 标题和分类计数，使用概览快照渲染顶部概览卡。
 7. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
 8. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
