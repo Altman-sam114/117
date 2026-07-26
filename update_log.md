@@ -60,8 +60,11 @@
 
 验证结果：
 
-- Agent B 本地仅执行提示词允许的轻量检查，不运行本地 build、XCTest、模拟器或 app；完整 iOS、Mac Catalyst 与 XCTest 重验证由 GitHub Actions 承担。
-- 实现 commit、run id、run attempt、artifact 名称、168 项 XCTest 和结果包完整性结论待本轮 push 后由 Agent C 下载最新未加密 artifact 复判并补录。
+- Agent B 本地轻量检查通过：`git diff --check`、`git diff --cached --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与改动测试 Swift parse、workflow YAML 解析和 `VERSION: v0.72` 断言；YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果。
+- 实现 commit `8a227d58ed6690edc2b6c7eb1f5dfd3975e0a5b7` 已在 `main` 直推 `origin/main`；GitHub Actions `MD Journal CI Results` run `30195376367`、attempt `1` 成功。
+- Agent C 已下载并核对未加密 artifact `mdjournal-ci-v0.72-main-8a227d5-run30195376367-attempt1`（artifact ID `8630031906`）：manifest 的 `version=v0.72`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与目标一致，static / iOS build / Mac Catalyst build / XCTest 四类 outcome 均为 `success`。
+- XCTest 为 `168 passed / 0 failed / 0 skipped`，四项新增删除确认状态测试均实际执行；三份 xcresult 均为 `succeeded`，且为 0 errors、0 warnings、0 analyzer warnings。云端 ZIP 的 407 个条目全部未加密，GitHub digest、重算 SHA-256、CRC 和逐文件完整性检查通过。
+- 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
 
 遗留事项：
 
