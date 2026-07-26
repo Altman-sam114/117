@@ -63,12 +63,16 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；`git diff --check`、Xcode project `plutil -lint`、Swift parse、workflow YAML parse 和 `VERSION: v0.66` 断言均通过。YAML 解析伴随本机 `/opt/homebrew/bin` 权限 warning，不影响解析结果。
-- 实现 commit、push 结果、GitHub Actions run id、run attempt、artifact 精确名称和 Agent C 复判：待后续提交、push 和云端验收后补充，不预填成功。
+- 实现 commit：`e754714efccde0184e8903270cb4a2c98acb1ce1`（`v0.66 优化列表概览小节检测`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `30187354229`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.66-main-e754714-run30187354229-attempt1`，下载到 `/private/tmp/mdjournal-c-review-30187354229/` 复判。
+- Agent C 复判结果：manifest 的 `version=v0.66`、`branch=main`、`commitSha=e754714efccde0184e8903270cb4a2c98acb1ce1`、`runId=30187354229`、`runAttempt=1` 完全匹配；静态检查、iOS build、Mac Catalyst build 和 XCTest outcome 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest xcresult 显示 150 项测试全部通过，且本轮新增的两个边界测试均实际执行。iOS 和 Mac Catalyst 日志包含 `** BUILD SUCCEEDED **`，XCTest 日志包含 `** TEST SUCCEEDED **`，三个 `.xcresult` 的 `Info.plist` 与结果摘要均可读取。
 
 遗留事项：
 
 - 本轮通过实现结构证明概览不再构造行数组或完整小节模型，不使用易抖动的耗时/分配阈值；实际输入期间的分配变化可在后续人工 Instruments 采样中量化。
-- 新谓词与完整提取的语义一致性需由后续 GitHub Actions XCTest 及 Agent C 最新 artifact 复判确认，本地 Swift parse 只验证语法。
+- 新谓词与完整提取的已知边界语义已由 GitHub Actions XCTest 及 Agent C 最新 artifact 复判确认；边界矩阵不是穷举或随机差分测试。
 - 本轮只优化列表概览的小节存在性判断，不改变统计看板和真正需要小节内容的编辑器、列表行、摘要或预览路径。
 
 ### v0.65 / Markdown 工具栏 44pt 交互区
