@@ -60,8 +60,11 @@
 
 验证结果：
 
-- Agent B 本地轻量检查已通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与改动测试文件 Swift parse、workflow YAML 解析和 `VERSION: v0.70` 断言；实现 commit SHA 与 `origin/main` push 结果待提交后补录。
-- GitHub Actions run id、run attempt、未加密 artifact 名称、四阶段 outcome、XCTest 数量与 Agent C 结果包复判：待云端结果产生后补录。
+- Agent B 本地轻量检查已通过：`git diff --check`、`git diff --cached --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与改动测试文件 Swift parse、workflow YAML 解析和 `VERSION: v0.70` 断言。
+- 实现 commit `b848f2bb1678065fc1f5a89da6a58eab365c838a` 已在 `main` 直推 `origin/main`。
+- GitHub Actions `MD Journal CI Results` run `30193059412`、attempt `1` 成功；未加密 artifact 为 `mdjournal-ci-v0.70-main-b848f2b-run30193059412-attempt1`，artifact ID `8629302428`。
+- Agent C 已下载并核对结果包：manifest 的 `version=v0.70`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与目标一致，static / iOS build / Mac Catalyst build / XCTest 四类 outcome 均为 `success`。
+- XCTest 为 `162 passed / 0 failed / 0 skipped`，新增 `testEntryEditorDatePickerAccessibilityLabelContract` 在日志与 xcresult 中均实际通过；三份 xcresult 均为 0 errors、0 warnings、0 analyzer warnings。云端 ZIP 的 395 个条目全部未加密，digest、CRC 和逐文件完整性检查通过。
 - 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
 
 遗留事项：
