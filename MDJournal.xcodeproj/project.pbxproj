@@ -31,6 +31,7 @@
 		A10000000000000000000016 /* MarkdownLineIndentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* MarkdownLineIndentation.swift */; };
 		A10000000000000000000017 /* JournalListOverviewSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* JournalListOverviewSnapshot.swift */; };
 		A10000000000000000000018 /* JournalEntryNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* JournalEntryNavigation.swift */; };
+		A10000000000000000000019 /* JournalPersistenceWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* JournalPersistenceWriter.swift */; };
 		B10000000000000000000001 /* JournalEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* JournalEntryTests.swift */; };
 		B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* MarkdownBlockParserTests.swift */; };
 		B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* JournalStatisticsTests.swift */; };
@@ -80,6 +81,7 @@
 		A20000000000000000000018 /* MarkdownLineIndentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineIndentation.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* JournalListOverviewSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalListOverviewSnapshot.swift; sourceTree = "<group>"; };
 		A2000000000000000000001A /* JournalEntryNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryNavigation.swift; sourceTree = "<group>"; };
+		A2000000000000000000001B /* JournalPersistenceWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalPersistenceWriter.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* JournalEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* MarkdownBlockParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* JournalStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStatisticsTests.swift; sourceTree = "<group>"; };
@@ -145,6 +147,7 @@
 		A40000000000000000000004 /* Stores */ = {
 			isa = PBXGroup;
 			children = (
+				A2000000000000000000001B /* JournalPersistenceWriter.swift */,
 				A20000000000000000000004 /* JournalStore.swift */,
 			);
 			path = Stores;
@@ -311,6 +314,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000018 /* JournalEntryNavigation.swift in Sources */,
+				A10000000000000000000019 /* JournalPersistenceWriter.swift in Sources */,
 				A10000000000000000000001 /* MDJournalApp.swift in Sources */,
 				A10000000000000000000002 /* ContentView.swift in Sources */,
 				A10000000000000000000003 /* JournalEntry.swift in Sources */,

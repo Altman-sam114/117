@@ -1,7 +1,7 @@
 import Foundation
 
-struct JournalEntry: Identifiable, Codable, Hashable {
-    enum Category: String, CaseIterable, Codable, Identifiable {
+struct JournalEntry: Identifiable, Codable, Hashable, Sendable {
+    enum Category: String, CaseIterable, Codable, Identifiable, Sendable {
         case daily = "日常"
         case workStudy = "工作学习"
         case inspiration = "灵感"
@@ -26,7 +26,7 @@ struct JournalEntry: Identifiable, Codable, Hashable {
         }
     }
 
-    enum Mood: String, CaseIterable, Codable, Identifiable {
+    enum Mood: String, CaseIterable, Codable, Identifiable, Sendable {
         case calm = "平静"
         case happy = "开心"
         case tired = "疲惫"

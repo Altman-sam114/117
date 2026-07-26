@@ -33,7 +33,9 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { phase in
             if phase != .active {
-                store.flushPendingSave()
+                Task {
+                    await store.flushPendingSave()
+                }
             }
         }
         .sheet(isPresented: $isShowingStatistics) {
@@ -44,7 +46,7 @@ struct ContentView: View {
         .focusedSceneValue(\.journalEntryNavigationActions, journalEntryNavigationActions)
         .alert("无法保存日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {
-                store.errorMessage = nil
+                store.dismissError()
             }
         } message: {
             Text(store.errorMessage ?? "")
@@ -93,7 +95,7 @@ struct ContentView: View {
             get: { store.errorMessage != nil },
             set: { isPresented in
                 if !isPresented {
-                    store.errorMessage = nil
+                    store.dismissError()
                 }
             }
         )

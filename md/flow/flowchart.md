@@ -89,10 +89,11 @@ flowchart TD
   InitStore --> Locate["定位 Documents/md-journal-entries.json"]
   Locate --> Exists{"本地 JSON 是否存在？"}
   Exists -- "不存在" --> Starter["创建 starterEntry 默认日记"]
-  Starter --> SaveA["保存 JSON"]
+  Starter --> StarterSnapshot["revision + starter 完整快照"]
   Exists -- "存在" --> Decode["JSONDecoder ISO8601 解码 [JournalEntry]"]
   Decode --> SortA["按 createdAt 倒序排序"]
-  SaveA --> Render["SwiftUI 渲染列表和详情"]
+  StarterSnapshot --> Writer
+  StarterSnapshot --> Render["SwiftUI 渲染列表和详情"]
   SortA --> Render
   Render --> Select["ContentView 选择第一篇或修复选中项"]
   Select --> Edit{"用户操作类型"}
@@ -101,14 +102,25 @@ flowchart TD
   Edit -- "请求删除" --> ConfirmDelete{"系统确认：目标标题准确且操作不可撤销"}
   ConfirmDelete -- "取消 / 关闭" --> Render
   ConfirmDelete -- "确认并先消费目标" --> Delete["JournalStore.delete 移除日记"]
-  Create --> SortSave["排序并立即保存 JSON"]
-  Update --> DebouncedSave["仅 createdAt 改变时排序，并安排短延迟保存"]
-  DebouncedSave --> Flush["连续编辑合并写盘；inactive/background 时 flush"]
-  Flush --> SortSave
-  Delete --> SortSave
-  SortSave --> OK{"保存是否成功？"}
-  OK -- "成功" --> Render
-  OK -- "失败" --> SaveError["设置 errorMessage"]
+  Create --> ImmediateSnapshot["内存即时 + revision；绕过 debounce 提交快照"]
+  Delete --> ImmediateSnapshot
+  Update --> DebouncedSave["内存即时 + revision；仅 createdAt 改变时排序；手动 scheduler 合并"]
+  DebouncedSave --> Snapshot["不可变 entries 快照"]
+  ImmediateSnapshot --> Writer["JSONJournalPersistenceWriter actor 单写者"]
+  Snapshot --> Writer
+  Phase["inactive / background"] --> Flush["Task await flush：取消 pending 并捕获当前快照"]
+  Flush --> Writer
+  Writer --> Gate{"revision gate"}
+  Gate -- "旧于 highest accepted" --> Stale["rejected stale，不写盘"]
+  Gate -- "等于 durable" --> Durable["already durable，不重复写"]
+  Gate -- "可写" --> Atomic["actor 内 ISO8601 + pretty/sorted encode + atomic write；无 await"]
+  Atomic --> Result{"result + revision"}
+  Stale --> Result
+  Durable --> Result
+  Result -- "flush 期间 revision 已变化" --> Flush
+  Result -- "当前成功" --> Render
+  Result -- "当前失败" --> SaveError["设置 revision 绑定的写错误"]
+  Result -- "旧 result" --> Ignore["忽略，不污染当前状态"]
   SaveError --> Alert["ContentView 弹出错误提示"]
 ```
 

@@ -4,26 +4,50 @@ import Foundation
 @MainActor
 final class JournalStore: ObservableObject {
     @Published private(set) var entries: [JournalEntry] = []
-    @Published var errorMessage: String?
+    @Published private(set) var errorMessage: String?
+
+    private enum ErrorSource: Equatable {
+        case read
+        case write(revision: UInt64)
+    }
+
+    private struct PendingSave {
+        let id: UUID
+        let scheduledSave: JournalScheduledSave
+    }
 
     private let storageURL: URL
-    private let saveDebounceNanoseconds: UInt64
-    private var pendingSaveTask: Task<Void, Never>?
+    private let saveDebounceDelay: Duration
+    private let persistenceWriter: any JournalPersistenceWriting
+    private let saveScheduler: any JournalSaveScheduling
+    private var pendingSave: PendingSave?
+    private var errorSource: ErrorSource?
+
+    private(set) var revision: UInt64 = 0
+    private(set) var durableRevision: UInt64?
 
     init(
         fileManager: FileManager = .default,
         storageURL: URL? = nil,
-        saveDebounceNanoseconds: UInt64 = 450_000_000
+        saveDebounceNanoseconds: UInt64 = 450_000_000,
+        persistenceWriter: (any JournalPersistenceWriting)? = nil,
+        saveScheduler: any JournalSaveScheduling = TaskJournalSaveScheduler()
     ) {
+        let resolvedStorageURL: URL
         if let storageURL {
-            self.storageURL = storageURL
+            resolvedStorageURL = storageURL
         } else {
             let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
                 ?? fileManager.temporaryDirectory
-            self.storageURL = documentsURL.appendingPathComponent("md-journal-entries.json")
+            resolvedStorageURL = documentsURL.appendingPathComponent("md-journal-entries.json")
         }
 
-        self.saveDebounceNanoseconds = saveDebounceNanoseconds
+        let boundedNanoseconds = min(saveDebounceNanoseconds, UInt64(Int64.max))
+        self.storageURL = resolvedStorageURL
+        saveDebounceDelay = .nanoseconds(Int64(boundedNanoseconds))
+        self.persistenceWriter = persistenceWriter
+            ?? JSONJournalPersistenceWriter(storageURL: resolvedStorageURL)
+        self.saveScheduler = saveScheduler
         load()
     }
 
@@ -50,7 +74,7 @@ final class JournalStore: ObservableObject {
         )
 
         entries.insert(entry, at: 0)
-        saveImmediately()
+        submitImmediately(makeMutationSnapshot())
         return entry.id
     }
 
@@ -64,26 +88,42 @@ final class JournalStore: ObservableObject {
         if shouldSortEntries {
             sortEntries()
         }
-        scheduleSave()
+        scheduleSave(makeMutationSnapshot())
     }
 
     func delete(_ entry: JournalEntry) {
-        entries.removeAll { $0.id == entry.id }
-        saveImmediately()
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+
+        entries.remove(at: index)
+        submitImmediately(makeMutationSnapshot())
     }
 
-    func flushPendingSave() {
-        guard pendingSaveTask != nil else { return }
+    @discardableResult
+    func flushPendingSave() async -> JournalPersistenceResult? {
+        cancelPendingSave()
 
-        pendingSaveTask?.cancel()
-        pendingSaveTask = nil
-        save()
+        while true {
+            let snapshot = currentSnapshot()
+            let result = await persistenceWriter.persist(snapshot)
+            receivePersistenceResult(result)
+
+            guard revision != snapshot.revision else {
+                return result
+            }
+
+            cancelPendingSave()
+        }
+    }
+
+    func dismissError() {
+        errorMessage = nil
+        errorSource = nil
     }
 
     private func load() {
         guard FileManager.default.fileExists(atPath: storageURL.path) else {
             entries = [JournalEntry.starterEntry()]
-            save()
+            submitImmediately(makeMutationSnapshot())
             return
         }
 
@@ -94,48 +134,81 @@ final class JournalStore: ObservableObject {
             entries = try decoder.decode([JournalEntry].self, from: data)
             sortEntries()
         } catch {
-            errorMessage = "读取本地日记失败：\(error.localizedDescription)"
+            publishError("读取本地日记失败：\(error.localizedDescription)", source: .read)
             entries = []
         }
     }
 
-    private func scheduleSave() {
-        pendingSaveTask?.cancel()
+    private func makeMutationSnapshot() -> JournalPersistenceSnapshot {
+        revision += 1
+        clearSupersededWriteError()
+        return currentSnapshot()
+    }
 
-        let delay = Duration.nanoseconds(Int64(saveDebounceNanoseconds))
-        pendingSaveTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(for: delay)
-            } catch {
-                return
-            }
+    private func currentSnapshot() -> JournalPersistenceSnapshot {
+        JournalPersistenceSnapshot(revision: revision, entries: entries)
+    }
 
-            guard !Task.isCancelled else { return }
-            self?.saveScheduledChanges()
+    private func scheduleSave(_ snapshot: JournalPersistenceSnapshot) {
+        cancelPendingSave()
+
+        let pendingID = UUID()
+        let scheduledSave = saveScheduler.schedule(after: saveDebounceDelay) { [weak self, persistenceWriter] in
+            self?.scheduledSaveDidFire(id: pendingID)
+            let result = await persistenceWriter.persist(snapshot)
+            self?.receivePersistenceResult(result)
+        }
+        pendingSave = PendingSave(id: pendingID, scheduledSave: scheduledSave)
+    }
+
+    private func scheduledSaveDidFire(id: UUID) {
+        guard pendingSave?.id == id else { return }
+        pendingSave = nil
+    }
+
+    private func submitImmediately(_ snapshot: JournalPersistenceSnapshot) {
+        cancelPendingSave()
+
+        Task { [weak self, persistenceWriter] in
+            let result = await persistenceWriter.persist(snapshot)
+            self?.receivePersistenceResult(result)
         }
     }
 
-    private func saveScheduledChanges() {
-        pendingSaveTask = nil
-        save()
+    private func cancelPendingSave() {
+        pendingSave?.scheduledSave.cancel()
+        pendingSave = nil
     }
 
-    private func saveImmediately() {
-        pendingSaveTask?.cancel()
-        pendingSaveTask = nil
-        save()
-    }
+    private func receivePersistenceResult(_ result: JournalPersistenceResult) {
+        guard result.revision == revision else { return }
 
-    private func save() {
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(entries)
-            try data.write(to: storageURL, options: [.atomic])
-        } catch {
-            errorMessage = "写入本地日记失败：\(error.localizedDescription)"
+        switch result {
+        case let .written(resultRevision), let .alreadyDurable(resultRevision):
+            durableRevision = max(durableRevision ?? resultRevision, resultRevision)
+            clearWriteError(through: resultRevision)
+        case let .failed(resultRevision, message):
+            publishError("写入本地日记失败：\(message)", source: .write(revision: resultRevision))
+        case .rejectedStale:
+            break
         }
+    }
+
+    private func clearSupersededWriteError() {
+        guard case .write = errorSource else { return }
+        errorMessage = nil
+        errorSource = nil
+    }
+
+    private func clearWriteError(through revision: UInt64) {
+        guard case let .write(errorRevision) = errorSource, errorRevision <= revision else { return }
+        errorMessage = nil
+        errorSource = nil
+    }
+
+    private func publishError(_ message: String, source: ErrorSource) {
+        errorMessage = message
+        errorSource = source
     }
 
     private func sortEntries() {
@@ -144,7 +217,4 @@ final class JournalStore: ObservableObject {
         }
     }
 
-    deinit {
-        pendingSaveTask?.cancel()
-    }
 }

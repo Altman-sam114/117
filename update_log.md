@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、写作工具栏辅助功能标签文案、编辑器日期 label 精确文案与非空契约、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 现有 15 项，覆盖 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、create/delete、错误仲裁及排序，v0.73 预期总数为 178 项，最终以最新 artifact 为准。其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,40 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.73 / 持久化移出主线程
+
+日期：2026-07-26
+
+核心变更：
+
+- 新增 internal `JournalPersistenceSnapshot` / `JournalPersistenceResult` / `JournalPersistenceWriting` 与 `JSONJournalPersistenceWriter` actor；actor 独占原有 ISO8601、pretty printed、sorted keys 和 atomic JSON 写入，并以 highest accepted / durable revision 保证旧请求拒绝、成功幂等和失败同 revision 可重试。
+- `JournalStore` 保持 MainActor 内存边界，每次有效 mutation 递增 revision；update 使用可注入 scheduler debounce，create/delete 与首次 starter 绕过延迟提交不可变快照。async flush 会取消 pending、等待 writer，并追赶等待期间出现的最新 revision。
+- 写入结果按 revision 仲裁，读取错误和 revision 绑定的写入错误分开管理；`ContentView` 生命周期改为 Task await flush，错误关闭统一走 `dismissError()`。
+- `JournalEntry` 及 Category/Mood 显式 `Sendable`；新 writer 文件只登记 app target。Store 测试由 5 项扩展为 15 项，仓库预期从 168 增至 178 项。
+
+关键文件：
+
+- `MDJournal/Stores/JournalPersistenceWriter.swift`
+- `MDJournal/Stores/JournalStore.swift`
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/ContentView.swift`
+- `MDJournalTests/JournalStoreTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`
+- `md/prompt/v0（性能优化）/v0.73（持久化移出主线程）.md`
+
+验证结果：
+
+- Agent B 本地轻量检查通过：`git diff --check`、production 与 Store 测试 Swift parse、`plutil -lint`、workflow YAML / v0.73、工程登记计数、测试方法计数及禁用 API / encode-write / actor await 搜索。禁用 API 搜索仅命中本轮范围外既有 `MarkdownBodyTextView` 两处 GCD；v0.73 改动无命中。按人工要求不运行本地 build、XCTest、模拟器或 app，完整编译、并发 warning 与 XCTest 交给 GitHub Actions。
+- 实现 commit、run、attempt、artifact 和最终 XCTest 数量待本轮 push 后由 Agent C 下载最新未加密结果包补录。
+
+遗留事项：
+
+- 全量快照 encode/write 仍为 `O(T)`，并持有 `[JournalEntry]` copy-on-write 值；本轮不是增量数据库迁移。
+- create/delete 返回时只保证内存即时变化并已安排 actor 请求，磁盘可能尚未开始或仍在写；awaited flush 只提供进程存活期间的明确完成结果。
+- scene phase Task 没有系统后台执行 lease，快速挂起、崩溃、断电或强杀仍可能丢失尚未 durable 的最新 revision；确定性 XCTest 不等价于 Instruments 或真实大数据、后台和 Mac 长时间写作验收。
 
 ### v0.72 / 删除日记确认保护
 

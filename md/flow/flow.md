@@ -69,7 +69,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 2. `MDJournalApp` 创建主 `WindowGroup` 并把 `JournalStore` 注入 `ContentView`。
 3. Mac Catalyst 下额外注册“统计”窗口 scene，读取同一个 `JournalStore.entries`。
 4. `JournalStore.init` 定位 Documents 目录下的 `md-journal-entries.json`。
-5. 若文件不存在，创建 `JournalEntry.starterEntry()` 并保存。
+5. 若文件不存在，创建 `JournalEntry.starterEntry()`、递增 revision，并把完整值快照提交给 `JSONJournalPersistenceWriter` actor 保存。
 6. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
 7. 解码后按 `createdAt` 倒序排序。
 8. `ContentView.onAppear` 选择第一篇日记。
@@ -79,7 +79,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 1. 用户点击列表工具栏“新建”或空状态“写一篇”。
 2. `ContentView.createEntry()` 调用 `JournalStore.createEntry()`。
 3. `JournalStore` 创建默认日记，正文包含三个 `###` 小节。
-4. 新日记插入 `entries` 首位并保存到本地 JSON。
+4. 新日记同步插入 `entries` 首位、递增 revision，并绕过 debounce 立即安排 actor 写入；方法返回只保证内存可见，磁盘可能尚未开始，完成由 async flush/result 观察。
 5. `ContentView` 将 `selectedEntryID` 切到新日记。
 
 ### 2.3 编辑与保存
@@ -97,11 +97,12 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
 13. binding setter 调用 `JournalStore.update(_:)`。
-14. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；日期 label 不进入模型或 JSON，`createdAt` 仍沿原 binding 到达 Store，且仅当它改变时重新排序。
-15. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
-16. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
-17. 保存失败时设置 `errorMessage`。
-18. `ContentView` 通过 alert 展示保存或读取错误。
+14. `JournalStore.update` 更新 `updatedAt`、替换数组、递增 revision 并捕获不可变快照，再安排短延迟提交；`createdAt` 仅在改变时触发重排。
+15. 连续编辑取消尚未触发的 scheduler 操作，只提交最后快照；已进入 writer 的请求不会被取消。
+16. `JSONJournalPersistenceWriter` actor 是唯一 JSON encode/atomic write 执行者；它用 `highestAcceptedRevision` 拒绝旧请求，用 `durableRevision` 幂等跳过已成功 revision，失败 revision 可重试，且 encode/write 临界区没有挂起点。
+17. 应用进入 inactive/background 时，`ContentView` 启动普通 Task await `flushPendingSave()`；flush 取消 pending、等待当前快照，并在等待期间 revision 变化时继续追赶最新快照。
+18. writer result 回到 MainActor 后按 revision 仲裁；旧结果不改变当前错误，写入成功只清理对应写错误，读取错误保留。`ContentView` 通过 alert 展示并经 `dismissError()` 统一清理来源。
+19. scene phase flush 不持有系统后台执行 lease，因此快速挂起、崩溃、断电或强杀不承诺最新内存 revision 已 durable。
 
 ### 2.4 列表、筛选与删除
 
@@ -116,7 +117,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 9. 用户滑动删除或在 Mac Catalyst 下右键删除时，两个入口统一调用 `EntryListView.requestDeletion(of:)`；internal `JournalDeletionConfirmationState` 稳定持有完整 `JournalEntry`，不从筛选结果、selection 或 Store 回查目标。
 10. 列表显示系统 `confirmationDialog`，标题使用待确认目标的 `displayTitle`；取消、Esc、点击外部或系统关闭 presentation 都只清理待确认状态，不调用删除回调。
 11. 用户点击 destructive “删除”后，状态先通过 `consumeConfirmedTarget()` 清空并返回目标，再且仅再调用一次 `ContentView.deleteEntry(_:)`；重复确认不会再次产生目标。
-12. `JournalStore.delete(_:)` 从数组移除日记并立即保存，`ContentView.repairSelection` 确保选中项仍然有效。
+12. `JournalStore.delete(_:)` 仅在目标存在时同步移除、递增 revision 并绕过 debounce 立即安排 actor 写入；`ContentView.repairSelection` 立即修复选中项，磁盘完成由 async flush/result 确认。
 
 ### 2.5 Markdown 预览
 
@@ -285,13 +286,13 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.5 `JournalStore`
 
-职责：加载、保存、创建、更新、删除和按需排序日记。
+职责：在 MainActor 加载和修改内存集合、分配单调 revision、捕获保存快照、调度 debounce、执行 async flush 与错误仲裁；`JSONJournalPersistenceWriter` actor 串行执行全部 JSON 编码和原子写盘。
 
 输入：用户操作产生的日记变更。
 
 输出：`@Published entries`、`errorMessage`、本地 JSON 文件。
 
-禁止：在其他模块绕过它直接改写日记集合或本地文件。
+禁止：在其他模块绕过它改写日记集合；在 writer actor 外编码或写入日记 JSON；使用 detached task、GCD 同步等待或 semaphore；把 create/delete 的内存即时语义写成同步磁盘 durable。
 
 ### 4.6 `MarkdownBlockParser`
 
@@ -417,7 +418,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 ## 8. 已确认的铁律
 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
-- 编辑过程可以节流写盘，但内存状态必须即时更新，应用离开活跃态前必须 flush 待保存变更；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
+- 编辑过程可以节流提交，但内存状态必须即时更新；所有保存快照由单写者 actor 按 revision 串行编码和原子写盘。应用离开活跃态时异步 flush 并追赶最新 revision，但无后台 lease 时不承诺强杀 durability；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
 - 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览只需要小节存在性时必须使用与完整提取等价的 `containsLevelThreeSection(in:)` 快路径，避免构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。

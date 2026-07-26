@@ -6,7 +6,8 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 - 按日期创建、编辑、删除日记；滑动删除和 Mac Catalyst 右键删除会先显示包含准确日记标题的系统确认对话框，取消或关闭不会删除，确认后才进入既有本地删除链路。
 - 本地 JSON 自动保存，不依赖服务器。
-- 编辑时先即时更新界面状态，再短延迟合并写入本地 JSON；正文等非日期更新不会触发无效列表重排，减少长文本输入时的频繁磁盘写入和主线程排序成本。
+- 编辑时先在 MainActor 即时更新界面状态并生成单调 revision 快照，再短延迟合并提交给单写者 actor；JSON 编码和原子写盘不再占用 MainActor。正文等非日期更新不会触发无效列表重排，减少长文本输入时的磁盘写入和主线程工作。
+- 新建和删除会同步改变内存状态并绕过编辑 debounce 立即安排 actor 写入，但同步 API 返回时磁盘可能尚未开始或仍在写；`await flushPendingSave()` 会取消等待中的 debounce、等待当前写入并追赶期间产生的最新 revision。生命周期异步 flush 没有系统后台执行 lease，快速挂起、崩溃或强杀仍可能使尚未 durable 的更新丢失。
 - 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，列表概览分别单次扫描词数和 `###` 小节存在性，避免不需要摘要时生成 excerpt、为词数创建 split 片段或为概览构造完整小节数组；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
 - 编辑器头部直接使用轻量正文 metrics 展示词数和 `###` 小节，横向小节概览采用懒加载，避免正文输入时为未展示的摘要或离屏小节卡片做额外构建。
 - 编辑器头部的系统日期选择器保留 compact 视觉，并以隐藏但可访问的“日记日期”标签提供稳定字段名称；日期值、语言和调整语义继续由系统控件处理，真实 VoiceOver 朗读仍需人工验收。
@@ -110,7 +111,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析（含有序列表块、代码块空行、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组）、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段、片段插入规则（含选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界）、无序列表/待办/引用/有序列表回车续写规则（含空项退出的水平空白边界）、Markdown 行缩进规则（含单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、Markdown 输入配置和正文字体按需配置、普通输入/回车续写/缩进对正文 Binding 的 `0 getter / 1 setter` 确定性契约、写作命令快捷键和缩进方向映射、`JournalStore` 写入节流和更新按需排序。七日趋势纯契约测试不代表真实 Dynamic Type 渲染、裁切或水平滚动交互已经验收；focused scene 菜单接线由 Swift parse 和云端 Mac Catalyst build 间接验证，不代表真实键盘事件与 first responder 交互已测试。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、create/delete 内存和磁盘边界、错误仲裁及按需排序。v0.73 将 Store 测试从 5 项扩展为 15 项，预期总数为 178；最终以最新 GitHub Actions artifact 为准。确定性 gate 测试不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
