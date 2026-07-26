@@ -81,7 +81,7 @@ JournalEntry.body
 ### 2.3 编辑与保存
 
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
-2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文。
+2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文；头部系统 `DatePicker` 以隐藏但可访问的“日记日期” label 编辑 `createdAt`，保留 compact 视觉，日期值与调整语义由系统控件提供。
 3. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片。
 4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。
 5. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
@@ -93,7 +93,7 @@ JournalEntry.body
 11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
 13. binding setter 调用 `JournalStore.update(_:)`。
-14. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；仅当 `createdAt` 改变时重新排序。
+14. `JournalStore.update` 更新 `updatedAt`、替换数组中的日记，并安排短延迟保存；日期 label 不进入模型或 JSON，`createdAt` 仍沿原 binding 到达 Store，且仅当它改变时重新排序。
 15. 连续编辑会合并为一次 JSON 写盘；内存中的 `entries` 始终即时更新。
 16. 应用进入 inactive/background 时，`ContentView` 调用 `JournalStore.flushPendingSave()` 立即写入待保存变更。
 17. 保存失败时设置 `errorMessage`。

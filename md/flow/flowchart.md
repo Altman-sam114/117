@@ -23,7 +23,7 @@ flowchart TD
   CV --> NavigationSelection["selectedEntryID 切换；不保存、不改变筛选或焦点"]
   NavigationSelection --> Editor
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
-  CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
+  CV --> Editor["EntryEditorView：标题、分类、心情、正文；DatePicker 以隐藏的日记日期 label 编辑 createdAt"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键，辅助功能标签与命令标题对齐，并按状态表达预览切换动作"]

@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、写作工具栏辅助功能标签文案、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + Mac Catalyst build 尝试 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 覆盖写入节流和更新按需排序，`JournalEntryTests` 覆盖正文 summary / metrics 派生一致性、词数单次扫描边界、摘要 Markdown 标记清理和空行处理，`MarkdownBlockParserTests` 覆盖有序列表块识别、代码块空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组，`MarkdownLineContinuationTests` 覆盖无序列表/待办/引用/有序列表回车续写、空项退出水平空白边界、fenced code 和 UTF-16 光标边界，`MarkdownLineIndentationTests` 覆盖单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界，`JournalStatisticsTests` 覆盖统计分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退，`MarkdownSnippetTests` 覆盖 Markdown 片段元数据、写作命令快捷键、工具栏快捷键提示文案、写作工具栏辅助功能标签文案、编辑器日期 label 精确文案与非空契约、专注写作命令、缩进方向映射、光标/选区插入、选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,40 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.70 / 日记日期辅助功能
+
+日期：2026-07-26
+
+核心变更：
+
+- 新增 internal `EntryEditorAccessibilityContract.journalDateLabel`，将编辑器头部日期控件的字段名称固定为“日记日期”。
+- 系统 `DatePicker` 直接消费该契约，并保留 `.labelsHidden()`、compact 样式、`$entry.createdAt` binding 和仅日期组件；未增加可见 label 或自定义辅助功能值。
+- 新增精确文案与去空白非空纯契约测试；日期变更后的 Store update、按需排序、合并保存和本地 JSON 链路保持不变。
+- GitHub Actions 结果包版本更新为 `v0.70`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.70（日记日期辅助功能）.md`
+- `update_log.md`
+
+验证结果：
+
+- Agent B 本地轻量检查已通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与改动测试文件 Swift parse、workflow YAML 解析和 `VERSION: v0.70` 断言；实现 commit SHA 与 `origin/main` push 结果待提交后补录。
+- GitHub Actions run id、run attempt、未加密 artifact 名称、四阶段 outcome、XCTest 数量与 Agent C 结果包复判：待云端结果产生后补录。
+- 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
+
+遗留事项：
+
+- 纯契约测试只证明被视图直接消费的 label 文案，不证明 `.labelsHidden()` 后的真实 accessibility tree、VoiceOver 日期值与朗读顺序、Mac Catalyst focus ring 或 compact picker 交互。
+- iPhone/iPad 窄屏、横屏、Dynamic Type 和 Mac Catalyst 头部布局仍需人工交互验收；本轮不改变写入性能路径。
 
 ### v0.69 / 分类筛选辅助功能
 

@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum EntryEditorAccessibilityContract {
+    static let journalDateLabel = "日记日期"
+}
+
 struct EntryEditorView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case edit = "编辑"
@@ -136,7 +140,11 @@ struct EntryEditorView: View {
 
                 Spacer(minLength: 8)
 
-                DatePicker("", selection: $entry.createdAt, displayedComponents: .date)
+                DatePicker(
+                    EntryEditorAccessibilityContract.journalDateLabel,
+                    selection: $entry.createdAt,
+                    displayedComponents: .date
+                )
                     .labelsHidden()
                     .datePickerStyle(.compact)
             }

@@ -60,6 +60,15 @@ final class MarkdownSnippetTests: XCTestCase {
         }
     }
 
+    func testEntryEditorDatePickerAccessibilityLabelContract() {
+        XCTAssertEqual(EntryEditorAccessibilityContract.journalDateLabel, "日记日期")
+        XCTAssertFalse(
+            EntryEditorAccessibilityContract.journalDateLabel
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+        )
+    }
+
     func testEditorWritingCommandHelpTextCanUseStateSpecificTitle() {
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "隐藏预览"), "隐藏预览（⌘⌥P）")
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "显示预览"), "显示预览（⌘⌥P）")
