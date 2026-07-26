@@ -57,14 +57,19 @@
 
 验证结果：
 
-- 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；本地只运行 `git diff --check`、Swift parse、workflow YAML parse 和 `VERSION: v0.65` 断言。
-- Agent B 实现阶段尚未提交或 push；实现 commit SHA、GitHub Actions run id / attempt、artifact 名称和 Agent C 复判结果均待主控 review、提交、push 和云端验收后补充，不预填成功。
+- 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；本地 `git diff --check`、Swift parse、workflow YAML parse、`VERSION: v0.65` 断言和 Xcode project `plutil -lint` 均通过。
+- 实现 commit：`eed32383ed8b004b9e9a424ee2254ad5b6474adb`（`v0.65 提升 Markdown 工具栏交互区`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `30185985808`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.65-main-eed3238-run30185985808-attempt1`，下载到 `/private/tmp/mdjournal-c-review-30185985808/` 复判。
+- Agent C 复判结果：manifest 的 `version=v0.65`、`branch=main`、`commitSha=eed32383ed8b004b9e9a424ee2254ad5b6474adb`、`runId=30185985808`、`runAttempt=1` 完全匹配；静态检查、iOS build、Mac Catalyst build 和 XCTest outcome 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；iOS 和 Mac Catalyst 日志包含 `** BUILD SUCCEEDED **`，XCTest 日志包含 `** TEST SUCCEEDED **`，三个 `.xcresult` 的 `Info.plist` 均可解析。
 
 遗留事项：
 
 - `44×44pt` 会增加工具栏高度，并减少窄屏同一时刻可见的按钮数量；现有水平滚动继续承载全部按钮。
 - Swift parse 与后续云端 build 不能直接证明实际点击命中区或视觉效果；当前没有 UI test target，仍需后续人工在 Mac Catalyst、iPhone 窄屏和辅助功能检查中确认命中、滚动与 hover 表现。
 - 本轮只调整 Markdown 工具栏交互区，不改变片段元数据、插入规则、编辑器状态流、JSON 持久化或整体视觉主题。
+- 下一轮优先优化列表概览的小节检测路径，避免正文编辑触发列表刷新时为每篇日记构造完整小节数组。
 
 ### v0.64 / 列表筛选空状态修正
 
