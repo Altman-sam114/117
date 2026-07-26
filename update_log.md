@@ -60,7 +60,10 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；`git diff --check`、Xcode project `plutil -lint`、应用 Swift parse、改动测试文件 Swift parse、workflow YAML parse 和 `VERSION: v0.67` 断言均通过。YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果；staged diff 检查在暂存后执行。
-- 实现 commit、push 结果、GitHub Actions run、attempt、未加密 artifact 和 Agent C 复判结果待本轮提交及云端验证后补录，不提前标记通过。
+- 实现 commit `2ca38f5caf50c74f37d195a8b63260b82946b2d3` 已 push 到 `origin/main`；对应 GitHub Actions run `30188662641`、attempt `1` 和未加密 artifact `mdjournal-ci-v0.67-main-2ca38f5-run30188662641-attempt1`。该轮共执行 153 项 XCTest，其中三项新增正文写回计数测试因把 Coordinator 和 `UITextView` 准备阶段的初始化 getter 计入被测动作而误判失败，云端验收不通过。
+- 测试修复 commit `6107669b2b3799b7acda46d5c6701f4ab2694ec8` 仅将三项测试改为在动作前记录 getter/setter 基线，并继续断言动作增量为 `0 getter / 1 setter`；生产代码未改动。该 commit 已 fast-forward push 到 `origin/main`。
+- 最终 GitHub Actions run `30189105798`、attempt `1` 通过；Agent C 下载并核对未加密 artifact `mdjournal-ci-v0.67-main-6107669-run30189105798-attempt1`，确认 manifest 身份与版本匹配，静态检查、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`。
+- JUnit 阶段摘要为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 153/153 通过、失败 0、跳过 0，三项新增正文写回计数测试均实际执行并通过。`MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult` 和 `MDJournalTests.xcresult` 均可读取，状态为 `succeeded`，错误、警告和分析警告均为 0。
 
 遗留事项：
 
