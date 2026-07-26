@@ -62,7 +62,9 @@
 验证结果：
 
 - Agent B 本地轻量检查已通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与统计测试 Swift parse、workflow YAML 解析和 `VERSION: v0.71` 断言；YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果。
-- 实现 commit、push、GitHub Actions run、attempt、artifact 和 Agent C 云端验收：待补录。
+- 实现 commit `f66ba009140559c783329175b593a5891e8f6ce3` 已在 `main` 直推 `origin/main`；GitHub Actions `MD Journal CI Results` run `30194301840`、attempt `1` 成功。
+- Agent C 已下载并核对未加密 artifact `mdjournal-ci-v0.71-main-f66ba00-run30194301840-attempt1`（artifact ID `8629662729`）：manifest 的 `version=v0.71`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与目标一致，static / iOS build / Mac Catalyst build / XCTest 四类 outcome 均为 `success`。
+- XCTest 为 `164 passed / 0 failed / 0 skipped`，两项新增统计趋势布局契约测试均实际执行；三份 xcresult 均为 `succeeded`，且为 0 errors、0 warnings、0 analyzer warnings。云端 ZIP 的 399 个条目全部未加密，GitHub digest、重算 SHA-256、CRC 和逐文件完整性检查通过。
 - 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
 
 遗留事项：
