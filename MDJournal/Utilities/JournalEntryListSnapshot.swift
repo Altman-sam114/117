@@ -46,6 +46,10 @@ struct JournalEntryListSnapshot: Equatable {
         return "最近记录 · \(filteredEntries.count) 篇"
     }
 
+    var isCollectionEmpty: Bool {
+        totalCount == 0
+    }
+
     func count(for category: JournalEntry.Category) -> Int {
         categoryCounts[category, default: 0]
     }

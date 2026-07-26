@@ -33,7 +33,7 @@ struct EntryListView: View {
 
             Section {
                 if listSnapshot.filteredEntries.isEmpty {
-                    listEmptyState
+                    listEmptyState(listSnapshot)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
@@ -161,26 +161,36 @@ struct EntryListView: View {
         }
     }
 
-    private var listEmptyState: some View {
+    private func listEmptyState(_ listSnapshot: JournalEntryListSnapshot) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: searchText.isEmpty ? "book.closed" : "magnifyingglass")
+            Image(systemName: listSnapshot.isCollectionEmpty ? "book.closed" : "line.3.horizontal.decrease.circle")
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.teal)
 
-            Text(searchText.isEmpty ? "还没有日记" : "没有找到日记")
+            Text(listSnapshot.isCollectionEmpty ? "还没有日记" : "没有符合条件的日记")
                 .font(.headline)
 
-            if searchText.isEmpty {
+            if listSnapshot.isCollectionEmpty {
                 Button(action: onCreate) {
                     Label("写一篇", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.borderedProminent)
+            } else {
+                Button(action: clearFilters) {
+                    Label("清除筛选", systemImage: "line.3.horizontal.decrease.circle")
+                }
+                .buttonStyle(.bordered)
             }
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity)
         .padding(28)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func clearFilters() {
+        searchText = ""
+        selectedCategory = nil
     }
 
 }

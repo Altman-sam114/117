@@ -34,6 +34,44 @@
 
 ## 历史记录
 
+### v0.64 / 列表筛选空状态修正
+
+日期：2026-07-26
+
+核心变更：
+
+- `JournalEntryListSnapshot` 新增 `isCollectionEmpty`，用总日记数区分真实空日记库和筛选空结果。
+- `EntryListView` 在真实空库时继续显示“还没有日记”和“写一篇”；仓库非空但搜索或分类无结果时显示“没有符合条件的日记”。
+- 筛选空结果新增“清除筛选”入口，同时重置搜索文本和选中分类，恢复完整列表。
+- `JournalEntryListSnapshotTests` 增加空集合与分类筛选无结果的状态断言。
+- GitHub Actions 结果包版本更新为 `v0.64`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Utilities/JournalEntryListSnapshot.swift`
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournalTests/JournalEntryListSnapshotTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.64（列表筛选空状态修正）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、运行、XCTest、模拟器或 app；最终验收只以 GitHub Actions 回传结果包为准。
+- 两个只读子 agent 分别审计 Mac 写作工具栏和列表/统计 UI：列表 agent 发现分类筛选为 0 时误显示真实空库状态，本轮已修复；Mac agent 发现 Markdown 工具栏按钮为 34×34pt，留作 v0.65。
+- staged diff reviewer 要求覆盖原始“空搜索 + 计数为 0 分类”路径，本轮已补充对应测试；清除按钮同时重置两个私有 SwiftUI `@State` 的交互尚无 UI test 自动化覆盖，云端 iOS / Mac Catalyst build 只验证编译，后续需补 UI test 或人工交互验收。
+- 本地轻量检查：`git diff --check` 返回 0；workflow YAML 解析输出 `yaml ok`（伴随本机 PATH 权限 warning，不影响解析）；`VERSION: v0.64` 断言通过；`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 返回 0。
+- 云端 run 与 artifact 在 commit/push 后补齐。
+
+遗留事项：
+
+- 本轮只修正列表空状态与恢复入口，不改变搜索匹配、分类计数、列表排序、新建、删除、JSON 持久化或编辑器行为。
+- 下一轮 v0.65 优先把 Markdown 工具栏按钮点击区从 34×34pt 提升到 44×44pt。
+
 ### v0.63 / CI XCTest 超时与模拟器选择
 
 日期：2026-07-12

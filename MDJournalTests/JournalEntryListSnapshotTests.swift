@@ -15,6 +15,7 @@ final class JournalEntryListSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.count(for: .travel), 1)
         XCTAssertEqual(snapshot.count(for: .health), 0)
         XCTAssertEqual(snapshot.sectionTitle, "最近记录 · 4 篇")
+        XCTAssertFalse(snapshot.isCollectionEmpty)
     }
 
     func testSearchMatchesTitleBodyCategoryAndMood() {
@@ -58,6 +59,27 @@ final class JournalEntryListSnapshotTests: XCTestCase {
 
         XCTAssertTrue(snapshot.filteredEntries.isEmpty)
         XCTAssertEqual(snapshot.sectionTitle, "工作学习 · 0 篇")
+        XCTAssertFalse(snapshot.isCollectionEmpty)
+    }
+
+    func testEmptyCategoryFilterDoesNotReportCollectionEmpty() {
+        let snapshot = JournalEntryListSnapshot(
+            entries: makeEntries(),
+            searchText: "",
+            selectedCategory: .health
+        )
+
+        XCTAssertTrue(snapshot.filteredEntries.isEmpty)
+        XCTAssertEqual(snapshot.count(for: .health), 0)
+        XCTAssertFalse(snapshot.isCollectionEmpty)
+    }
+
+    func testEmptyEntriesReportCollectionEmpty() {
+        let snapshot = JournalEntryListSnapshot(entries: [], searchText: "query", selectedCategory: .health)
+
+        XCTAssertTrue(snapshot.filteredEntries.isEmpty)
+        XCTAssertEqual(snapshot.totalCount, 0)
+        XCTAssertTrue(snapshot.isCollectionEmpty)
     }
 
     func testCategoryCountsIgnoreSearchText() {

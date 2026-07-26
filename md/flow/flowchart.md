@@ -43,7 +43,7 @@ flowchart TD
   JSON --> Store
   Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
-  Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数"]
+  Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数和集合空状态"]
   ListSnapshot --> List
   Store --> ListOverview["JournalListOverviewSnapshot：通过 metrics 轻量派生总篇数、总词数、连续天数和洞察"]
   ListOverview --> List
@@ -143,8 +143,8 @@ flowchart LR
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
-  Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数"]
-  ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip"]
+  Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数和集合空状态"]
+  ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip、空结果恢复"]
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
   MetricsData --> ListOverview2
   ListOverview2 --> ListView
