@@ -95,7 +95,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
             textView.text = result.body
             textView.selectedRange = result.selectedRange
-            updateTextIfNeeded(result.body)
+            publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
             return false
         }
@@ -117,12 +117,12 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
             textView.text = result.body
             textView.selectedRange = result.selectedRange
-            updateTextIfNeeded(result.body)
+            publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            updateTextIfNeeded(textView.text)
+            publishText(textView.text)
             updateSelectedRangeIfNeeded(textView.selectedRange)
         }
 
@@ -138,10 +138,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             updateFocusIfNeeded(false)
         }
 
-        private func updateTextIfNeeded(_ newText: String) {
-            if text.wrappedValue != newText {
-                text.wrappedValue = newText
-            }
+        private func publishText(_ newText: String) {
+            text.wrappedValue = newText
         }
 
         private func updateSelectedRangeIfNeeded(_ newRange: NSRange) {

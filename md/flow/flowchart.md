@@ -23,7 +23,7 @@ flowchart TD
   WritingCommand --> Editor
   Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits，去重同步正文、光标/选区和焦点，承载 Tab / Shift-Tab；placeholder 非分配判断"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；已确认输入直接单次发布正文，外部正文按差异同步，选区/焦点按需写回；承载 Tab / Shift-Tab"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，空项非分配水平空白判断，单次扫描 fenced code 状态"]
@@ -35,7 +35,7 @@ flowchart TD
   Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏与专注写作：隐藏预览时居中限制正文输入区宽度"]
   PreviewToggle --> Preview
   List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
-  Editor --> Binding["Binding<JournalEntry>：把编辑结果写回 ContentView"]
+  Editor --> Binding["Binding<JournalEntry>：普通输入、成功续写和成功缩进直接单次写正文，再由 ContentView 写回"]
   CreateDelete --> Store["JournalStore：唯一日记集合修改入口，按 createdAt 变化排序"]
   Binding --> Store
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
@@ -127,7 +127,7 @@ flowchart LR
   Body --> OverviewWordCount["JournalEntryBodyMetrics.wordCount(in:)：单次词数扫描"]
   Body --> SectionPresence2["JournalSection.containsLevelThreeSection(in:)：Unicode scalar 单向扫描并早退"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
-  Body --> BodyText["MarkdownBodyTextView：正文编辑、rounded body 字体和输入 traits 按需配置、UTF-16 光标/选区去重同步"]
+  Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；已确认输入直接单次写正文，外部同步差异检查，UTF-16 选区/焦点按需更新"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，扫描到选区有效结束行并收集 UTF-16 offset，基于原正文单次构造结果"]

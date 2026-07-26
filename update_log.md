@@ -34,6 +34,39 @@
 
 ## 历史记录
 
+### v0.67 / 正文输入直接写回
+
+日期：2026-07-26
+
+核心变更：
+
+- `MarkdownBodyTextView.Coordinator` 将普通输入、成功 Markdown 回车续写和成功行缩进统一改为直接单次发布正文 binding，不再在 setter 前读取旧正文并执行全文相等比较。
+- `updateUIView` 继续只在无 marked text 且外部正文不同时更新 `UITextView`；IME 守卫、UTF-16 选区、选区/焦点按需写回、输入 traits、字体与纯规则语义均未改变。
+- `MarkdownTextInputConfigurationTests` 增加三个引用型 Binding probe 测试，分别断言普通输入、回车续写和缩进每次执行 `0` 次正文 getter、`1` 次正文 setter，并核对正文与选区结果。
+- GitHub Actions 结果包版本更新为 `v0.67`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownTextInputConfigurationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.67（正文输入直接写回）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；`git diff --check`、Xcode project `plutil -lint`、应用 Swift parse、改动测试文件 Swift parse、workflow YAML parse 和 `VERSION: v0.67` 断言均通过。YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果；staged diff 检查在暂存后执行。
+- 实现 commit、push 结果、GitHub Actions run、attempt、未加密 artifact 和 Agent C 复判结果待本轮提交及云端验证后补录，不提前标记通过。
+
+遗留事项：
+
+- 三项确定性测试只证明 Coordinator 在三个入口不读取正文 binding 且只写一次，不量化真实设备的耗时或内存分配，也不代表上游 `Binding<JournalEntry>` setter 内部零查找。
+- 本轮未做真实键盘、中文输入法、first responder、光标视觉或 Mac Catalyst UI 交互验证；marked-text 守卫和现有状态边界保持不变，仍需后续人工交互复核。
+
 ### v0.66 / 列表概览小节检测快路径
 
 日期：2026-07-26
