@@ -65,7 +65,11 @@
 - 两个只读子 agent 分别审计 Mac 写作工具栏和列表/统计 UI：列表 agent 发现分类筛选为 0 时误显示真实空库状态，本轮已修复；Mac agent 发现 Markdown 工具栏按钮为 34×34pt，留作 v0.65。
 - staged diff reviewer 要求覆盖原始“空搜索 + 计数为 0 分类”路径，本轮已补充对应测试；清除按钮同时重置两个私有 SwiftUI `@State` 的交互尚无 UI test 自动化覆盖，云端 iOS / Mac Catalyst build 只验证编译，后续需补 UI test 或人工交互验收。
 - 本地轻量检查：`git diff --check` 返回 0；workflow YAML 解析输出 `yaml ok`（伴随本机 PATH 权限 warning，不影响解析）；`VERSION: v0.64` 断言通过；`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 返回 0。
-- 云端 run 与 artifact 在 commit/push 后补齐。
+- 实现 commit：`801ea9038a79588477644240f848f562ad6a3187`（`v0.64 修正列表筛选空状态`），已 push 到 `origin/main`。
+- GitHub Actions：`MD Journal CI Results` run `30185009247`，attempt `1`，结论 `success`。
+- 未加密 artifact：`mdjournal-ci-v0.64-main-801ea90-run30185009247-attempt1`，下载到 `/private/tmp/mdjournal-c-review-30185009247/` 复判。
+- Agent C 复判结果：manifest 的 `version=v0.64`、`branch=main`、`commitSha=801ea9038a79588477644240f848f562ad6a3187`、`runId=30185009247`、`runAttempt=1` 完全匹配；静态检查、iOS build、Mac Catalyst build 和 XCTest outcome 均为 `success`。
+- `junit.xml` 显示 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；iOS 和 Mac Catalyst 日志包含 `** BUILD SUCCEEDED **`，XCTest 日志包含 `** TEST SUCCEEDED **`，三个 `.xcresult` 的 `Info.plist` 均可解析。
 
 遗留事项：
 
