@@ -41,6 +41,7 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.createJournalEntryAction, createEntry)
         .focusedSceneValue(\.showJournalStatisticsAction, showStatistics)
+        .focusedSceneValue(\.journalEntryNavigationActions, journalEntryNavigationActions)
         .alert("无法保存日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {
                 store.errorMessage = nil
@@ -48,6 +49,28 @@ struct ContentView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
+    }
+
+    private var journalEntryNavigationActions: JournalEntryNavigationActions {
+        let newerID = JournalEntryNavigation.destinationID(
+            in: store.entries,
+            selection: selectedEntryID,
+            direction: .newer
+        )
+        let olderID = JournalEntryNavigation.destinationID(
+            in: store.entries,
+            selection: selectedEntryID,
+            direction: .older
+        )
+
+        return JournalEntryNavigationActions(
+            selectNewer: newerID.map { destinationID in
+                { selectedEntryID = destinationID }
+            },
+            selectOlder: olderID.map { destinationID in
+                { selectedEntryID = destinationID }
+            }
+        )
     }
 
     private var selectedEntryBinding: Binding<JournalEntry>? {

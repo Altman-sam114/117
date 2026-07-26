@@ -9,12 +9,19 @@
 ```mermaid
 flowchart TD
   Platform["iOS / iPadOS / Mac Catalyst"] --> User["用户操作：新建、编辑、删除、搜索、筛选、分享"]
-  Platform --> Menu["Mac Catalyst 菜单：新建日记、显示统计、写作、插入 Markdown"]
+  Platform --> Menu["Mac Catalyst 菜单：新建、较新/较早日记、统计、写作、插入 Markdown"]
   Platform --> LocalRun["本地 Mac 运行：Codex Run action / script/build_and_run.sh"]
   LocalRun --> CatalystBuild["xcodebuild：构建 Mac Catalyst Debug app"]
   CatalystBuild --> Platform
   User --> CV["ContentView：维护选中日记和导航"]
   Menu --> CV
+  Menu --> NavigationCommand["⌘⌥↑ / ⌘⌥↓：读取单一 focused navigation actions"]
+  Store --> NavigationRule["JournalEntryNavigation：按当前新到旧顺序解析相邻 ID，边界不循环"]
+  NavigationRule --> NavigationActions["ContentView：为可达方向提供 selection-only 闭包，不可达方向为 nil"]
+  NavigationActions --> NavigationCommand
+  NavigationCommand --> CV
+  CV --> NavigationSelection["selectedEntryID 切换；不保存、不改变筛选或焦点"]
+  NavigationSelection --> Editor
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
   CV --> Editor["EntryEditorView：标题、日期、分类、心情、正文编辑"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]

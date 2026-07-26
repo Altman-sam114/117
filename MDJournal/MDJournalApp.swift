@@ -28,6 +28,7 @@ enum JournalSceneID {
 private struct JournalCommands: Commands {
     @FocusedValue(\.createJournalEntryAction) private var createJournalEntryAction
     @FocusedValue(\.showJournalStatisticsAction) private var showJournalStatisticsAction
+    @FocusedValue(\.journalEntryNavigationActions) private var journalEntryNavigationActions
     @FocusedValue(\.insertMarkdownSnippetAction) private var insertMarkdownSnippetAction
     @FocusedValue(\.focusEditorBodyAction) private var focusEditorBodyAction
     @FocusedValue(\.focusEditorWritingAction) private var focusEditorWritingAction
@@ -41,6 +42,20 @@ private struct JournalCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: .command)
             .disabled(createJournalEntryAction == nil)
+
+            Divider()
+
+            ForEach(JournalEntryNavigationDirection.allCases) { direction in
+                let shortcut = JournalEntryNavigationShortcut(direction: direction)
+
+                Button(direction.title) {
+                    navigationAction(for: direction)?()
+                }
+                .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.modifiers)
+                .disabled(navigationAction(for: direction) == nil)
+            }
+
+            Divider()
 
             Button("显示统计") {
                 showJournalStatisticsAction?()
@@ -73,6 +88,15 @@ private struct JournalCommands: Commands {
         }
     }
 
+    private func navigationAction(for direction: JournalEntryNavigationDirection) -> (() -> Void)? {
+        switch direction {
+        case .newer:
+            return journalEntryNavigationActions?.selectNewer
+        case .older:
+            return journalEntryNavigationActions?.selectOlder
+        }
+    }
+
     private func action(for command: EditorWritingCommand) -> (() -> Void)? {
         switch command {
         case .focusBody:
@@ -94,12 +118,21 @@ private struct JournalCommands: Commands {
     }
 }
 
+struct JournalEntryNavigationActions {
+    let selectNewer: (() -> Void)?
+    let selectOlder: (() -> Void)?
+}
+
 private struct CreateJournalEntryActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
 private struct ShowJournalStatisticsActionKey: FocusedValueKey {
     typealias Value = () -> Void
+}
+
+private struct JournalEntryNavigationActionsKey: FocusedValueKey {
+    typealias Value = JournalEntryNavigationActions
 }
 
 private struct InsertMarkdownSnippetActionKey: FocusedValueKey {
@@ -131,6 +164,11 @@ extension FocusedValues {
     var showJournalStatisticsAction: (() -> Void)? {
         get { self[ShowJournalStatisticsActionKey.self] }
         set { self[ShowJournalStatisticsActionKey.self] = newValue }
+    }
+
+    var journalEntryNavigationActions: JournalEntryNavigationActions? {
+        get { self[JournalEntryNavigationActionsKey.self] }
+        set { self[JournalEntryNavigationActionsKey.self] = newValue }
     }
 
     var insertMarkdownSnippetAction: ((MarkdownSnippet) -> Void)? {
