@@ -65,8 +65,8 @@
 验证结果：
 
 - 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；`git diff --check`、Xcode project `plutil -lint`、应用 Swift parse、workflow YAML parse、`VERSION: v0.68` 断言和工程登记检查均通过。YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果；staged diff 检查在暂存后执行。
-- 实现 commit、push 结果和 GitHub Actions run id / attempt：待 Agent B 提交并触发云端 workflow 后补录。
-- 未加密 artifact 名称和 Agent C 复判结论：待最新 `origin/main` 对应结果包生成后补录，不预写通过。
+- 实现 commit `26f5e671e17d33d498ff47745dc51147b4a73a67` 已 push 到 `origin/main`。初始 GitHub Actions run `30190429963`、attempt `1` 的未加密 artifact 为 `mdjournal-ci-v0.68-main-26f5e67-run30190429963-attempt1`；四阶段和 159 项 XCTest 虽全部通过，但 `MDJournalTests.xcresult` 出现 2 条 `KeyEquivalent` 的 iOS 17 可用性警告，Agent C 判定不通过。
+- 修复 commit `269d019ba2a7ddf8b9b18c6229849eb21bff1c51` 仅将两条快捷键测试改为比较 `character`，已 push 到 `origin/main`。最终 GitHub Actions run `30190792407`、attempt `1` 的未加密 artifact 为 `mdjournal-ci-v0.68-main-269d019-run30190792407-attempt1`；四阶段全部成功，JUnit 为 4/0/0/0，XCTest 159/159 通过，六项导航测试均实际执行，三个 xcresult 均可读取且 errors、warnings 和 analyzer warnings 均为 0，Agent C 复判通过。
 
 遗留事项：
 
