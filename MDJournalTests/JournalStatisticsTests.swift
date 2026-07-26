@@ -2,6 +2,28 @@ import XCTest
 @testable import MDJournal
 
 final class JournalStatisticsTests: XCTestCase {
+    func testSevenDayBarChartLayoutUsesScrollingOnlyForAccessibilitySizes() {
+        XCTAssertFalse(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .large))
+        XCTAssertFalse(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .xxxLarge))
+        XCTAssertTrue(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .accessibility1))
+        XCTAssertTrue(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .accessibility5))
+    }
+
+    func testSevenDayBarChartLayoutDimensionsPreservePlotBaseline() {
+        XCTAssertEqual(SevenDayBarChartLayoutContract.plotHeight, 92)
+        XCTAssertEqual(SevenDayBarChartLayoutContract.minimumValueLabelHeight, 14)
+        XCTAssertEqual(SevenDayBarChartLayoutContract.minimumChartHeight, 134)
+        XCTAssertEqual(SevenDayBarChartLayoutContract.accessibilityDayMinimumWidth, 56)
+        XCTAssertGreaterThan(SevenDayBarChartLayoutContract.plotHeight, 0)
+        XCTAssertGreaterThan(SevenDayBarChartLayoutContract.minimumValueLabelHeight, 0)
+        XCTAssertGreaterThan(SevenDayBarChartLayoutContract.minimumChartHeight, 0)
+        XCTAssertGreaterThan(SevenDayBarChartLayoutContract.accessibilityDayMinimumWidth, 0)
+        XCTAssertGreaterThan(
+            SevenDayBarChartLayoutContract.minimumChartHeight,
+            SevenDayBarChartLayoutContract.plotHeight
+        )
+    }
+
     func testEmptyStatisticsUseZeroValues() throws {
         let calendar = fixedCalendar()
         let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)

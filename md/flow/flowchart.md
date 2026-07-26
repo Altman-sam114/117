@@ -60,6 +60,9 @@ flowchart TD
   Store --> Stats["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
+  Dashboard --> TrendLayout{"SevenDayBarChartLayoutContract：Dynamic Type 布局策略"}
+  TrendLayout -- "普通字号" --> EqualTrend["七日趋势：七列等分"]
+  TrendLayout -- "Accessibility 字号" --> ScrollingTrend["七日趋势：56pt 稳定列宽水平滚动"]
   Stats --> Dashboard
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
@@ -165,7 +168,11 @@ flowchart LR
   Statistics --> Coverage["### 小节覆盖率"]
   Metrics --> Dashboard["统计看板"]
   Distributions --> Dashboard
-  Trend --> Dashboard
+  Trend --> TrendChart["SevenDayBarChart：消费 7 天数据与最大词数"]
+  TrendChart --> Dashboard
+  TrendChart --> TrendLayout2{"Dynamic Type 布局契约"}
+  TrendLayout2 -- "普通字号" --> EqualTrend2["七列等分"]
+  TrendLayout2 -- "Accessibility 字号" --> ScrollingTrend2["56pt 稳定列宽水平滚动"]
   Coverage --> Dashboard
 ```
 

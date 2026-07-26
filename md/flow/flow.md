@@ -55,6 +55,10 @@ JournalEntry.body
   -> JournalStatistics 对已倒序输入跳过重复排序，每篇日记构造一次 JournalEntryBodyMetrics 并单轮聚合
   -> 总篇数、总词数、连续天数、7 天趋势、7 天趋势最大词数、分类分布、心情分布、分布最大值、主导分类/心情、小节覆盖率
   -> EntryListView 概览卡片 / StatisticsDashboardView
+
+JournalStatistics.lastSevenDays / maxDailyWordCount
+  -> SevenDayBarChart
+  -> SevenDayBarChartLayoutContract 只按 DynamicTypeSize 选择普通字号七列等分或 Accessibility 字号稳定列宽水平滚动，不参与统计或持久化
 ```
 
 ## 2. 当前核心执行流
@@ -134,8 +138,9 @@ JournalEntry.body
 5. `StatisticsDashboardView` 用当前 `entries` 构造一次 `JournalStatistics` 并传给子视图。
 6. `JournalStatistics` 先检查输入是否已按 `createdAt` 倒序；常见的 `JournalStore.entries` 主路径直接复用输入数组，只有乱序输入才回退排序。
 7. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodyMetrics`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布、分布最大 entry count、主导分类/心情、最近 7 天趋势和趋势最大词数，不为统计路径生成正文摘要。
-8. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
-9. 独立统计窗口复用 App 级 `JournalStore`，只读展示当前日记数组，不新增第二套加载或保存路径。
+8. `SevenDayBarChart` 继续直接消费 `lastSevenDays` 和 `maxDailyWordCount`；纯布局契约只根据 `DynamicTypeSize` 选择展示容器，普通字号保留七列等分，Accessibility 字号使用 56pt 稳定列宽的水平滚动，词数标签和图表容器使用最小高度自然增高，92pt 柱图区与柱高比例保持不变。
+9. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
+10. 独立统计窗口复用 App 级 `JournalStore`，只读展示当前日记数组，不新增第二套加载或保存路径。
 
 ### 2.7 Mac Catalyst 菜单命令
 

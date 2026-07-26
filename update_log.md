@@ -35,6 +35,42 @@
 
 ## 历史记录
 
+### v0.71 / 统计趋势辅助字号
+
+日期：2026-07-26
+
+核心变更：
+
+- 新增 internal `SevenDayBarChartLayoutContract`，集中管理 92pt 柱图区、14pt 词数最小高度、134pt 图表最小高度、56pt Accessibility 列宽和 Dynamic Type 滚动策略。
+- 最近 7 天趋势在普通字号下继续使用七列等分布局；只有 Accessibility Dynamic Type 使用稳定列宽的水平滚动，避免窄 iPhone 和窄 Mac Catalyst 窗口继续压缩各列。
+- 词数标签和图表根容器从固定高度改为最小高度，允许语义文字自然增高；柱图区固定高度、柱高比例、零值规则、日期顺序、颜色、圆角和间距保持不变。
+- 新增两项纯布局契约测试；`JournalStatistics` 算法、Store、model、ContentView、本地 JSON 和 Xcode 工程均未改变。
+- GitHub Actions 结果包版本更新为 `v0.71`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/StatisticsDashboardView.swift`
+- `MDJournalTests/JournalStatisticsTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.71（统计趋势辅助字号）.md`
+- `update_log.md`
+
+验证结果：
+
+- Agent B 本地轻量检查已通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与统计测试 Swift parse、workflow YAML 解析和 `VERSION: v0.71` 断言；YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，不影响 `yaml ok` 结果。
+- 实现 commit、push、GitHub Actions run、attempt、artifact 和 Agent C 云端验收：待补录。
+- 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
+
+遗留事项：
+
+- 纯契约测试只证明尺寸常量和字号策略，不证明真实 Dynamic Type 视觉、文字无裁切、滚动手感或普通字号像素级一致性。
+- 56pt 稳定列宽在极端词数位数、不同语言和最大 Accessibility 字号下仍需真机检查；Mac Catalyst 鼠标、触控板、键盘与 VoiceOver 的横向滚动交互也需人工验收。
+- 本轮不改变写入性能路径，既有统计预计算、按需排序、Store 节流与 JSON 保存仅作为不得回归边界。
+
 ### v0.70 / 日记日期辅助功能
 
 日期：2026-07-26

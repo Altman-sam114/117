@@ -300,43 +300,77 @@ private struct CompactNumber: View {
     }
 }
 
+enum SevenDayBarChartLayoutContract {
+    static let plotHeight: CGFloat = 92
+    static let minimumValueLabelHeight: CGFloat = 14
+    static let minimumChartHeight: CGFloat = 134
+    static let accessibilityDayMinimumWidth: CGFloat = 56
+
+    static func usesHorizontalScrolling(for dynamicTypeSize: DynamicTypeSize) -> Bool {
+        dynamicTypeSize.isAccessibilitySize
+    }
+}
+
 private struct SevenDayBarChart: View {
     let days: [JournalStatistics.DailyWriting]
     let maxWords: Int
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 9) {
-            ForEach(days) { day in
-                VStack(spacing: 7) {
-                    Text(day.wordCount == 0 ? "" : "\(day.wordCount)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(height: 14)
-
-                    ZStack(alignment: .bottom) {
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(Color(.systemBackground))
-                            .frame(height: 92)
-
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(day.wordCount > 0 ? Color.teal : Color.secondary.opacity(0.15))
-                            .frame(height: barHeight(for: day.wordCount))
-                    }
-
-                    Text(day.date.journalWeekdayText)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        Group {
+            if SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: dynamicTypeSize) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    dayColumns(dayWidth: SevenDayBarChartLayoutContract.accessibilityDayMinimumWidth)
                 }
-                .frame(maxWidth: .infinity)
+            } else {
+                dayColumns(dayWidth: nil)
             }
         }
-        .frame(height: 134)
+        .frame(minHeight: SevenDayBarChartLayoutContract.minimumChartHeight)
+    }
+
+    private func dayColumns(dayWidth: CGFloat?) -> some View {
+        HStack(alignment: .bottom, spacing: 9) {
+            ForEach(days) { day in
+                dayColumn(day)
+                    .frame(
+                        minWidth: dayWidth,
+                        maxWidth: dayWidth ?? .infinity
+                    )
+            }
+        }
+    }
+
+    private func dayColumn(_ day: JournalStatistics.DailyWriting) -> some View {
+        VStack(spacing: 7) {
+            Text(day.wordCount == 0 ? "" : "\(day.wordCount)")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(minHeight: SevenDayBarChartLayoutContract.minimumValueLabelHeight)
+
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color(.systemBackground))
+                    .frame(height: SevenDayBarChartLayoutContract.plotHeight)
+
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(day.wordCount > 0 ? Color.teal : Color.secondary.opacity(0.15))
+                    .frame(height: barHeight(for: day.wordCount))
+            }
+
+            Text(day.date.journalWeekdayText)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
     }
 
     private func barHeight(for words: Int) -> CGFloat {
         guard words > 0 else { return 8 }
-        return max(12, CGFloat(words) / CGFloat(maxWords) * 92)
+        return max(
+            12,
+            CGFloat(words) / CGFloat(maxWords) * SevenDayBarChartLayoutContract.plotHeight
+        )
     }
 }
 

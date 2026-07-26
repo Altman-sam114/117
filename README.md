@@ -22,7 +22,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - 正文包含 `###` 时，预览会按三级标题分组显示每个日记小节。
 - Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
 - 日记列表用卡片展示分类、心情、日期、词数和 `###` 小节摘要。
-- 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率。
+- 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率；七日趋势在普通 Dynamic Type 下保持七列等分，在 Accessibility Dynamic Type 下使用稳定列宽的水平滚动，词数标签和图表容器可随语义文字自然增高。
 - 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
 - 支持选择日记日期、心情、分类和系统分享。
 - iPhone 支持竖屏、横屏左和横屏右。
@@ -110,7 +110,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析（含有序列表块、代码块空行、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组）、统计、Markdown 快捷片段、片段插入规则（含选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界）、无序列表/待办/引用/有序列表回车续写规则（含空项退出的水平空白边界）、Markdown 行缩进规则（含单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、Markdown 输入配置和正文字体按需配置、普通输入/回车续写/缩进对正文 Binding 的 `0 getter / 1 setter` 确定性契约、写作命令快捷键和缩进方向映射、`JournalStore` 写入节流和更新按需排序。focused scene 菜单接线由 Swift parse 和云端 Mac Catalyst build 间接验证，不代表真实键盘事件与 first responder 交互已测试。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析（含有序列表块、代码块空行、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组）、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段、片段插入规则（含选区空白行跳过、CR/CRLF、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界）、无序列表/待办/引用/有序列表回车续写规则（含空项退出的水平空白边界）、Markdown 行缩进规则（含单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、Markdown 输入配置和正文字体按需配置、普通输入/回车续写/缩进对正文 Binding 的 `0 getter / 1 setter` 确定性契约、写作命令快捷键和缩进方向映射、`JournalStore` 写入节流和更新按需排序。七日趋势纯契约测试不代表真实 Dynamic Type 渲染、裁切或水平滚动交互已经验收；focused scene 菜单接线由 Swift parse 和云端 Mac Catalyst build 间接验证，不代表真实键盘事件与 first responder 交互已测试。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
