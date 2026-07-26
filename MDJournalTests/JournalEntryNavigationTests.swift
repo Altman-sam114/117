@@ -73,8 +73,8 @@ final class JournalEntryNavigationTests: XCTestCase {
         let newerShortcut = JournalEntryNavigationShortcut(direction: .newer)
         let olderShortcut = JournalEntryNavigationShortcut(direction: .older)
 
-        XCTAssertEqual(newerShortcut.keyEquivalent, .upArrow)
-        XCTAssertEqual(olderShortcut.keyEquivalent, .downArrow)
+        XCTAssertEqual(newerShortcut.keyEquivalent.character, KeyEquivalent.upArrow.character)
+        XCTAssertEqual(olderShortcut.keyEquivalent.character, KeyEquivalent.downArrow.character)
         XCTAssertEqual(newerShortcut.modifiers, [.command, .option])
         XCTAssertEqual(olderShortcut.modifiers, [.command, .option])
         XCTAssertEqual(newerShortcut.displayText, "⌘⌥↑")
