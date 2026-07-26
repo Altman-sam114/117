@@ -41,9 +41,14 @@ flowchart TD
   SnippetInsertion --> Binding
   Editor --> PreviewToggle["Mac Catalyst 宽屏预览栏显示/隐藏与专注写作：隐藏预览时居中限制正文输入区宽度"]
   PreviewToggle --> Preview
-  List --> CreateDelete["创建/删除请求：滑动或右键删除都通过 closure 回到 ContentView"]
+  List --> CreateRequest["新建请求：通过 closure 回到 ContentView"]
+  List --> DeleteRequest["滑动或右键删除：统一 requestDeletion，稳定持有完整日记"]
+  DeleteRequest --> DeleteDialog{"系统 confirmationDialog：是否确认删除准确标题日记？"}
+  DeleteDialog -- "取消 / Esc / 外部关闭" --> ClearDelete["清理待确认目标，不删除"]
+  DeleteDialog -- "确认" --> ConsumeDelete["先 consume 清空目标，单次回调 ContentView"]
   Editor --> Binding["Binding<JournalEntry>：普通输入、成功续写和成功缩进直接单次写正文，再由 ContentView 写回"]
-  CreateDelete --> Store["JournalStore：唯一日记集合修改入口，按 createdAt 变化排序"]
+  CreateRequest --> Store["JournalStore：唯一日记集合修改入口，按 createdAt 变化排序"]
+  ConsumeDelete --> Store
   Binding --> Store
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
@@ -93,7 +98,9 @@ flowchart TD
   Select --> Edit{"用户操作类型"}
   Edit -- "新建" --> Create["JournalStore.createEntry 插入默认 ### 模板"]
   Edit -- "编辑" --> Update["JournalStore.update 更新时间并替换日记"]
-  Edit -- "删除" --> Delete["JournalStore.delete 移除日记"]
+  Edit -- "请求删除" --> ConfirmDelete{"系统确认：目标标题准确且操作不可撤销"}
+  ConfirmDelete -- "取消 / 关闭" --> Render
+  ConfirmDelete -- "确认并先消费目标" --> Delete["JournalStore.delete 移除日记"]
   Create --> SortSave["排序并立即保存 JSON"]
   Update --> DebouncedSave["仅 createdAt 改变时排序，并安排短延迟保存"]
   DebouncedSave --> Flush["连续编辑合并写盘；inactive/background 时 flush"]

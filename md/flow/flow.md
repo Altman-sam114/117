@@ -113,9 +113,10 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 6. `EntryListView` 使用列表快照渲染过滤结果、section 标题和分类计数，使用概览快照渲染顶部概览卡。
 7. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
 8. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
-9. 用户滑动删除或在 Mac Catalyst 下右键删除时调用 `ContentView.deleteEntry(_:)`。
-10. `JournalStore.delete(_:)` 从数组移除日记并保存。
-11. `ContentView.repairSelection` 确保选中项仍然有效。
+9. 用户滑动删除或在 Mac Catalyst 下右键删除时，两个入口统一调用 `EntryListView.requestDeletion(of:)`；internal `JournalDeletionConfirmationState` 稳定持有完整 `JournalEntry`，不从筛选结果、selection 或 Store 回查目标。
+10. 列表显示系统 `confirmationDialog`，标题使用待确认目标的 `displayTitle`；取消、Esc、点击外部或系统关闭 presentation 都只清理待确认状态，不调用删除回调。
+11. 用户点击 destructive “删除”后，状态先通过 `consumeConfirmedTarget()` 清空并返回目标，再且仅再调用一次 `ContentView.deleteEntry(_:)`；重复确认不会再次产生目标。
+12. `JournalStore.delete(_:)` 从数组移除日记并立即保存，`ContentView.repairSelection` 确保选中项仍然有效。
 
 ### 2.5 Markdown 预览
 

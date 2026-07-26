@@ -2,6 +2,76 @@ import XCTest
 @testable import MDJournal
 
 final class JournalEntryListSnapshotTests: XCTestCase {
+    func testDeletionRequestRetainsCompleteTargetAndBuildsAccurateTitle() {
+        let entry = JournalEntry(
+            id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
+            title: "  周末计划  ",
+            body: "### 行程\n\n去看展览。",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            category: .travel,
+            mood: .happy
+        )
+        var state = JournalDeletionConfirmationState()
+
+        state.request(entry)
+
+        XCTAssertTrue(state.isPresented)
+        XCTAssertEqual(state.target?.id, entry.id)
+        XCTAssertEqual(state.target?.title, entry.title)
+        XCTAssertEqual(state.target?.body, entry.body)
+        XCTAssertEqual(state.target?.category, .travel)
+        XCTAssertEqual(
+            state.target.map(JournalDeletionConfirmationState.dialogTitle(for:)),
+            "删除“周末计划”？"
+        )
+    }
+
+    func testDeletionDismissClearsTargetAndProducesNoConfirmedEntry() {
+        var state = JournalDeletionConfirmationState()
+        state.request(makeEntry(title: "待取消", body: "内容", category: .daily, mood: .calm))
+
+        state.dismiss()
+
+        XCTAssertNil(state.target)
+        XCTAssertFalse(state.isPresented)
+        XCTAssertNil(state.consumeConfirmedTarget())
+        state.dismiss()
+        XCTAssertNil(state.target)
+        XCTAssertFalse(state.isPresented)
+    }
+
+    func testDeletionConfirmationConsumesAccurateTargetOnlyOnce() {
+        let entry = makeEntry(title: "只删除一次", body: "原始正文", category: .workStudy, mood: .focused)
+        var state = JournalDeletionConfirmationState()
+        state.request(entry)
+
+        let firstConfirmedTarget = state.consumeConfirmedTarget()
+
+        XCTAssertEqual(firstConfirmedTarget, entry)
+        XCTAssertNil(state.target)
+        XCTAssertFalse(state.isPresented)
+        XCTAssertNil(state.consumeConfirmedTarget())
+    }
+
+    func testNewDeletionRequestReplacesOldTargetWithoutFilteredEntryLookup() {
+        let firstEntry = makeEntry(title: "第一篇", body: "旧目标", category: .daily, mood: .calm)
+        let secondEntry = makeEntry(title: "第二篇", body: "最终目标", category: .inspiration, mood: .happy)
+        var filteredEntries = [firstEntry, secondEntry]
+        var state = JournalDeletionConfirmationState()
+
+        state.request(filteredEntries[0])
+        state.request(filteredEntries[1])
+        filteredEntries.removeAll()
+
+        XCTAssertTrue(filteredEntries.isEmpty)
+        XCTAssertEqual(
+            state.target.map(JournalDeletionConfirmationState.dialogTitle(for:)),
+            "删除“第二篇”？"
+        )
+        XCTAssertEqual(state.consumeConfirmedTarget(), secondEntry)
+    }
+
     func testCategoryFilterChipContractUsesMinimumInteractiveHeight() {
         XCTAssertEqual(CategoryFilterChipContract.minimumInteractiveHeight, 44)
     }

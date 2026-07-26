@@ -1,5 +1,30 @@
 import SwiftUI
 
+struct JournalDeletionConfirmationState {
+    private(set) var target: JournalEntry?
+
+    var isPresented: Bool {
+        target != nil
+    }
+
+    mutating func request(_ entry: JournalEntry) {
+        target = entry
+    }
+
+    mutating func dismiss() {
+        target = nil
+    }
+
+    mutating func consumeConfirmedTarget() -> JournalEntry? {
+        defer { target = nil }
+        return target
+    }
+
+    static func dialogTitle(for entry: JournalEntry) -> String {
+        "删除“\(entry.displayTitle)”？"
+    }
+}
+
 struct EntryListView: View {
     let entries: [JournalEntry]
     @Binding var selection: JournalEntry.ID?
@@ -9,6 +34,7 @@ struct EntryListView: View {
 
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
+    @State private var deletionConfirmation = JournalDeletionConfirmationState()
 
     var body: some View {
         let overviewSnapshot = JournalListOverviewSnapshot(entries: entries)
@@ -45,14 +71,14 @@ struct EntryListView: View {
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                             .contextMenu {
                                 Button(role: .destructive) {
-                                    onDelete(entry)
+                                    requestDeletion(of: entry)
                                 } label: {
                                     Label("删除日记", systemImage: "trash")
                                 }
                             }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
-                                    onDelete(entry)
+                                    requestDeletion(of: entry)
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
@@ -70,6 +96,18 @@ struct EntryListView: View {
         .background(listBackground)
         .navigationTitle("日记")
         .searchable(text: $searchText, prompt: "搜索标题、正文、分类或心情")
+        .confirmationDialog(
+            deletionDialogTitle,
+            isPresented: deletionConfirmationPresentation,
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive, action: confirmDeletion)
+            Button("取消", role: .cancel) {
+                deletionConfirmation.dismiss()
+            }
+        } message: {
+            Text("此操作无法撤销。")
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onShowStatistics) {
@@ -193,6 +231,36 @@ struct EntryListView: View {
         selectedCategory = nil
     }
 
+    private var deletionDialogTitle: String {
+        guard let target = deletionConfirmation.target else {
+            return "删除日记？"
+        }
+
+        return JournalDeletionConfirmationState.dialogTitle(for: target)
+    }
+
+    private var deletionConfirmationPresentation: Binding<Bool> {
+        Binding(
+            get: { deletionConfirmation.isPresented },
+            set: { isPresented in
+                if !isPresented {
+                    deletionConfirmation.dismiss()
+                }
+            }
+        )
+    }
+
+    private func requestDeletion(of entry: JournalEntry) {
+        deletionConfirmation.request(entry)
+    }
+
+    private func confirmDeletion() {
+        guard let target = deletionConfirmation.consumeConfirmedTarget() else {
+            return
+        }
+
+        onDelete(target)
+    }
 }
 
 private struct SummaryBadge: View {

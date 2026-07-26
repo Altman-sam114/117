@@ -35,6 +35,39 @@
 
 ## 历史记录
 
+### v0.72 / 删除日记确认保护
+
+日期：2026-07-26
+
+核心变更：
+
+- 新增 internal `JournalDeletionConfirmationState`，待确认期间稳定持有完整 `JournalEntry`；请求可替换旧目标，dismiss 幂等清空，确认目标在返回前先清空且只能消费一次。
+- 列表滑动删除与 Mac Catalyst 右键删除统一调用 `requestDeletion(of:)`，共享一个系统 `confirmationDialog`；标题准确使用目标 `displayTitle`，destructive “删除”按钮确认后才调用既有 `onDelete`，cancel 和 presentation 外部关闭只清理状态。
+- 保持 `ContentView.deleteEntry(_:) -> JournalStore.delete(_:) -> repairSelection`、立即保存、JSON 格式、搜索筛选、列表 selection 和删除后选择行为不变。
+- `JournalEntryListSnapshotTests` 新增 4 项纯状态转换测试；GitHub Actions 结果包版本更新为 `v0.72`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournalTests/JournalEntryListSnapshotTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.72（删除日记确认保护）.md`
+- `update_log.md`
+
+验证结果：
+
+- Agent B 本地仅执行提示词允许的轻量检查，不运行本地 build、XCTest、模拟器或 app；完整 iOS、Mac Catalyst 与 XCTest 重验证由 GitHub Actions 承担。
+- 实现 commit、run id、run attempt、artifact 名称、168 项 XCTest 和结果包完整性结论待本轮 push 后由 Agent C 下载最新未加密 artifact 复判并补录。
+
+遗留事项：
+
+- 纯状态测试不能证明系统对话框的真实视觉、焦点、Esc、点击外部、右键菜单事件或滑动手势；iOS 与 Mac Catalyst 的交互和辅助功能仍需人工 UI 验收。
+- 本轮不提供废纸篓、撤销或软删除；用户确认后仍沿既有链路立即永久删除并保存。
+
 ### v0.71 / 统计趋势辅助字号
 
 日期：2026-07-26
