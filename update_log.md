@@ -34,6 +34,38 @@
 
 ## 历史记录
 
+### v0.65 / Markdown 工具栏 44pt 交互区
+
+日期：2026-07-26
+
+核心变更：
+
+- `MarkdownToolbar` 将每个 Markdown 图标按钮的 label 从 `34×34pt` 提升到 `44×44pt`，并在 frame 后紧接矩形 `contentShape`，让完整按钮标签参与命中测试。
+- 保持 `16pt semibold` 图标、`8pt` 间距、水平滚动、纯按钮样式、accent 背景、片段顺序、`onInsert`、hover help 和辅助功能标签不变。
+- GitHub Actions 结果包版本更新为 `v0.65`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownToolbar.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.65（Markdown工具栏44pt交互区）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；本地只运行 `git diff --check`、Swift parse、workflow YAML parse 和 `VERSION: v0.65` 断言。
+- Agent B 实现阶段尚未提交或 push；实现 commit SHA、GitHub Actions run id / attempt、artifact 名称和 Agent C 复判结果均待主控 review、提交、push 和云端验收后补充，不预填成功。
+
+遗留事项：
+
+- `44×44pt` 会增加工具栏高度，并减少窄屏同一时刻可见的按钮数量；现有水平滚动继续承载全部按钮。
+- Swift parse 与后续云端 build 不能直接证明实际点击命中区或视觉效果；当前没有 UI test target，仍需后续人工在 Mac Catalyst、iPhone 窄屏和辅助功能检查中确认命中、滚动与 hover 表现。
+- 本轮只调整 Markdown 工具栏交互区，不改变片段元数据、插入规则、编辑器状态流、JSON 持久化或整体视觉主题。
+
 ### v0.64 / 列表筛选空状态修正
 
 日期：2026-07-26

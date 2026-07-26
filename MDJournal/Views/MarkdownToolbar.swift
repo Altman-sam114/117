@@ -13,7 +13,8 @@ struct MarkdownToolbar: View {
                     } label: {
                         Image(systemName: snippet.systemImage)
                             .font(.system(size: 16, weight: .semibold))
-                            .frame(width: 34, height: 34)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(accent)

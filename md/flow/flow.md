@@ -85,7 +85,7 @@ JournalEntry.body
 7. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
 8. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.focusWriting()` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染，同时把正文输入区居中并限制到舒适最大宽度。
 9. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
-10. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+10. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`；正文 Markdown 工具栏为每个 `16pt` 图标提供 `44×44pt` 矩形交互区，并保留片段快捷键 hover help 和辅助功能标签，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
 11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
 13. binding setter 调用 `JournalStore.update(_:)`。
@@ -143,7 +143,7 @@ JournalEntry.body
 6. “插入 Markdown”菜单遍历 `MarkdownSnippet.allCases`，用 `⌘⌥` 组合键插入对应片段，其中 `⌘⌥O` 插入有序列表。
 7. `EntryEditorView` 通过 focused scene value 暴露聚焦正文、专注写作、增加/减少缩进和显示/隐藏预览动作。
 8. “写作”菜单遍历 `EditorWritingCommand.allCases`，为聚焦正文、专注写作、增加缩进、减少缩进和显示/隐藏预览提供桌面菜单与快捷键入口。
-9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，聚焦正文、专注写作、缩进、反缩进和插入 Markdown 的辅助功能标签与命令标题对齐，预览切换按钮的 hover/help 和辅助功能标签按当前状态表达“隐藏预览”“显示预览”或“回到编辑”，正文 Markdown 工具栏 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
+9. Mac Catalyst 写作工具栏提供聚焦正文、专注写作、增加缩进、减少缩进、插入 Markdown 和显示/隐藏预览的可见入口；写作工具栏 hover 提示复用 `EditorWritingCommandShortcut` 显示对应 `⌘⌥` 快捷键，聚焦正文、专注写作、缩进、反缩进和插入 Markdown 的辅助功能标签与命令标题对齐，预览切换按钮的 hover/help 和辅助功能标签按当前状态表达“隐藏预览”“显示预览”或“回到编辑”，正文 Markdown 工具栏的 `44×44pt` 矩形按钮交互区保留 `16pt` 图标、辅助功能标签，并让 hover 提示复用 `MarkdownSnippetCommandShortcut` 显示片段菜单快捷键；专注写作会隐藏宽屏预览栏、居中限制正文输入区宽度并聚焦正文，缩进入口复用 `MarkdownLineIndentation`，插入 Markdown 与正文工具栏、菜单共用同一套光标/选区插入规则。
 10. 工具栏新建、统计和 Markdown 快捷按钮继续保留，作为非菜单的可见入口。
 
 ### 2.8 Mac Catalyst 本地构建运行入口
