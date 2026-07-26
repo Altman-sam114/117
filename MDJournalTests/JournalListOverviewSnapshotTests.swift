@@ -86,6 +86,28 @@ final class JournalListOverviewSnapshotTests: XCTestCase {
         XCTAssertEqual(overview.insightText, stats.insightText)
     }
 
+    func testOverviewAggregatesOnlyValidLevelThreeSectionMarkers() throws {
+        let calendar = fixedCalendar()
+        let now = try date(year: 2026, month: 7, day: 3, hour: 12, calendar: calendar)
+        let entries = [
+            makeEntry(body: " \t### 合法\none two", createdAt: try date(year: 2026, month: 7, day: 3, hour: 10, calendar: calendar), category: .daily, now: now),
+            makeEntry(body: "###无空格\nthree", createdAt: try date(year: 2026, month: 7, day: 3, hour: 9, calendar: calendar), category: .daily, now: now),
+            makeEntry(body: "#### 非法\nfour five", createdAt: try date(year: 2026, month: 7, day: 3, hour: 8, calendar: calendar), category: .workStudy, now: now)
+        ]
+
+        let overview = JournalListOverviewSnapshot(entries: entries, calendar: calendar, now: now)
+        let stats = JournalStatistics(entries: entries, calendar: calendar, now: now)
+
+        XCTAssertEqual(overview.totalWords, 10)
+        XCTAssertEqual(overview.entriesWithSections, 1)
+        XCTAssertEqual(overview.sectionCoverage, 1.0 / 3.0, accuracy: 0.000_001)
+        XCTAssertEqual(overview.totalWords, stats.totalWords)
+        XCTAssertEqual(overview.entriesWithSections, stats.entriesWithSections)
+        XCTAssertEqual(overview.sectionCoverage, stats.sectionCoverage, accuracy: 0.000_001)
+        XCTAssertEqual(overview.insightText, "多数日记还没有用 ### 分小节，可以从“发生了什么 / 感受 / 明天小事”开始。")
+        XCTAssertEqual(overview.insightText, stats.insightText)
+    }
+
     private func makeOverviewEntries(calendar: Calendar, now: Date) throws -> [JournalEntry] {
         [
             makeEntry(body: "one two three\n### Plan\nfour five", createdAt: try date(year: 2026, month: 7, day: 3, hour: 10, calendar: calendar), category: .daily, mood: .happy, now: now),

@@ -168,6 +168,59 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(sections[1].excerpt, "还没有内容")
     }
 
+    func testContainsLevelThreeSectionMatchesExtractionAcrossBoundaries() {
+        let cases: [(name: String, body: String, expected: Bool)] = [
+            ("empty", "", false),
+            ("horizontal whitespace", "  \t  ", false),
+            ("newlines only", "\n\r\n\u{2028}\u{2029}", false),
+            ("plain body", "普通正文 with emoji 😀", false),
+            ("level two", "## 标题", false),
+            ("level four", "#### 标题", false),
+            ("missing separator", "###没有空格", false),
+            ("tab separator", "###\t标题", false),
+            ("mid line", "正文 ### 标题", false),
+            ("document start", "### 标题", true),
+            ("empty title", "### ", true),
+            ("extra title space", "###  标题", true),
+            ("leading space", "   ### 标题", true),
+            ("leading tab", "\t\t### 标题", true),
+            ("mixed ASCII indentation", " \t \t### 标题", true),
+            ("non-breaking space", "\u{00A0}### 标题", false),
+            ("full-width space", "\u{3000}### 标题", false),
+            ("byte order mark", "\u{FEFF}### 标题", false),
+            ("line feed", "正文\n### 标题", true),
+            ("vertical tab", "正文\u{000B}### 标题", true),
+            ("form feed", "正文\u{000C}### 标题", true),
+            ("carriage return", "正文\r### 标题", true),
+            ("carriage return line feed", "正文\r\n### 标题", true),
+            ("next line", "正文\u{0085}### 标题", true),
+            ("line separator", "正文\u{2028}### 标题", true),
+            ("paragraph separator", "正文\u{2029}### 标题", true),
+            ("consecutive mixed newlines", "正文\r\n\u{2028}\n \t### 标题", true),
+            ("trailing newline", "正文\n", false),
+            ("multiple sections", "### 第一节\n内容\n### 第二节", true),
+            ("fenced code", "```\n### 代码中的标题\n```", true),
+            ("unicode before and after", "中文😀e\u{301}\n### 标题😀e\u{301}", true),
+            ("long body without section", String(repeating: "正文内容\n", count: 512), false),
+            ("long body with final section", String(repeating: "正文内容\n", count: 512) + "### 末节", true)
+        ]
+
+        for testCase in cases {
+            let actual = JournalSection.containsLevelThreeSection(in: testCase.body)
+
+            XCTAssertEqual(
+                actual,
+                testCase.expected,
+                "Unexpected section detection for \(testCase.name): \(testCase.body.debugDescription)"
+            )
+            XCTAssertEqual(
+                actual,
+                !JournalSection.extract(from: testCase.body).isEmpty,
+                "Fast path diverged from extraction for \(testCase.name)"
+            )
+        }
+    }
+
     func testJournalSectionExcerptCleansTaskMarkersAndBlankLines() {
         let section = JournalSection(
             order: 0,

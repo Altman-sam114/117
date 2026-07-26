@@ -42,10 +42,11 @@ flowchart TD
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
   Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
+  Model --> SectionPresence["JournalSection.containsLevelThreeSection：单向扫描 ### 存在性并早退"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
   Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数和集合空状态"]
   ListSnapshot --> List
-  Store --> ListOverview["JournalListOverviewSnapshot：通过 metrics 轻量派生总篇数、总词数、连续天数和洞察"]
+  Store --> ListOverview["JournalListOverviewSnapshot：通过 wordCount + ### 存在性快路径派生概览"]
   ListOverview --> List
   Model --> Parser["MarkdownBlockParser.parseDocument：逐行迭代正文，单次解析块级 Markdown、空白行短路、行首切片 marker、有序列表和 ### 小节"]
   Parser --> Preview["MarkdownPreviewView：复用解析结果和小节分组判断，纯文本内联快路径，用索引迭代渲染普通预览、列表项或小节分组预览"]
@@ -56,7 +57,7 @@ flowchart TD
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
   MetricsNode --> Stats
-  MetricsNode --> ListOverview
+  SectionPresence --> ListOverview
   Store --> Error["errorMessage：读取/保存失败"]
   Error --> Alert["ContentView Alert：展示本地数据错误"]
 ```
@@ -123,6 +124,8 @@ flowchart TD
 ```mermaid
 flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
+  Body --> OverviewWordCount["JournalEntryBodyMetrics.wordCount(in:)：单次词数扫描"]
+  Body --> SectionPresence2["JournalSection.containsLevelThreeSection(in:)：Unicode scalar 单向扫描并早退"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、rounded body 字体和输入 traits 按需配置、UTF-16 光标/选区去重同步"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
@@ -146,7 +149,8 @@ flowchart LR
   Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数和集合空状态"]
   ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、分类 chip、空结果恢复"]
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
-  MetricsData --> ListOverview2
+  OverviewWordCount --> ListOverview2
+  SectionPresence2 --> ListOverview2
   ListOverview2 --> ListView
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布、分布最大值和主导项"]

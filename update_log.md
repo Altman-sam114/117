@@ -34,6 +34,43 @@
 
 ## 历史记录
 
+### v0.66 / 列表概览小节检测快路径
+
+日期：2026-07-26
+
+核心变更：
+
+- `JournalSection` 新增 `containsLevelThreeSection(in:)`，使用 Unicode scalar 和单调递增的 `String.Index` 扫描正文；每个行首只跳过 ASCII 空格/tab，以 `CharacterSet.newlines` 覆盖现有换行边界，并在首个精确 `### ` 前缀处提前返回。
+- `JournalListOverviewSnapshot` 分别调用 `JournalEntryBodyMetrics.wordCount(in:)` 和新谓词，不再读取 `entry.bodyMetrics`，避免列表概览为每篇正文构造完整小节数组。
+- `JournalEntryTests` 增加明确期望与 `JournalSection.extract(from:)` 等价的边界矩阵；`JournalListOverviewSnapshotTests` 增加合法和非法标题混合聚合测试。
+- `JournalSection.extract(from:)`、`JournalStatistics`、UI、Store、Xcode 工程和 JSON 持久化格式均未修改。
+- GitHub Actions 结果包版本更新为 `v0.66`，同步 README、测试规范、核心流程、流程图和本轮 Agent A 提示词。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/Utilities/JournalListOverviewSnapshot.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `MDJournalTests/JournalListOverviewSnapshotTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.66（列表概览小节检测快路径）.md`
+- `update_log.md`
+
+验证结果：
+
+- 本轮按人工要求不运行本机构建、XCTest、模拟器或 app；`git diff --check`、Xcode project `plutil -lint`、Swift parse、workflow YAML parse 和 `VERSION: v0.66` 断言均通过。YAML 解析伴随本机 `/opt/homebrew/bin` 权限 warning，不影响解析结果。
+- 实现 commit、push 结果、GitHub Actions run id、run attempt、artifact 精确名称和 Agent C 复判：待后续提交、push 和云端验收后补充，不预填成功。
+
+遗留事项：
+
+- 本轮通过实现结构证明概览不再构造行数组或完整小节模型，不使用易抖动的耗时/分配阈值；实际输入期间的分配变化可在后续人工 Instruments 采样中量化。
+- 新谓词与完整提取的语义一致性需由后续 GitHub Actions XCTest 及 Agent C 最新 artifact 复判确认，本地 Swift parse 只验证语法。
+- 本轮只优化列表概览的小节存在性判断，不改变统计看板和真正需要小节内容的编辑器、列表行、摘要或预览路径。
+
 ### v0.65 / Markdown 工具栏 44pt 交互区
 
 日期：2026-07-26

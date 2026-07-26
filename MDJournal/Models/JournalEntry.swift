@@ -257,6 +257,35 @@ struct JournalSection: Identifiable, Hashable {
         return plainText.isEmpty ? "还没有内容" : plainText
     }
 
+    static func containsLevelThreeSection(in markdown: String) -> Bool {
+        let scalars = markdown.unicodeScalars
+        let marker = "### ".unicodeScalars
+        var index: String.Index = scalars.startIndex
+
+        while index < scalars.endIndex {
+            while index < scalars.endIndex {
+                let scalar = scalars[index]
+                guard scalar.value == 0x20 || scalar.value == 0x09 else { break }
+                scalars.formIndex(after: &index)
+            }
+
+            if scalars[index...].starts(with: marker) {
+                return true
+            }
+
+            while index < scalars.endIndex {
+                let scalar = scalars[index]
+                scalars.formIndex(after: &index)
+
+                if CharacterSet.newlines.contains(scalar) {
+                    break
+                }
+            }
+        }
+
+        return false
+    }
+
     static func extract(from markdown: String) -> [JournalSection] {
         let lines = markdown.components(separatedBy: .newlines)
         var sections: [JournalSection] = []
