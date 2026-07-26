@@ -61,7 +61,11 @@
 
 验证结果：
 
-- 本地轻量检查、实现 commit、push、GitHub Actions run、attempt、artifact、XCTest 结果和 Agent C 结论待本轮执行后补录。
+- 实现 commit `c3ca997b2b7cdf4c27dd66c87863d9f172acd5b4` 已在 `main` 直推 `origin/main`。
+- 本地轻量检查通过：`git diff --check`、`git diff --cached --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、app/test Swift `xcrun swiftc -parse`、workflow YAML 解析和 `VERSION: v0.69` 核对。
+- GitHub Actions `MD Journal CI Results` run `30191709502`、attempt `1` 成功；未加密 artifact 为 `mdjournal-ci-v0.69-main-c3ca997-run30191709502-attempt1`。
+- Agent C 已下载并核对结果包：manifest 的 `version=v0.69`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与目标完全一致，static / iOS build / Mac Catalyst build / XCTest 四类 outcome 均为 `success`。
+- XCTest 为 `161 passed / 0 failed / 0 skipped`，两项新增分类筛选 contract 测试均实际执行；三份 xcresult 均为 0 errors、0 warnings、0 analyzer warnings，结果包 393 个条目均未加密且完整性检查通过。
 - 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
 
 遗留事项：
