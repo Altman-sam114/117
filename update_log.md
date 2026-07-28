@@ -56,7 +56,10 @@
 验证结果：
 
 - Agent B 本地轻量检查通过：`git diff --check`、`git diff --cached --check`、project plist lint、应用与改动测试 Swift parse、workflow YAML 解析和 `VERSION: v0.74` 搜索均返回 0；定向范围检查确认 workflow 仅修改版本，Store、model、ContentView、列表、统计和 Xcode project 无 diff。Ruby 输出本机 `/opt/homebrew/bin` world-writable PATH warning，但 YAML 仍输出 `yaml ok`。
-- 实现 commit、push、GitHub Actions run / attempt / artifact、实际 XCTest 数量与 Agent C 结论：待补录。
+- 初始实现 commit `fae69eadffbc34203be1cd989f7925480d55ec91` 已 push 到 `origin/main`。对应 GitHub Actions run `30324143195`、attempt `1` 结论为 failure；artifact ID `8675035412`，名称 `mdjournal-ci-v0.74-main-fae69ea-run30324143195-attempt1`，digest `sha256:c59c3ce9df34c5b9d88ccd77fb4c5757e94919cc15877d1a93d8604212ffac13`。失败原因是 `EntryEditorView` 的 `header`、`metadata`、`statPills` 在局部声明 `AnyLayout` 后缺少显式 `return`，云端 iOS、Mac Catalyst 和 XCTest 均因 opaque return type 无法推断而编译失败；该失败 run 未用于通过结论。
+- 最小修复 commit `04070fd72fc4fe989606fd328c98f9a421310884` 为上述三个 helper 补齐显式 `return`，已 push 到 `origin/main`。对应 `MD Journal CI Results` run `30324504741`、attempt `1` 结论为 success；artifact ID `8675244278`，名称 `mdjournal-ci-v0.74-main-04070fd-run30324504741-attempt1`，digest `sha256:9522dbc38fe66f28865bb51adf2838d6f106c2f60722069df98365e39a8efc9f`。
+- Agent C 下载并复判修复 commit 的未加密 artifact：manifest 的 `version=v0.74`、`branch=main`、完整 commit SHA、run id、attempt、workflow、scheme、destinations、日志路径和四阶段 outcome 均匹配；static checks、generic iOS build、Mac Catalyst build 与 XCTest 全部 success。XCTest 为 `185 passed / 0 failed / 0 skipped`，三项新增 `EntryEditorLayoutContract` 测试各执行一次并通过；`MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均为 `succeeded`，且各为 0 errors、0 warnings、0 analyzer warnings。
+- 通过 artifact ZIP 为 421,110 bytes，共 441 个条目且全部未加密；GitHub digest 与本地重算 SHA-256 一致，`unzip -t`、CRC 和 441 项逐文件比较全部通过。验收时下载目录为 `2.8M`，解压目录为 `2.4M`。Agent C 对修复 commit 的结论为 PASS；本记录提交后仍须验收该文档 commit 自己对应的新 run / artifact，不预用本次实现 artifact 作为最终文档 HEAD 的结果。
 - 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
 
 遗留事项：
