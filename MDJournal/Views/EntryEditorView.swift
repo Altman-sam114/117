@@ -178,7 +178,7 @@ struct EntryEditorView: View {
             ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
 
-        VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 14) {
             metadata(layout: layout)
 
             TextField("今天的标题", text: $entry.title, axis: .vertical)
@@ -210,7 +210,7 @@ struct EntryEditorView: View {
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
         let dateAlignment: Alignment = layout.metadataAxis == .horizontal ? .trailing : .leading
 
-        metadataLayout {
+        return metadataLayout {
             categoryPicker
             moodPicker
             DatePicker(
@@ -246,7 +246,7 @@ struct EntryEditorView: View {
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
 
-        pillLayout {
+        return pillLayout {
             EditorStatPill(value: "\(bodyMetrics.wordCount)", title: "词", systemImage: "text.word.spacing")
             EditorStatPill(value: "\(bodyMetrics.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
             EditorStatPill(value: entry.updatedAt.journalRelativeUpdateText, title: "更新", systemImage: "clock")
