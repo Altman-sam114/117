@@ -60,8 +60,11 @@
 
 验证结果：
 
-- Agent B 本地轻量检查通过：`git diff --check`、production 与 Store 测试 Swift parse、`plutil -lint`、workflow YAML / v0.73、工程登记计数、测试方法计数及禁用 API / encode-write / actor await 搜索。禁用 API 搜索仅命中本轮范围外既有 `MarkdownBodyTextView` 两处 GCD；v0.73 改动无命中。按人工要求不运行本地 build、XCTest、模拟器或 app，完整编译、并发 warning 与 XCTest 交给 GitHub Actions。
-- 实现 commit、run、attempt、artifact 和最终 XCTest 数量待本轮 push 后由 Agent C 下载最新未加密结果包补录。
+- Agent B 本地轻量检查通过：`git diff --check`、production 与 Store 测试 Swift parse、`plutil -lint`、workflow YAML / v0.73、工程登记计数、19/182 测试方法计数及禁用 API / encode-write / actor await 搜索。禁用 API 搜索仅命中本轮范围外既有 `MarkdownBodyTextView` 两处 GCD；v0.73 改动无命中。按人工要求不运行本地 build、XCTest、模拟器或 app，完整编译、并发 warning 与 XCTest 交给 GitHub Actions。
+- 初始实现 commit `8219c148c9162885b62b5c089743a476e205601e` 后，经两名独立 reviewer 发现并修复损坏文件无 mutation flush 覆写、同 revision 迟到失败、debounce 旧快照 COW 和 gate 测试清理/覆盖缺口；修复 commit `15170bc19659b8f956cb4696a8c897246b7d0b03` 已在 `main` 直推 `origin/main`。
+- GitHub Actions `MD Journal CI Results` run `30321485151`、attempt `1` 成功。Agent C 已下载并核对 artifact ID `8674287395`、名称 `mdjournal-ci-v0.73-main-15170bc-run30321485151-attempt1`：manifest 的 `version=v0.73`、`branch=main`、`commitSha`、`runId`、`runAttempt` 与目标一致，static / iOS build / Mac Catalyst build / XCTest 四阶段均为 `success`。
+- XCTest 为 `182 passed / 0 failed / 0 skipped`，19 项 `JournalStoreTests` 均唯一执行并通过；三份 xcresult 均为 `succeeded`，且各自为 0 errors、0 warnings、0 analyzer warnings，未发现 Swift concurrency、Sendable、actor isolation、data race 或 continuation warning。
+- artifact ZIP 共 435 个条目且全部未加密，GitHub digest 与重算 SHA-256 均为 `8282eb86fbad435494ab9207dc0a3a185ebdd1f4ce0a24873aff01c8ad5f3754`，CRC 和逐文件完整性检查通过。该验收记录提交后还需对文档 commit 自己的最新 run/artifact 复核最终 HEAD。
 
 遗留事项：
 
