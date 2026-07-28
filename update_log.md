@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 现有 15 项，覆盖 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、create/delete、错误仲裁及排序，v0.73 预期总数为 178 项，最终以最新 artifact 为准。其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 现有 19 项，覆盖 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶及无 mutation 不覆写、create/delete 在途写入、Store 生命周期、错误仲裁及排序，v0.73 预期总数为 182 项，最终以最新 artifact 为准。其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -42,9 +42,9 @@
 核心变更：
 
 - 新增 internal `JournalPersistenceSnapshot` / `JournalPersistenceResult` / `JournalPersistenceWriting` 与 `JSONJournalPersistenceWriter` actor；actor 独占原有 ISO8601、pretty printed、sorted keys 和 atomic JSON 写入，并以 highest accepted / durable revision 保证旧请求拒绝、成功幂等和失败同 revision 可重试。
-- `JournalStore` 保持 MainActor 内存边界，每次有效 mutation 递增 revision；update 使用可注入 scheduler debounce，create/delete 与首次 starter 绕过延迟提交不可变快照。async flush 会取消 pending、等待 writer，并追赶等待期间出现的最新 revision。
-- 写入结果按 revision 仲裁，读取错误和 revision 绑定的写入错误分开管理；`ContentView` 生命周期改为 Task await flush，错误关闭统一走 `dismissError()`。
-- `JournalEntry` 及 Category/Mood 显式 `Sendable`；新 writer 文件只登记 app target。Store 测试由 5 项扩展为 15 项，仓库预期从 168 增至 178 项。
+- `JournalStore` 保持 MainActor 内存边界，每次有效 mutation 递增 revision；update 使用可注入 scheduler debounce，等待阶段只捕获 pending ID，触发时才生成 entries 快照，避免连续输入因旧 debounce 快照触发整组数组 COW。create/delete 与首次 starter 绕过延迟提交不可变快照。
+- async flush 会取消 pending、等待 writer，并追赶等待期间出现的最新 revision；没有 mutation 的 revision 0 flush 直接返回，读取损坏时不会用空数组覆盖原文件。写入结果按 revision 和 durable revision 仲裁，同 revision 成功后的迟到失败不会污染 UI；读取错误和 revision 绑定的写入错误分开管理。
+- `JournalEntry` 及 Category/Mood 显式 `Sendable`；新 writer 文件只登记 app target。Store 测试由 5 项扩展为 19 项，仓库预期从 168 增至 182 项；gate teardown 幂等恢复未完成 continuation，并补齐无 mutation flush、在途旧写入后 delete、同 revision 迟到失败与 Store deinit 契约。
 
 关键文件：
 

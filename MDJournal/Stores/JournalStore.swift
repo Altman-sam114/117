@@ -57,6 +57,7 @@ final class JournalStore: ObservableObject {
 
     @discardableResult
     func createEntry() -> JournalEntry.ID {
+        cancelPendingSave()
         let entry = JournalEntry(
             title: Date().journalTitleText,
             body: """
@@ -74,13 +75,15 @@ final class JournalStore: ObservableObject {
         )
 
         entries.insert(entry, at: 0)
-        submitImmediately(makeMutationSnapshot())
+        recordMutation()
+        submitImmediately(currentSnapshot())
         return entry.id
     }
 
     func update(_ entry: JournalEntry) {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
+        cancelPendingSave()
         let shouldSortEntries = entries[index].createdAt != entry.createdAt
         var updatedEntry = entry
         updatedEntry.updatedAt = Date()
@@ -88,19 +91,23 @@ final class JournalStore: ObservableObject {
         if shouldSortEntries {
             sortEntries()
         }
-        scheduleSave(makeMutationSnapshot())
+        recordMutation()
+        scheduleSave()
     }
 
     func delete(_ entry: JournalEntry) {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
+        cancelPendingSave()
         entries.remove(at: index)
-        submitImmediately(makeMutationSnapshot())
+        recordMutation()
+        submitImmediately(currentSnapshot())
     }
 
     @discardableResult
     func flushPendingSave() async -> JournalPersistenceResult? {
         cancelPendingSave()
+        guard revision > 0 else { return nil }
 
         while true {
             let snapshot = currentSnapshot()
@@ -123,7 +130,8 @@ final class JournalStore: ObservableObject {
     private func load() {
         guard FileManager.default.fileExists(atPath: storageURL.path) else {
             entries = [JournalEntry.starterEntry()]
-            submitImmediately(makeMutationSnapshot())
+            recordMutation()
+            submitImmediately(currentSnapshot())
             return
         }
 
@@ -139,31 +147,31 @@ final class JournalStore: ObservableObject {
         }
     }
 
-    private func makeMutationSnapshot() -> JournalPersistenceSnapshot {
+    private func recordMutation() {
         revision += 1
         clearSupersededWriteError()
-        return currentSnapshot()
     }
 
     private func currentSnapshot() -> JournalPersistenceSnapshot {
         JournalPersistenceSnapshot(revision: revision, entries: entries)
     }
 
-    private func scheduleSave(_ snapshot: JournalPersistenceSnapshot) {
+    private func scheduleSave() {
         cancelPendingSave()
 
         let pendingID = UUID()
         let scheduledSave = saveScheduler.schedule(after: saveDebounceDelay) { [weak self, persistenceWriter] in
-            self?.scheduledSaveDidFire(id: pendingID)
+            guard let snapshot = self?.scheduledSaveSnapshot(id: pendingID) else { return }
             let result = await persistenceWriter.persist(snapshot)
             self?.receivePersistenceResult(result)
         }
         pendingSave = PendingSave(id: pendingID, scheduledSave: scheduledSave)
     }
 
-    private func scheduledSaveDidFire(id: UUID) {
-        guard pendingSave?.id == id else { return }
+    private func scheduledSaveSnapshot(id: UUID) -> JournalPersistenceSnapshot? {
+        guard pendingSave?.id == id else { return nil }
         pendingSave = nil
+        return currentSnapshot()
     }
 
     private func submitImmediately(_ snapshot: JournalPersistenceSnapshot) {
@@ -188,6 +196,7 @@ final class JournalStore: ObservableObject {
             durableRevision = max(durableRevision ?? resultRevision, resultRevision)
             clearWriteError(through: resultRevision)
         case let .failed(resultRevision, message):
+            guard durableRevision.map({ resultRevision > $0 }) ?? true else { return }
             publishError("写入本地日记失败：\(message)", source: .write(revision: resultRevision))
         case .rejectedStale:
             break

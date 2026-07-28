@@ -91,10 +91,13 @@ flowchart TD
   Exists -- "不存在" --> Starter["创建 starterEntry 默认日记"]
   Starter --> StarterSnapshot["revision + starter 完整快照"]
   Exists -- "存在" --> Decode["JSONDecoder ISO8601 解码 [JournalEntry]"]
-  Decode --> SortA["按 createdAt 倒序排序"]
+  Decode --> DecodeResult{"解码成功？"}
+  DecodeResult -- "是" --> SortA["按 createdAt 倒序排序"]
+  DecodeResult -- "否" --> ReadError["保留原文件；发布读取错误；entries 为空"]
   StarterSnapshot --> Writer
   StarterSnapshot --> Render["SwiftUI 渲染列表和详情"]
   SortA --> Render
+  ReadError --> Render
   Render --> Select["ContentView 选择第一篇或修复选中项"]
   Select --> Edit{"用户操作类型"}
   Edit -- "新建" --> Create["JournalStore.createEntry 插入默认 ### 模板"]
@@ -104,11 +107,13 @@ flowchart TD
   ConfirmDelete -- "确认并先消费目标" --> Delete["JournalStore.delete 移除日记"]
   Create --> ImmediateSnapshot["内存即时 + revision；绕过 debounce 提交快照"]
   Delete --> ImmediateSnapshot
-  Update --> DebouncedSave["内存即时 + revision；仅 createdAt 改变时排序；手动 scheduler 合并"]
-  DebouncedSave --> Snapshot["不可变 entries 快照"]
+  Update --> DebouncedSave["先取消旧 pending；内存即时 + revision；scheduler 只捕获 pending ID"]
+  DebouncedSave --> Snapshot["触发时在 MainActor 捕获最新 entries 快照"]
   ImmediateSnapshot --> Writer["JSONJournalPersistenceWriter actor 单写者"]
   Snapshot --> Writer
-  Phase["inactive / background"] --> Flush["Task await flush：取消 pending 并捕获当前快照"]
+  Phase["inactive / background"] --> FlushCheck{"Task await flush：取消 pending；存在 mutation？"}
+  FlushCheck -- "否，revision 0" --> NoWrite["直接返回；不覆盖已加载或损坏文件"]
+  FlushCheck -- "是" --> Flush["捕获当前快照并等待 writer"]
   Flush --> Writer
   Writer --> Gate{"revision gate"}
   Gate -- "旧于 highest accepted" --> Stale["rejected stale，不写盘"]
@@ -120,7 +125,7 @@ flowchart TD
   Result -- "flush 期间 revision 已变化" --> Flush
   Result -- "当前成功" --> Render
   Result -- "当前失败" --> SaveError["设置 revision 绑定的写错误"]
-  Result -- "旧 result" --> Ignore["忽略，不污染当前状态"]
+  Result -- "旧 revision / 不晚于 durable 的失败" --> Ignore["忽略，不污染当前状态"]
   SaveError --> Alert["ContentView 弹出错误提示"]
 ```
 

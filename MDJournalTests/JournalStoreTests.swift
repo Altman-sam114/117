@@ -84,7 +84,7 @@ final class JournalStoreTests: XCTestCase {
         let fixture = try makeDirectoryFixture()
         defer { fixture.cleanup() }
         let storageURL = fixture.directoryURL.appendingPathComponent("entries.json")
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
 
         let store = JournalStore(storageURL: storageURL, persistenceWriter: writer)
         let snapshot = await writer.nextRequest()
@@ -97,7 +97,7 @@ final class JournalStoreTests: XCTestCase {
     }
 
     func testPersistenceWaitDoesNotBlockMainActor() async throws {
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -126,7 +126,7 @@ final class JournalStoreTests: XCTestCase {
     }
 
     func testUpdateDebounceUsesManualSchedulerAndOnlySubmitsLatestSnapshot() async throws {
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -153,7 +153,7 @@ final class JournalStoreTests: XCTestCase {
     }
 
     func testFlushCancelsDebounceAndWaitsForWriter() async throws {
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -181,7 +181,7 @@ final class JournalStoreTests: XCTestCase {
     }
 
     func testFlushChasesMutationThatOccursWhileWriterIsWaiting() async throws {
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -240,8 +240,71 @@ final class JournalStoreTests: XCTestCase {
         XCTAssertFalse(try decodeEntries(from: fixture.storageURL).contains { $0.id == originalEntry.id })
     }
 
+    func testDeleteSubmitsNewRevisionWhileDebouncedWriteIsInFlight() async throws {
+        let writer = makeGatePersistenceWriter()
+        let scheduler = ManualSaveScheduler()
+        let originalEntry = makeEntry(title: "待删除", createdAt: Date(timeIntervalSince1970: 100))
+        let fixture = try makeStoreFixture(
+            entries: [originalEntry],
+            writer: writer,
+            scheduler: scheduler
+        )
+        defer { fixture.cleanup() }
+        var updatedEntry = originalEntry
+        updatedEntry.body = "旧快照仍在写入"
+        fixture.store.update(updatedEntry)
+        let oldWriteTask = try XCTUnwrap(scheduler.fireNext())
+        let oldSnapshot = await writer.nextRequest()
+
+        fixture.store.delete(updatedEntry)
+        let deleteSnapshot = await writer.nextRequest()
+
+        XCTAssertEqual(oldSnapshot.revision, 1)
+        XCTAssertTrue(oldSnapshot.entries.contains { $0.id == originalEntry.id })
+        XCTAssertEqual(deleteSnapshot.revision, 2)
+        XCTAssertFalse(deleteSnapshot.entries.contains { $0.id == originalEntry.id })
+        XCTAssertNil(fixture.store.entry(with: originalEntry.id))
+        await writer.complete(revision: 2, with: .written(revision: 2))
+        await writer.complete(revision: 1, with: .written(revision: 1))
+        await oldWriteTask.value
+        XCTAssertEqual(fixture.store.durableRevision, 2)
+        XCTAssertNil(fixture.store.errorMessage)
+    }
+
+    func testStoreDeinitDoesNotCancelSubmittedWriterRequest() async throws {
+        let writer = makeGatePersistenceWriter()
+        let scheduler = ManualSaveScheduler()
+        let directoryFixture = try makeDirectoryFixture()
+        defer { directoryFixture.cleanup() }
+        let storageURL = directoryFixture.directoryURL.appendingPathComponent("entries.json")
+        try encode(
+            entries: [makeEntry(title: "生命周期", createdAt: Date(timeIntervalSince1970: 100))],
+            to: storageURL
+        )
+        var store: JournalStore? = JournalStore(
+            storageURL: storageURL,
+            persistenceWriter: writer,
+            saveScheduler: scheduler
+        )
+        weak var weakStore = store
+        var entry = try XCTUnwrap(store?.entries.first)
+        entry.body = "已提交写入"
+        store?.update(entry)
+        let submittedTask = try XCTUnwrap(scheduler.fireNext())
+        let snapshot = await writer.nextRequest()
+
+        store = nil
+
+        XCTAssertNil(weakStore)
+        XCTAssertEqual(snapshot.revision, 1)
+        await writer.complete(revision: 1, with: .written(revision: 1))
+        await submittedTask.value
+        let completedRevisions = await writer.completedRevisions()
+        XCTAssertEqual(completedRevisions, [1])
+    }
+
     func testOldFailureDoesNotPublishAfterNewerRevisionExists() async throws {
-        let writer = GatePersistenceWriter()
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -265,8 +328,32 @@ final class JournalStoreTests: XCTestCase {
         _ = await flushTask.value
     }
 
-    func testLatestFailureRetriesSameRevisionAndReadErrorSurvivesSuccess() async throws {
-        let writer = GatePersistenceWriter()
+    func testSameRevisionFailureDoesNotPublishAfterSuccess() async throws {
+        let writer = makeGatePersistenceWriter()
+        let scheduler = ManualSaveScheduler()
+        let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
+        defer { fixture.cleanup() }
+        var entry = try XCTUnwrap(fixture.store.entries.first)
+        entry.body = "同 revision 并发提交"
+        fixture.store.update(entry)
+        let debouncedTask = try XCTUnwrap(scheduler.fireNext())
+        _ = await writer.nextRequest()
+
+        let flushTask = Task { @MainActor in await fixture.store.flushPendingSave() }
+        _ = await writer.nextRequest()
+        await writer.completeLast(revision: 1, with: .written(revision: 1))
+        let flushResult = await flushTask.value
+
+        XCTAssertEqual(flushResult, .written(revision: 1))
+        XCTAssertEqual(fixture.store.durableRevision, 1)
+        await writer.complete(revision: 1, with: .failed(revision: 1, message: "迟到失败"))
+        await debouncedTask.value
+        XCTAssertNil(fixture.store.errorMessage)
+        XCTAssertEqual(fixture.store.durableRevision, 1)
+    }
+
+    func testLatestFailureRetriesSameRevisionAndReadErrorSurvivesNoOpFlush() async throws {
+        let writer = makeGatePersistenceWriter()
         let scheduler = ManualSaveScheduler()
         let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler)
         defer { fixture.cleanup() }
@@ -293,10 +380,11 @@ final class JournalStoreTests: XCTestCase {
         defer { corruptFixture.cleanup() }
         XCTAssertTrue(corruptFixture.store.errorMessage?.hasPrefix("读取本地日记失败：") == true)
         let readError = corruptFixture.store.errorMessage
-        let readFlush = Task { @MainActor in await corruptFixture.store.flushPendingSave() }
-        _ = await writer.nextRequest()
-        await writer.complete(revision: 0, with: .written(revision: 0))
-        _ = await readFlush.value
+        let originalCorruptData = try Data(contentsOf: corruptFixture.storageURL)
+        let readFlushResult = await corruptFixture.store.flushPendingSave()
+
+        XCTAssertNil(readFlushResult)
+        XCTAssertEqual(try Data(contentsOf: corruptFixture.storageURL), originalCorruptData)
         XCTAssertEqual(corruptFixture.store.errorMessage, readError)
         corruptFixture.store.dismissError()
         XCTAssertNil(corruptFixture.store.errorMessage)
@@ -332,6 +420,19 @@ final class JournalStoreTests: XCTestCase {
         XCTAssertEqual(fixture.store.entry(with: olderEntry.id)?.createdAt, updatedOlderEntry.createdAt)
     }
 
+    func testFlushWithoutMutationPreservesLoadedFileBytes() async throws {
+        let scheduler = ManualSaveScheduler()
+        let originalEntry = makeEntry(title: "无需写回", createdAt: Date(timeIntervalSince1970: 100))
+        let fixture = try makeProductionStoreFixture(entries: [originalEntry], scheduler: scheduler)
+        defer { fixture.cleanup() }
+        let originalData = try Data(contentsOf: fixture.storageURL)
+
+        let result = await fixture.store.flushPendingSave()
+
+        XCTAssertNil(result)
+        XCTAssertEqual(try Data(contentsOf: fixture.storageURL), originalData)
+    }
+
     private func makeDirectoryFixture() throws -> DirectoryFixture {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdjournal-store-tests-\(UUID().uuidString)", isDirectory: true)
@@ -341,7 +442,7 @@ final class JournalStoreTests: XCTestCase {
 
     private func makeStoreFixture(
         entries: [JournalEntry]? = nil,
-        writer: GatePersistenceWriter = GatePersistenceWriter(),
+        writer: (any JournalPersistenceWriting)? = nil,
         scheduler: ManualSaveScheduler
     ) throws -> StoreFixture {
         let directoryFixture = try makeDirectoryFixture()
@@ -353,6 +454,14 @@ final class JournalStoreTests: XCTestCase {
             saveScheduler: scheduler
         )
         return StoreFixture(store: store, directoryURL: directoryFixture.directoryURL, storageURL: storageURL)
+    }
+
+    private func makeGatePersistenceWriter() -> GatePersistenceWriter {
+        let writer = GatePersistenceWriter()
+        addTeardownBlock {
+            await writer.tearDown()
+        }
+        return writer
     }
 
     private func makeProductionStoreFixture(
@@ -421,8 +530,14 @@ private actor GatePersistenceWriter: JournalPersistenceWriting {
     private var unobservedSnapshots: [JournalPersistenceSnapshot] = []
     private var snapshotWaiters: [CheckedContinuation<JournalPersistenceSnapshot, Never>] = []
     private var totalRequestCount = 0
+    private var completedRevisionValues: [UInt64] = []
+    private var isTornDown = false
 
     func persist(_ snapshot: JournalPersistenceSnapshot) async -> JournalPersistenceResult {
+        guard !isTornDown else {
+            return .failed(revision: snapshot.revision, message: "测试 writer 已清理")
+        }
+
         totalRequestCount += 1
         return await withCheckedContinuation { continuation in
             pendingRequests.append(PendingRequest(snapshot: snapshot, continuation: continuation))
@@ -435,6 +550,10 @@ private actor GatePersistenceWriter: JournalPersistenceWriting {
     }
 
     func nextRequest() async -> JournalPersistenceSnapshot {
+        guard !isTornDown else {
+            return JournalPersistenceSnapshot(revision: .max, entries: [])
+        }
+
         if !unobservedSnapshots.isEmpty {
             return unobservedSnapshots.removeFirst()
         }
@@ -449,11 +568,45 @@ private actor GatePersistenceWriter: JournalPersistenceWriting {
             preconditionFailure("没有 revision \(revision) 的待完成写入")
         }
 
+        completedRevisionValues.append(revision)
+        pendingRequests.remove(at: index).continuation.resume(returning: result)
+    }
+
+    func completeLast(revision: UInt64, with result: JournalPersistenceResult) {
+        guard let index = pendingRequests.lastIndex(where: { $0.snapshot.revision == revision }) else {
+            preconditionFailure("没有 revision \(revision) 的待完成写入")
+        }
+
+        completedRevisionValues.append(revision)
         pendingRequests.remove(at: index).continuation.resume(returning: result)
     }
 
     func requestCount() -> Int {
         totalRequestCount
+    }
+
+    func completedRevisions() -> [UInt64] {
+        completedRevisionValues
+    }
+
+    func tearDown() {
+        guard !isTornDown else { return }
+        isTornDown = true
+
+        let requests = pendingRequests
+        let waiters = snapshotWaiters
+        pendingRequests.removeAll()
+        unobservedSnapshots.removeAll()
+        snapshotWaiters.removeAll()
+
+        for request in requests {
+            request.continuation.resume(
+                returning: .failed(revision: request.snapshot.revision, message: "测试清理")
+            )
+        }
+        for waiter in waiters {
+            waiter.resume(returning: JournalPersistenceSnapshot(revision: .max, entries: []))
+        }
     }
 }
 

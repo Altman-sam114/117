@@ -72,7 +72,8 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 5. 若文件不存在，创建 `JournalEntry.starterEntry()`、递增 revision，并把完整值快照提交给 `JSONJournalPersistenceWriter` actor 保存。
 6. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
 7. 解码后按 `createdAt` 倒序排序。
-8. `ContentView.onAppear` 选择第一篇日记。
+8. 若解码失败，保留读取错误并显示空内存集合；在没有后续有效 mutation 时，scene flush 不提交 revision 0，避免覆盖原始文件。
+9. `ContentView.onAppear` 选择第一篇日记。
 
 ### 2.2 创建日记
 
@@ -97,11 +98,11 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
 13. binding setter 调用 `JournalStore.update(_:)`。
-14. `JournalStore.update` 更新 `updatedAt`、替换数组、递增 revision 并捕获不可变快照，再安排短延迟提交；`createdAt` 仅在改变时触发重排。
-15. 连续编辑取消尚未触发的 scheduler 操作，只提交最后快照；已进入 writer 的请求不会被取消。
+14. `JournalStore.update` 先取消旧 debounce，再更新 `updatedAt`、替换数组和递增 revision；`createdAt` 仅在改变时触发重排。
+15. debounce 只捕获轻量 pending ID，触发时才在 MainActor 生成最新不可变快照；连续编辑不会让等待任务持有旧 entries 数组，已进入 writer 的请求不会被取消。
 16. `JSONJournalPersistenceWriter` actor 是唯一 JSON encode/atomic write 执行者；它用 `highestAcceptedRevision` 拒绝旧请求，用 `durableRevision` 幂等跳过已成功 revision，失败 revision 可重试，且 encode/write 临界区没有挂起点。
-17. 应用进入 inactive/background 时，`ContentView` 启动普通 Task await `flushPendingSave()`；flush 取消 pending、等待当前快照，并在等待期间 revision 变化时继续追赶最新快照。
-18. writer result 回到 MainActor 后按 revision 仲裁；旧结果不改变当前错误，写入成功只清理对应写错误，读取错误保留。`ContentView` 通过 alert 展示并经 `dismissError()` 统一清理来源。
+17. 应用进入 inactive/background 时，`ContentView` 启动普通 Task await `flushPendingSave()`；flush 取消 pending；若从加载以来没有 mutation 则直接返回，否则等待当前快照，并在等待期间 revision 变化时继续追赶最新快照。
+18. writer result 回到 MainActor 后按 revision 仲裁；旧 revision 结果和不晚于 durable revision 的迟到失败不改变当前错误，写入成功只清理对应写错误，读取错误保留。`ContentView` 通过 alert 展示并经 `dismissError()` 统一清理来源。
 19. scene phase flush 不持有系统后台执行 lease，因此快速挂起、崩溃、断电或强杀不承诺最新内存 revision 已 durable。
 
 ### 2.4 列表、筛选与删除
@@ -286,7 +287,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.5 `JournalStore`
 
-职责：在 MainActor 加载和修改内存集合、分配单调 revision、捕获保存快照、调度 debounce、执行 async flush 与错误仲裁；`JSONJournalPersistenceWriter` actor 串行执行全部 JSON 编码和原子写盘。
+职责：在 MainActor 加载和修改内存集合、分配单调 revision、以轻量 pending ID 调度 debounce 并在触发时捕获保存快照、执行 async flush 与错误仲裁；无 mutation flush 不写回加载文件，`JSONJournalPersistenceWriter` actor 串行执行全部 JSON 编码和原子写盘。
 
 输入：用户操作产生的日记变更。
 

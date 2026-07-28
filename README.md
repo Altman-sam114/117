@@ -111,7 +111,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、create/delete 内存和磁盘边界、错误仲裁及按需排序。v0.73 将 Store 测试从 5 项扩展为 15 项，预期总数为 178；最终以最新 GitHub Actions artifact 为准。确定性 gate 测试不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.73 将 Store 测试从 5 项扩展为 19 项，预期总数为 182；最终以最新 GitHub Actions artifact 为准。确定性 gate 测试不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
