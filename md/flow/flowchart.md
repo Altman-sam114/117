@@ -172,7 +172,13 @@ flowchart LR
   Summary --> Excerpt["摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片复用"]
   MetricsData --> Statistics["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics，单轮聚合"]
-  MetricsData --> EditorHeader["EntryEditorView 头部：词数和 ### 小节懒加载概览"]
+  EditorWidth["容器宽度"] --> EditorLayout["EntryEditorLayoutContract"]
+  EditorTypeSize["DynamicTypeSize"] --> EditorLayout
+  EditorLayout --> WorkspaceDecision{"width >= 820"}
+  WorkspaceDecision --> EditorWorkspace["EntryEditorView 工作区：compact 切换或 wide 双栏"]
+  EditorLayout --> HeaderDecision["宽度 + 字号：普通宽屏横排；窄屏或 Accessibility 堆叠"]
+  MetricsData --> EditorHeader["EntryEditorView 头部：词数和可缩放 ### 小节懒加载概览"]
+  HeaderDecision --> EditorHeader
   Body --> Parse["MarkdownBlockParser.parseDocument：逐行迭代正文 + 水平空白行短路 + 代码块轻量扫描 + 行首切片 marker"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]

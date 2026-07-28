@@ -4,6 +4,43 @@ enum EntryEditorAccessibilityContract {
     static let journalDateLabel = "日记日期"
 }
 
+internal enum EntryEditorLayoutAxis: Equatable {
+    case horizontal
+    case vertical
+}
+
+internal struct EntryEditorLayoutContract: Equatable {
+    static let wideLayoutMinimumWidth: CGFloat = 820
+    static let regularWideStatisticsWidth: CGFloat = 270
+    static let sectionCardBaseWidth: CGFloat = 156
+
+    let isWideEditorLayout: Bool
+    let usesCompactHeaderLayout: Bool
+    let metadataAxis: EntryEditorLayoutAxis
+    let summaryAxis: EntryEditorLayoutAxis
+    let statisticsPillAxis: EntryEditorLayoutAxis
+    let statisticsWidth: CGFloat?
+    let titleLineLimit: Int?
+    let sectionTitleLineLimit: Int
+    let sectionExcerptLineLimit: Int
+
+    init(width: CGFloat, dynamicTypeSize: DynamicTypeSize) {
+        let isAccessibilitySize = dynamicTypeSize.isAccessibilitySize
+        let isWideEditorLayout = width >= Self.wideLayoutMinimumWidth
+        let usesCompactHeaderLayout = isWideEditorLayout && !isAccessibilitySize
+
+        self.isWideEditorLayout = isWideEditorLayout
+        self.usesCompactHeaderLayout = usesCompactHeaderLayout
+        metadataAxis = usesCompactHeaderLayout ? .horizontal : .vertical
+        summaryAxis = usesCompactHeaderLayout ? .horizontal : .vertical
+        statisticsPillAxis = isAccessibilitySize ? .vertical : .horizontal
+        statisticsWidth = usesCompactHeaderLayout ? Self.regularWideStatisticsWidth : nil
+        titleLineLimit = isAccessibilitySize ? nil : 2
+        sectionTitleLineLimit = isAccessibilitySize ? 2 : 1
+        sectionExcerptLineLimit = isAccessibilitySize ? 3 : 2
+    }
+}
+
 struct EntryEditorView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case edit = "编辑"
@@ -18,27 +55,31 @@ struct EntryEditorView: View {
     @State private var isWideLayoutActive = false
     @State private var editorFocused = false
     @State private var bodySelectedRange = NSRange(location: NSNotFound, length: 0)
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private let focusedWritingMaxWidth: CGFloat = 920
 
     var body: some View {
         GeometryReader { proxy in
-            let isWideLayout = proxy.size.width >= 820
+            let layout = EntryEditorLayoutContract(
+                width: proxy.size.width,
+                dynamicTypeSize: dynamicTypeSize
+            )
             let bodyMetrics = entry.bodyMetrics
 
             VStack(spacing: 0) {
-                header(isWideLayout: isWideLayout, bodyMetrics: bodyMetrics)
+                header(layout: layout, bodyMetrics: bodyMetrics)
 
-                if isWideLayout {
+                if layout.isWideEditorLayout {
                     wideEditor
                 } else {
                     compactEditor
                 }
             }
             .onAppear {
-                isWideLayoutActive = isWideLayout
+                isWideLayoutActive = layout.isWideEditorLayout
             }
-            .onChange(of: isWideLayout) { isWideLayoutActive in
+            .onChange(of: layout.isWideEditorLayout) { isWideLayoutActive in
                 self.isWideLayoutActive = isWideLayoutActive
             }
         }
@@ -132,46 +173,58 @@ struct EntryEditorView: View {
         }
     }
 
-    private func header(isWideLayout: Bool, bodyMetrics: JournalEntryBodyMetrics) -> some View {
+    private func header(layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics) -> some View {
+        let summaryLayout = layout.summaryAxis == .horizontal
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                categoryPicker
-                moodPicker
-
-                Spacer(minLength: 8)
-
-                DatePicker(
-                    EntryEditorAccessibilityContract.journalDateLabel,
-                    selection: $entry.createdAt,
-                    displayedComponents: .date
-                )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-            }
+            metadata(layout: layout)
 
             TextField("今天的标题", text: $entry.title, axis: .vertical)
                 .font(.title2.weight(.semibold))
                 .textFieldStyle(.plain)
-                .lineLimit(2)
+                .lineLimit(layout.titleLineLimit)
 
-            if isWideLayout {
-                HStack(alignment: .top, spacing: 12) {
-                    statPills(bodyMetrics)
-                        .frame(width: 270, alignment: .leading)
+            summaryLayout {
+                statPills(bodyMetrics, axis: layout.statisticsPillAxis)
+                    .frame(width: layout.statisticsWidth, alignment: .leading)
 
-                    JournalSectionOverview(sections: bodyMetrics.sections, accent: entry.category.tint)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    statPills(bodyMetrics)
-                    JournalSectionOverview(sections: bodyMetrics.sections, accent: entry.category.tint)
-                }
+                JournalSectionOverview(
+                    sections: bodyMetrics.sections,
+                    accent: entry.category.tint,
+                    titleLineLimit: layout.sectionTitleLineLimit,
+                    excerptLineLimit: layout.sectionExcerptLineLimit
+                )
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
         .padding(.bottom, 14)
         .background(headerBackground)
+    }
+
+    private func metadata(layout: EntryEditorLayoutContract) -> some View {
+        let metadataLayout = layout.metadataAxis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+        let dateAlignment: Alignment = layout.metadataAxis == .horizontal ? .trailing : .leading
+
+        metadataLayout {
+            categoryPicker
+            moodPicker
+            DatePicker(
+                EntryEditorAccessibilityContract.journalDateLabel,
+                selection: $entry.createdAt,
+                displayedComponents: .date
+            )
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .frame(
+                    maxWidth: layout.metadataAxis == .horizontal ? .infinity : nil,
+                    alignment: dateAlignment
+                )
+        }
     }
 
     private var headerBackground: some View {
@@ -185,8 +238,15 @@ struct EntryEditorView: View {
         )
     }
 
-    private func statPills(_ bodyMetrics: JournalEntryBodyMetrics) -> some View {
-        HStack(spacing: 8) {
+    private func statPills(
+        _ bodyMetrics: JournalEntryBodyMetrics,
+        axis: EntryEditorLayoutAxis
+    ) -> some View {
+        let pillLayout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        pillLayout {
             EditorStatPill(value: "\(bodyMetrics.wordCount)", title: "词", systemImage: "text.word.spacing")
             EditorStatPill(value: "\(bodyMetrics.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
             EditorStatPill(value: entry.updatedAt.journalRelativeUpdateText, title: "更新", systemImage: "clock")
@@ -420,7 +480,6 @@ private struct EditorStatPill: View {
             Image(systemName: systemImage)
         }
         .font(.caption)
-        .lineLimit(1)
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
@@ -430,6 +489,11 @@ private struct EditorStatPill: View {
 private struct JournalSectionOverview: View {
     let sections: [JournalSection]
     let accent: Color
+    let titleLineLimit: Int
+    let excerptLineLimit: Int
+
+    @ScaledMetric(relativeTo: .caption)
+    private var sectionCardWidth = EntryEditorLayoutContract.sectionCardBaseWidth
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -460,16 +524,15 @@ private struct JournalSectionOverview: View {
                                 Text(section.title)
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(accent)
-                                    .lineLimit(1)
+                                    .lineLimit(titleLineLimit)
 
                                 Text(section.excerpt)
-                                    .font(.caption2)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                                    .frame(width: 132, alignment: .leading)
+                                    .lineLimit(excerptLineLimit)
                             }
                             .padding(10)
-                            .frame(width: 156, alignment: .leading)
+                            .frame(width: sectionCardWidth, alignment: .leading)
                             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)

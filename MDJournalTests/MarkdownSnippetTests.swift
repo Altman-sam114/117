@@ -69,6 +69,77 @@ final class MarkdownSnippetTests: XCTestCase {
         )
     }
 
+    func testEntryEditorLayoutContractUsesWidthBoundaryIndependentlyFromDynamicType() {
+        for dynamicTypeSize in [DynamicTypeSize.large, .accessibility1, .accessibility5] {
+            XCTAssertFalse(
+                EntryEditorLayoutContract(width: 819, dynamicTypeSize: dynamicTypeSize)
+                    .isWideEditorLayout
+            )
+            XCTAssertTrue(
+                EntryEditorLayoutContract(width: 820, dynamicTypeSize: dynamicTypeSize)
+                    .isWideEditorLayout
+            )
+        }
+    }
+
+    func testEntryEditorLayoutContractUsesStackedHeaderForCompactOrAccessibilityLayouts() {
+        let cases: [(CGFloat, DynamicTypeSize)] = [
+            (819, .large),
+            (820, .large),
+            (819, .accessibility1),
+            (820, .accessibility1),
+            (819, .accessibility5),
+            (820, .accessibility5)
+        ]
+
+        for (width, dynamicTypeSize) in cases {
+            let layout = EntryEditorLayoutContract(
+                width: width,
+                dynamicTypeSize: dynamicTypeSize
+            )
+            let usesCompactHeader = width == 820 && dynamicTypeSize == .large
+
+            XCTAssertEqual(layout.usesCompactHeaderLayout, usesCompactHeader)
+            XCTAssertEqual(layout.metadataAxis, usesCompactHeader ? .horizontal : .vertical)
+            XCTAssertEqual(layout.summaryAxis, usesCompactHeader ? .horizontal : .vertical)
+            XCTAssertEqual(
+                layout.statisticsPillAxis,
+                dynamicTypeSize.isAccessibilitySize ? .vertical : .horizontal
+            )
+            XCTAssertEqual(
+                layout.statisticsWidth,
+                usesCompactHeader ? EntryEditorLayoutContract.regularWideStatisticsWidth : nil
+            )
+        }
+    }
+
+    func testEntryEditorLayoutContractExposesAccessibleLineAndPositiveSizePolicies() {
+        XCTAssertEqual(EntryEditorLayoutContract.wideLayoutMinimumWidth, 820)
+        XCTAssertEqual(EntryEditorLayoutContract.regularWideStatisticsWidth, 270)
+        XCTAssertEqual(EntryEditorLayoutContract.sectionCardBaseWidth, 156)
+
+        for dimension in [
+            EntryEditorLayoutContract.wideLayoutMinimumWidth,
+            EntryEditorLayoutContract.regularWideStatisticsWidth,
+            EntryEditorLayoutContract.sectionCardBaseWidth
+        ] {
+            XCTAssertGreaterThan(dimension, 0)
+            XCTAssertTrue(dimension.isFinite)
+        }
+
+        let regular = EntryEditorLayoutContract(width: 820, dynamicTypeSize: .large)
+        XCTAssertEqual(regular.titleLineLimit, 2)
+
+        for dynamicTypeSize in [DynamicTypeSize.accessibility1, .accessibility5] {
+            let accessible = EntryEditorLayoutContract(width: 820, dynamicTypeSize: dynamicTypeSize)
+            XCTAssertNil(accessible.titleLineLimit)
+            XCTAssertGreaterThanOrEqual(accessible.sectionTitleLineLimit, 2)
+            XCTAssertGreaterThanOrEqual(accessible.sectionExcerptLineLimit, 3)
+            XCTAssertGreaterThanOrEqual(accessible.sectionTitleLineLimit, regular.sectionTitleLineLimit)
+            XCTAssertGreaterThanOrEqual(accessible.sectionExcerptLineLimit, regular.sectionExcerptLineLimit)
+        }
+    }
+
     func testEditorWritingCommandHelpTextCanUseStateSpecificTitle() {
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "隐藏预览"), "隐藏预览（⌘⌥P）")
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "显示预览"), "显示预览（⌘⌥P）")

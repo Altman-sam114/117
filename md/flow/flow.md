@@ -87,23 +87,24 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文；头部系统 `DatePicker` 以隐藏但可访问的“日记日期” label 编辑 `createdAt`，保留 compact 视觉，日期值与调整语义由系统控件提供。
-3. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片。
-4. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。
-5. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
-6. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项用 `.whitespaces` 水平空白扫描判断并退出当前结构，不为判断创建临时 trimmed 字符串，代码围栏内通过单次索引扫描识别并回退系统默认输入，IME marked text 或普通输入继续走系统默认行为。
-7. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
-8. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.focusWriting()` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染，同时把正文输入区居中并限制到舒适最大宽度。
-9. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
-10. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`；正文 Markdown 工具栏为每个 `16pt` 图标提供 `44×44pt` 矩形交互区，并保留片段快捷键 hover help 和辅助功能标签，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
-11. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
-12. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
-13. binding setter 调用 `JournalStore.update(_:)`。
-14. `JournalStore.update` 先取消旧 debounce，再更新 `updatedAt`、替换数组和递增 revision；`createdAt` 仅在改变时触发重排。
-15. debounce 只捕获轻量 pending ID，触发时才在 MainActor 生成最新不可变快照；连续编辑不会让等待任务持有旧 entries 数组，已进入 writer 的请求不会被取消。
-16. `JSONJournalPersistenceWriter` actor 是唯一 JSON encode/atomic write 执行者；它用 `highestAcceptedRevision` 拒绝旧请求，用 `durableRevision` 幂等跳过已成功 revision，失败 revision 可重试，且 encode/write 临界区没有挂起点。
-17. 应用进入 inactive/background 时，`ContentView` 启动普通 Task await `flushPendingSave()`；flush 取消 pending；若从加载以来没有 mutation 则直接返回，否则等待当前快照，并在等待期间 revision 变化时继续追赶最新快照。
-18. writer result 回到 MainActor 后按 revision 仲裁；旧 revision 结果和不晚于 durable revision 的迟到失败不改变当前错误，写入成功只清理对应写错误，读取错误保留。`ContentView` 通过 alert 展示并经 `dismissError()` 统一清理来源。
-19. scene phase flush 不持有系统后台执行 lease，因此快速挂起、崩溃、断电或强杀不承诺最新内存 revision 已 durable。
+3. `EntryEditorLayoutContract` 只根据容器宽度和 `DynamicTypeSize` 派生非持久化布局：`width >= 820` 独立决定编辑/预览双栏，普通宽屏才使用横向紧凑头部；窄屏或 Accessibility 字号让元数据、summary 与必要的统计 pill 堆叠，Accessibility 标题自然增高。该契约不参与 entry binding、Markdown 或持久化。
+4. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片，卡片宽度按 `.caption` Dynamic Type 缩放且 excerpt 使用 `.caption`。
+5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。
+6. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
+7. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项用 `.whitespaces` 水平空白扫描判断并退出当前结构，不为判断创建临时 trimmed 字符串，代码围栏内通过单次索引扫描识别并回退系统默认输入，IME marked text 或普通输入继续走系统默认行为。
+8. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
+9. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.focusWriting()` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染，同时把正文输入区居中并限制到舒适最大宽度。
+10. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
+11. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:)`；正文 Markdown 工具栏为每个 `16pt` 图标提供 `44×44pt` 矩形交互区，并保留片段快捷键 hover help 和辅助功能标签，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+12. `EntryEditorView.insertSnippet(_:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
+13. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文。
+14. binding setter 调用 `JournalStore.update(_:)`。
+15. `JournalStore.update` 先取消旧 debounce，再更新 `updatedAt`、替换数组和递增 revision；`createdAt` 仅在改变时触发重排。
+16. debounce 只捕获轻量 pending ID，触发时才在 MainActor 生成最新不可变快照；连续编辑不会让等待任务持有旧 entries 数组，已进入 writer 的请求不会被取消。
+17. `JSONJournalPersistenceWriter` actor 是唯一 JSON encode/atomic write 执行者；它用 `highestAcceptedRevision` 拒绝旧请求，用 `durableRevision` 幂等跳过已成功 revision，失败 revision 可重试，且 encode/write 临界区没有挂起点。
+18. 应用进入 inactive/background 时，`ContentView` 启动普通 Task await `flushPendingSave()`；flush 取消 pending；若从加载以来没有 mutation 则直接返回，否则等待当前快照，并在等待期间 revision 变化时继续追赶最新快照。
+19. writer result 回到 MainActor 后按 revision 仲裁；旧 revision 结果和不晚于 durable revision 的迟到失败不改变当前错误，写入成功只清理对应写错误，读取错误保留。`ContentView` 通过 alert 展示并经 `dismissError()` 统一清理来源。
+20. scene phase flush 不持有系统后台执行 lease，因此快速挂起、崩溃、断电或强杀不承诺最新内存 revision 已 durable。
 
 ### 2.4 列表、筛选与删除
 
@@ -123,7 +124,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 ### 2.5 Markdown 预览
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览。
-2. 宽度大于等于 `820` pt 时，编辑和预览左右分栏展示；Mac Catalyst 写作工具栏可隐藏或显示右侧预览栏，让正文编辑区获得更宽空间；右侧预览隐藏时正文输入区居中并限制最大宽度，避免超宽窗口里正文行长过长。
+2. `EntryEditorLayoutContract.isWideEditorLayout` 只按宽度是否大于等于 `820` pt 决定编辑和预览左右分栏，不因 Accessibility Dynamic Type 关闭双栏；同一契约再用宽度与字号独立决定头部横排或堆叠。Mac Catalyst 写作工具栏可隐藏或显示右侧预览栏，让正文编辑区获得更宽空间；右侧预览隐藏时正文输入区居中并限制最大宽度，避免超宽窗口里正文行长过长。
 3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果；解析器逐行迭代正文，不先构造整篇行数组，用水平空白扫描识别空白行并在行首裁剪前短路，代码块内空白行仍保留为代码内容，解析临时缓冲在 flush 后保留容量。
 4. `MarkdownPreviewView` 在同一次渲染中只派生一次 `shouldUseSectionGroups`，同时用于预览间距和普通/小节分组渲染分支。
 5. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
@@ -428,7 +429,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 新建日记必须包含默认 `###` 小节模板。
 - `###` 是当前小节分组的核心标记。
 - iPhone 需要支持竖屏、横屏左、横屏右。
-- 宽屏阈值当前为 `820` pt。
+- 编辑器工作区宽屏阈值为 `820` pt；头部只有普通字号宽屏使用横排，窄屏或 Accessibility Dynamic Type 使用堆叠布局。
 - Mac 版本当前采用 Mac Catalyst，不新增独立 native macOS target。
 - 默认云端重验证，本机只跑轻量检查，除非人工明确要求本机构建。
 - Agent C 必须核对云端未加密结果包；不得只看 Agent B 文字汇报。

@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；`JournalStoreTests` 现有 19 项，覆盖 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶及无 mutation 不覆写、create/delete 在途写入、Store 生命周期、错误仲裁及排序，v0.73 预期总数为 182 项，最终以最新 artifact 为准。其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.73 artifact 为 182 项，v0.74 新增编辑器六格布局契约测试，实际总数以最新 artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,34 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.74 / 编辑器头部辅助字号布局
+
+日期：2026-07-28
+
+核心变更：
+
+- 新增 internal `EntryEditorLayoutContract`，把 `820pt` 编辑/预览工作区边界与头部紧凑策略拆开；宽屏 Accessibility 仍保留双栏，但元数据、summary 与统计 pill 改为堆叠并取消 `270pt` 统计固宽。
+- Accessibility 标题取消两行上限，统计 pill 取消单行截断；小节标题/excerpt 放宽行数，excerpt 提升为 `.caption`，卡片以 `@ScaledMetric` 从 `156pt` 基准宽度缩放并删除 `132pt` 固定内宽。
+- `MarkdownSnippetTests` 新增三项纯 contract 测试，覆盖 `819/820pt × .large/.accessibility1/.accessibility5` 六格矩阵、标题/小节行数与正有限尺寸；workflow 结果包版本更新为 `v0.74`。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.74（编辑器头部辅助字号布局）.md`
+
+验证结果：
+
+- Agent B 本地轻量检查通过：`git diff --check`、`git diff --cached --check`、project plist lint、应用与改动测试 Swift parse、workflow YAML 解析和 `VERSION: v0.74` 搜索均返回 0；定向范围检查确认 workflow 仅修改版本，Store、model、ContentView、列表、统计和 Xcode project 无 diff。Ruby 输出本机 `/opt/homebrew/bin` world-writable PATH warning，但 YAML 仍输出 `yaml ok`。
+- 实现 commit、push、GitHub Actions run / attempt / artifact、实际 XCTest 数量与 Agent C 结论：待补录。
+- 按人工要求不运行本地 build、XCTest、模拟器或 app；完整编译与测试只采用 GitHub Actions 回传结果包。
+
+遗留事项：
+
+- 纯 contract 测试和云端 build 不能证明真实 Mac/iPhone 的 Dynamic Type 像素排版、VoiceOver、focus ring、键盘、鼠标或触控板交互；普通窄屏更高的头部、AX5 极长标题与可缩放横向卡片仍需人工验收。
 
 ### v0.73 / 持久化移出主线程
 

@@ -29,7 +29,8 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - iPhone 支持竖屏、横屏左和横屏右。
 - 支持 Mac Catalyst 构建，可在 macOS 上以 Mac app 形态运行同一套本地 JSON 日记数据模型。
 - Mac Catalyst 下保留列表、编辑器、预览和统计主流程，并补充带系统确认保护的右键删除、“日记”菜单、“写作”菜单、`⌘N` 新建、独立统计窗口、Markdown 片段菜单、写作工具栏入口、光标/选区片段插入、可见缩进/反缩进入口和专注写作入口；“日记”菜单可用 `⌘⌥↑` / `⌘⌥↓` 按当前新到旧顺序切换到较新/较早日记，首尾边界独立禁用且不循环；写作工具栏和 Markdown 片段工具栏 hover 提示会显示对应 `⌘⌥` 快捷键，写作工具栏聚焦正文、专注写作、缩进、反缩进和插入 Markdown 会显式设置与命令标题一致的辅助功能标签，预览切换按钮的提示和辅助功能标签会跟随当前状态显示“隐藏预览”“显示预览”或“回到编辑”。
-- 宽屏下编辑器使用左右分栏，同时展示编辑区和 Markdown 预览；Mac Catalyst 写作工具栏可隐藏或显示预览栏，也可一键进入专注写作状态，隐藏预览栏并聚焦正文，正文输入区会在宽窗口中居中并限制最大宽度，给长文输入更稳定的行长并减少实时预览解析压力。
+- 编辑器继续以 `820pt` 容器宽度决定单栏或编辑/预览双栏，该工作区决策不受 Dynamic Type 改变；普通宽屏保留紧凑横向头部，窄屏或 Accessibility Dynamic Type 改用自然增高的堆叠头部，统计不再固定宽度，标题和统计 pill 不再被单行策略裁切。小节卡片宽度随 `.caption` Dynamic Type 缩放，excerpt 使用 `.caption`；真实 Mac/iPhone 排版与 VoiceOver 仍需人工验收。
+- Mac Catalyst 写作工具栏可隐藏或显示预览栏，也可一键进入专注写作状态，隐藏预览栏并聚焦正文，正文输入区会在宽窗口中居中并限制最大宽度，给长文输入更稳定的行长并减少实时预览解析压力。
 - 统计看板在宽屏下使用两列布局，列表概览和小节摘要会自适应窄屏与横屏空间。
 
 ## 日记结构建议
@@ -111,7 +112,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.73 将 Store 测试从 5 项扩展为 19 项，预期总数为 182；最终以最新 GitHub Actions artifact 为准。确定性 gate 测试不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.73 artifact 基线为 182 项，v0.74 实际总数以最新 GitHub Actions artifact 为准。纯布局契约不等价于真实 frame、Dynamic Type 渲染、VoiceOver 或输入设备交互验证；确定性 gate 测试也不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
