@@ -60,8 +60,10 @@ flowchart TD
   ListSnapshot --> List
   Store --> ListOverview["JournalListOverviewSnapshot：通过 wordCount + ### 存在性快路径派生概览"]
   ListOverview --> List
-  Model --> Parser["MarkdownBlockParser.parseDocument：逐行迭代正文，单次解析块级 Markdown、空白行短路、行首切片 marker、有序列表和 ### 小节"]
-  Parser --> Preview["MarkdownPreviewView：复用解析结果和小节分组判断，纯文本内联快路径，用索引迭代渲染普通预览、列表项或小节分组预览"]
+  Model --> PreviewRequestCore["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
+  PreviewRequestCore --> PreviewSchedulerCore["150ms trailing scheduler：取消旧 request，等待期间保留旧结果"]
+  PreviewSchedulerCore --> Parser["MarkdownBlockParser.parseDocument：只解析最新有效正文；逐行迭代、空白行短路、行首切片 marker、有序列表和 ### 小节"]
+  Parser --> Preview["MarkdownPreviewView：latest-wins 发布后消费解析结果，纯文本内联快路径，索引迭代渲染普通预览、列表项或小节分组预览"]
   Store --> Stats["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
@@ -153,7 +155,7 @@ flowchart TD
 
 ## Markdown 与统计派生图
 
-读图说明：正文和日记数组不会直接变成预览或统计，先经过解析器和统计器派生。后续改 Markdown 或统计口径时，应优先检查这张图对应的模块。
+读图说明：正文和日记数组不会直接变成预览或统计，先经过解析器和统计器派生。预览链路只消费正文快照，不连接 `JournalStore` 写入或本地 JSON；后续改 Markdown 或统计口径时，应优先检查这张图对应的模块。
 
 ```mermaid
 flowchart LR
@@ -179,10 +181,13 @@ flowchart LR
   EditorLayout --> HeaderDecision["宽度 + 字号：普通宽屏横排；窄屏或 Accessibility 堆叠"]
   MetricsData --> EditorHeader["EntryEditorView 头部：词数和可缩放 ### 小节懒加载概览"]
   HeaderDecision --> EditorHeader
-  Body --> Parse["MarkdownBlockParser.parseDocument：逐行迭代正文 + 水平空白行短路 + 代码块轻量扫描 + 行首切片 marker"]
+  Body --> PreviewRequest["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
+  PreviewRequest --> PreviewScheduler["150ms trailing scheduler：取消旧 request，保留上一份结果"]
+  PreviewScheduler --> Parse["MarkdownBlockParser.parseDocument：只解析最新有效 request"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
+  Result --> LatestWins["latest-wins publish：active + entry ID + 正文 + generation 校验"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
-  Blocks --> Preview["MarkdownPreviewView 纯文本内联快路径 + 索引迭代普通块和列表项渲染"]
+  LatestWins --> Preview["MarkdownPreviewView：只消费已解析结果；纯文本内联快路径 + 索引迭代渲染"]
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
@@ -222,13 +227,13 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查 + 可用时 XCTest 尝试"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.75 按人工要求跳过本机 build/XCTest/app"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
   Actions --> Checks["静态检查 + generic iOS Debug build + Mac Catalyst build + XCTest"]
   Checks --> Artifact["上传未加密 CI 结果包"]
-  Artifact --> AgentCDownload["Agent C：gh auth login 后下载 artifact"]
+  Artifact --> AgentCDownload["Agent C：使用已有 GitHub CLI 授权下载 artifact，不执行 gh auth login"]
   AgentCDownload --> Verify["核对 manifest、commitSha、runId、runAttempt、JUnit、日志"]
   Verify --> CDecision{"Agent C artifact 验收是否通过？"}
   CDecision -- "不通过" --> AgentXFail["Agent X 判断：退回修复或暂停"]

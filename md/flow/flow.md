@@ -4,6 +4,8 @@
 
 MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryNavigation` 按 Store 当前新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
+编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
+
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
 未来可选主控链路是：人工用 `agentx:` 提供总目标 X -> Agent X 拆分小轮次 -> 每轮仍按 Agent A -> Agent B -> Agent C 执行 -> Agent X 根据 Agent C artifact 验收结果判断继续、退回、暂停或完成。
@@ -125,13 +127,14 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览。
 2. `EntryEditorLayoutContract.isWideEditorLayout` 只按宽度是否大于等于 `820` pt 决定编辑和预览左右分栏，不因 Accessibility Dynamic Type 关闭双栏；同一契约再用宽度与字号独立决定头部横排或堆叠。Mac Catalyst 写作工具栏可隐藏或显示右侧预览栏，让正文编辑区获得更宽空间；右侧预览隐藏时正文输入区居中并限制最大宽度，避免超宽窗口里正文行长过长。
-3. `MarkdownPreviewView` 调用 `MarkdownBlockParser.parseDocument(_:)` 获取单次解析结果；解析器逐行迭代正文，不先构造整篇行数组，用水平空白扫描识别空白行并在行首裁剪前短路，代码块内空白行仍保留为代码内容，解析临时缓冲在 flush 后保留容量。
-4. `MarkdownPreviewView` 在同一次渲染中只派生一次 `shouldUseSectionGroups`，同时用于预览间距和普通/小节分组渲染分支。
-5. 如果解析结果存在非开篇 `###` 分组，则按 `MarkdownSectionGroup` 渲染小节卡片。
-6. 否则按普通块序列渲染。
-7. 普通块、小节内块、无序列表、有序列表和待办列表使用索引迭代驱动 `ForEach`，避免在实时预览重渲染时为 `enumerated()` 结果创建临时数组。
-8. 普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线；有序列表只识别 leading whitespace trim 后的 `数字. `，并保留用户输入编号显示。
-9. 内联文本先用保守触发字符判断是否可能包含 Markdown；纯文本直接构造 `AttributedString(text)`，包含触发字符时继续通过 `AttributedString(markdown:)` 做轻量渲染并保留 fallback。
+3. `MarkdownPreviewView` 由 `@StateObject` 持有 `MarkdownPreviewUpdateModel` 的已解析结果，body 只消费 `updateModel.document`，不在每次 SwiftUI 重算时直接调用 parser。
+4. 首次激活立即解析当前正文；正文连续变化递增 generation，并通过 `TaskMarkdownPreviewScheduler` 使用固定 `150ms` trailing debounce，等待期间保留上一份结果。
+5. scheduler 触发后同时校验 active 状态、entry ID、正文快照和 generation；旧 request 即使迟到也不能覆盖最新预览。切换日记、隐藏预览或离开视图会取消并使等待中的 request 失效。
+6. accent、容器宽度和 Dynamic Type 只触发已有 `MarkdownParseResult` 的重新布局，不产生新的 parse request；预览链路不改变正文 binding、Store revision 或 JSON。
+7. parser 逐行迭代正文，不先构造整篇行数组，用水平空白扫描识别空行并在行首裁剪前短路，代码块内空白行仍保留为代码内容，解析临时缓冲在 flush 后保留容量。
+8. `MarkdownPreviewView` 在同一次渲染中只派生一次 `shouldUseSectionGroups`，同时用于预览间距和普通/小节分组渲染分支；如果存在非开篇 `###` 分组则渲染小节卡片，否则渲染普通块序列。
+9. 普通块、小节内块、无序列表、有序列表和待办列表使用索引迭代驱动 `ForEach`，避免在预览重渲染时为 `enumerated()` 结果创建临时数组；普通块支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线。
+10. 有序列表只识别 leading whitespace trim 后的 `数字. ` 并保留用户输入编号；内联文本先用保守触发字符判断，纯文本直接构造 `AttributedString(text)`，包含触发字符时继续通过 `AttributedString(markdown:)` 做轻量渲染并保留 fallback。
 
 ### 2.6 统计看板
 
@@ -235,11 +238,12 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
    - 可用时的 `MDJournalMacCatalyst.xcresult`
    - 可用时的 `MDJournalTests.xcresult`
 4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、iOS build destination、Mac Catalyst build destination、test destination、日志路径和各阶段 outcome，其中 `testOutcome` 和 `macCatalystBuildOutcome` 是真实 `success/failure`。
+5. v0.75 额外核对 `MarkdownPreviewTests` 的 4 项测试各执行一次，XCTest 总数高于 v0.74 的 185 项；JUnit 仍只代表 workflow 固定的四阶段摘要，具体 XCTest 总数以 `xctest.log` 或 `MDJournalTests.xcresult` 为准。
 
 ### 3.6 Agent C 结果包验收
 
 1. 确认 `origin/main` 最新 commit。
-2. 使用 `gh auth login` 后下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`。
+2. 使用当前已有的 GitHub CLI 授权状态下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`；本轮不执行 `gh auth login`，不修改认证配置。
 3. 打开并核对 `ci-artifact-manifest.json`、`junit.xml`、主日志和失败摘要；`junit.xml` 必须能明确读出 `failures`、`errors` 和 `skipped`。
 4. 只验收 manifest 中 `branch=main` 且 `commitSha`、`runId`、`runAttempt` 与最新 `origin/main` 和 GitHub Actions run 完全一致的结果包。
 5. 通过则确认文档和 `update_log.md` 已同步；失败则退回 Agent B 在 `main` 上追加修复 commit 并重新 push。
@@ -421,7 +425,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流提交，但内存状态必须即时更新；所有保存快照由单写者 actor 按 revision 串行编码和原子写盘。应用离开活跃态时异步 flush 并追赶最新 revision，但无后台 lease 时不承诺强杀 durability；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
-- Markdown 预览应复用单次解析结果，避免同一渲染周期重复解析正文。
+- Markdown 预览应由 update model 持有单次解析结果，正文变化经过 `150ms` trailing scheduler 合并并以 generation/entry ID latest-wins 发布；同一渲染周期不得重复解析正文，预览结果不进入 Store 或 JSON。
 - 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览只需要小节存在性时必须使用与完整提取等价的 `containsLevelThreeSection(in:)` 快路径，避免构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。

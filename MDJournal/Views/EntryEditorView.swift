@@ -347,7 +347,7 @@ struct EntryEditorView: View {
             if mode == .edit {
                 editor()
             } else {
-                MarkdownPreviewView(markdown: entry.body, accent: entry.category.tint)
+                MarkdownPreviewView(entryID: entry.id, markdown: entry.body, accent: entry.category.tint)
             }
         }
     }
@@ -362,7 +362,12 @@ struct EntryEditorView: View {
 
                 VStack(spacing: 0) {
                     WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
-                    MarkdownPreviewView(markdown: entry.body, accent: entry.category.tint, maxContentWidth: 560)
+                    MarkdownPreviewView(
+                        entryID: entry.id,
+                        markdown: entry.body,
+                        accent: entry.category.tint,
+                        maxContentWidth: 560
+                    )
                 }
                 .frame(maxWidth: .infinity)
             }

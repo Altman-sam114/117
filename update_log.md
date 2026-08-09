@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.73 artifact 为 182 项，v0.74 新增编辑器六格布局契约测试，实际总数以最新 artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 新增 4 项 Markdown 预览策略测试，最终总数以最新 artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,39 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.75 / Markdown 预览 latest-wins 防抖
+
+日期：2026-08-09
+
+核心变更：
+
+- `MarkdownPreviewUpdateModel` 持有已解析的 `MarkdownParseResult`，`MarkdownPreviewView.body` 只消费状态结果，不再在每次 SwiftUI body 重算时直接调用 `MarkdownBlockParser.parseDocument`。
+- 首次激活立即解析；正文连续变化使用固定 `150ms` trailing debounce，等待期间保留上一份预览，generation、entry ID、正文快照和 active 状态共同保证 latest-wins。
+- 切换日记、隐藏预览或离开视图时取消并使旧 request 失效；accent、容器宽度和 Dynamic Type 只重新布局已有结果。正文 binding、`JournalStore` revision、保存 debounce、JSON schema 和 Markdown 解析语义未改变。
+- 新增 4 项 `MarkdownPreviewTests`，使用手动 scheduler 覆盖首次立即发布、trailing 合并、迟到 request、entry/deactivate 失效和相同正文去重，并锁定 150ms 延迟。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownPreviewView.swift`
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournalTests/MarkdownPreviewTests.swift`
+- `MDJournal.xcodeproj/project.pbxproj`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.75（Markdown预览latest-wins防抖）.md`
+
+验证结果：
+
+- 本地轻量检查通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/MarkdownPreviewTests.swift`、workflow YAML 解析和 `VERSION: v0.75` 搜索均返回 0。Ruby YAML 解析输出本机 `/opt/homebrew/bin` world-writable PATH warning，但仍输出 `yaml ok`。
+- 两名只读 reviewer 和既有 code review 均未发现 Swift 隔离、iOS 16 / Mac Catalyst 13 API、Store/正文/JSON 越界或 latest-wins 逻辑阻断；测试 mock 允许主动触发取消回调以确定性覆盖迟到结果。
+- 本地完整 build、XCTest、模拟器和 app 均未运行，遵循人工要求；完整编译、concurrency warning 和测试执行只交给 GitHub Actions。
+- 当前实现 commit、push 状态、GitHub Actions run、attempt、artifact ID/名称/digest、manifest/JUnit/xcresult 和 Agent C 下载复判结果：待补录。
+
+遗留事项：
+
+- 单次 Markdown parse 仍在 MainActor 执行；本轮通过 trailing debounce 降低连续输入的触发频率，没有把解析跨 actor 搬运或改变 parser 语义。真实 Mac 长文输入延迟、帧率、Instruments 分配、SwiftUI 生命周期竞态、VoiceOver、Dynamic Type 像素排版和输入设备交互仍需云端结果包之外的人工验收。
+- v0.75 必须只验收最新 `origin/main` commit 对应的未加密 artifact；XCTest 总数须高于 185，4 项预览策略测试各执行一次且通过，JUnit 的四阶段摘要不能替代 XCTest 用例总数。
 
 ### v0.74 / 编辑器头部辅助字号布局
 

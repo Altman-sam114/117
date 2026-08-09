@@ -21,7 +21,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Markdown 正文输入 bridge 按需配置 rounded body 字体，只在目标字体变化时写入；UIKit 已确认变化的普通输入、Markdown 回车续写和行缩进会直接且仅一次发布正文，不再先读取旧正文做全文比较，外部正文同步仍按差异更新，光标/选区和焦点继续按需写回。
 - Markdown 预览，支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线渲染。
 - 正文包含 `###` 时，预览会按三级标题分组显示每个日记小节。
-- Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
+- Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；正文连续变化使用 `150ms` trailing debounce，等待期间保留上一份预览，generation 与日记 ID 共同保证 latest-wins，旧请求不会覆盖新日记或最新正文；正文 binding 仍即时更新，accent、窗口宽度和 Dynamic Type 只重新布局已有结果。解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
 - 日记列表用卡片展示分类、心情、日期、词数和 `###` 小节摘要。
 - 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率；七日趋势在普通 Dynamic Type 下保持七列等分，在 Accessibility Dynamic Type 下使用稳定列宽的水平滚动，词数标签和图表容器可随语义文字自然增高。
 - 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
@@ -30,7 +30,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - 支持 Mac Catalyst 构建，可在 macOS 上以 Mac app 形态运行同一套本地 JSON 日记数据模型。
 - Mac Catalyst 下保留列表、编辑器、预览和统计主流程，并补充带系统确认保护的右键删除、“日记”菜单、“写作”菜单、`⌘N` 新建、独立统计窗口、Markdown 片段菜单、写作工具栏入口、光标/选区片段插入、可见缩进/反缩进入口和专注写作入口；“日记”菜单可用 `⌘⌥↑` / `⌘⌥↓` 按当前新到旧顺序切换到较新/较早日记，首尾边界独立禁用且不循环；写作工具栏和 Markdown 片段工具栏 hover 提示会显示对应 `⌘⌥` 快捷键，写作工具栏聚焦正文、专注写作、缩进、反缩进和插入 Markdown 会显式设置与命令标题一致的辅助功能标签，预览切换按钮的提示和辅助功能标签会跟随当前状态显示“隐藏预览”“显示预览”或“回到编辑”。
 - 编辑器继续以 `820pt` 容器宽度决定单栏或编辑/预览双栏，该工作区决策不受 Dynamic Type 改变；普通宽屏保留紧凑横向头部，窄屏或 Accessibility Dynamic Type 改用自然增高的堆叠头部，统计不再固定宽度，标题和统计 pill 不再被单行策略裁切。小节卡片宽度随 `.caption` Dynamic Type 缩放，excerpt 使用 `.caption`；真实 Mac/iPhone 排版与 VoiceOver 仍需人工验收。
-- Mac Catalyst 写作工具栏可隐藏或显示预览栏，也可一键进入专注写作状态，隐藏预览栏并聚焦正文，正文输入区会在宽窗口中居中并限制最大宽度，给长文输入更稳定的行长并减少实时预览解析压力。
+- Mac Catalyst 写作工具栏可隐藏或显示预览栏，也可一键进入专注写作状态，隐藏预览栏并聚焦正文，正文输入区会在宽窗口中居中并限制最大宽度，给长文输入更稳定的行长并减少实时预览解析压力；预览隐藏、离开视图或切换日记时会使等待中的预览请求失效。
 - 统计看板在宽屏下使用两列布局，列表概览和小节摘要会自适应窄屏与横屏空间。
 
 ## 日记结构建议
@@ -112,7 +112,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.73 artifact 基线为 182 项，v0.74 实际总数以最新 GitHub Actions artifact 为准。纯布局契约不等价于真实 frame、Dynamic Type 渲染、VoiceOver 或输入设备交互验证；确定性 gate 测试也不等价于 Instruments、大数据性能、真实后台挂起或强杀验证。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.74 artifact 基线为 185 项，v0.75 实际总数以最新 artifact 为准。纯布局契约和预览策略测试不等价于真实 frame、Dynamic Type 渲染、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \

@@ -43,6 +43,7 @@
 		B10000000000000000000009 /* MarkdownLineIndentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* MarkdownLineIndentationTests.swift */; };
 		B1000000000000000000000A /* JournalListOverviewSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000A /* JournalListOverviewSnapshotTests.swift */; };
 		B1000000000000000000000B /* JournalEntryNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000B /* JournalEntryNavigationTests.swift */; };
+		B1000000000000000000000C /* MarkdownPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000C /* MarkdownPreviewTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,7 @@
 		B20000000000000000000009 /* MarkdownLineIndentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownLineIndentationTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000A /* JournalListOverviewSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalListOverviewSnapshotTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000B /* JournalEntryNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryNavigationTests.swift; sourceTree = "<group>"; };
+		B2000000000000000000000C /* MarkdownPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownPreviewTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000F /* MDJournalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDJournalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -210,6 +212,7 @@
 				B20000000000000000000004 /* MarkdownSnippetTests.swift */,
 				B20000000000000000000008 /* MarkdownTextInputConfigurationTests.swift */,
 				B20000000000000000000005 /* JournalStoreTests.swift */,
+				B2000000000000000000000C /* MarkdownPreviewTests.swift */,
 			);
 			path = MDJournalTests;
 			sourceTree = "<group>";
@@ -356,6 +359,7 @@
 				B10000000000000000000004 /* MarkdownSnippetTests.swift in Sources */,
 				B10000000000000000000008 /* MarkdownTextInputConfigurationTests.swift in Sources */,
 				B10000000000000000000005 /* JournalStoreTests.swift in Sources */,
+				B1000000000000000000000C /* MarkdownPreviewTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,12 +1,182 @@
+import Combine
 import SwiftUI
 
+struct MarkdownPreviewScheduledUpdate: Sendable {
+    private let cancellation: @MainActor @Sendable () -> Void
+
+    init(cancellation: @escaping @MainActor @Sendable () -> Void) {
+        self.cancellation = cancellation
+    }
+
+    @MainActor
+    func cancel() {
+        cancellation()
+    }
+}
+
+protocol MarkdownPreviewScheduling: Sendable {
+    @MainActor
+    func schedule(
+        after delay: Duration,
+        operation: @escaping @MainActor @Sendable () async -> Void
+    ) -> MarkdownPreviewScheduledUpdate
+}
+
+struct TaskMarkdownPreviewScheduler: MarkdownPreviewScheduling {
+    @MainActor
+    func schedule(
+        after delay: Duration,
+        operation: @escaping @MainActor @Sendable () async -> Void
+    ) -> MarkdownPreviewScheduledUpdate {
+        let task = Task { @MainActor in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+            await operation()
+        }
+
+        return MarkdownPreviewScheduledUpdate {
+            task.cancel()
+        }
+    }
+}
+
+struct MarkdownPreviewUpdateRequest: Equatable, Sendable {
+    let entryID: UUID
+    let markdown: String
+    let generation: UInt64
+}
+
+@MainActor
+final class MarkdownPreviewUpdateModel: ObservableObject {
+    static let trailingDelay: Duration = .milliseconds(150)
+
+    @Published private(set) var document: MarkdownParseResult
+
+    private let scheduler: any MarkdownPreviewScheduling
+    private let parseDocument: (String) -> MarkdownParseResult
+    private var scheduledUpdate: MarkdownPreviewScheduledUpdate?
+    private var activeEntryID: UUID?
+    private var lastRequestedMarkdown: String?
+    private(set) var requestGeneration: UInt64 = 0
+    private(set) var isActive = false
+
+    init(
+        scheduler: any MarkdownPreviewScheduling = TaskMarkdownPreviewScheduler(),
+        parseDocument: @escaping (String) -> MarkdownParseResult = MarkdownBlockParser.parseDocument
+    ) {
+        self.scheduler = scheduler
+        self.parseDocument = parseDocument
+        document = MarkdownParseResult(blocks: [], sectionGroups: [])
+    }
+
+    func activate(entryID: UUID, markdown: String) {
+        let entryChanged = activeEntryID != entryID
+        guard !isActive || entryChanged else {
+            update(entryID: entryID, markdown: markdown)
+            return
+        }
+
+        cancelScheduledUpdate()
+        isActive = true
+        activeEntryID = entryID
+        lastRequestedMarkdown = markdown
+        requestGeneration &+= 1
+
+        publishImmediately(
+            MarkdownPreviewUpdateRequest(
+                entryID: entryID,
+                markdown: markdown,
+                generation: requestGeneration
+            )
+        )
+    }
+
+    func update(entryID: UUID, markdown: String) {
+        guard isActive else { return }
+
+        guard activeEntryID == entryID else {
+            activate(entryID: entryID, markdown: markdown)
+            return
+        }
+
+        guard lastRequestedMarkdown != markdown else { return }
+
+        lastRequestedMarkdown = markdown
+        requestGeneration &+= 1
+        let request = MarkdownPreviewUpdateRequest(
+            entryID: entryID,
+            markdown: markdown,
+            generation: requestGeneration
+        )
+
+        cancelScheduledUpdate()
+        scheduledUpdate = scheduler.schedule(after: Self.trailingDelay) { [weak self] in
+            self?.publish(request)
+        }
+    }
+
+    func deactivate() {
+        cancelScheduledUpdate()
+        isActive = false
+        activeEntryID = nil
+        lastRequestedMarkdown = nil
+        requestGeneration &+= 1
+    }
+
+    private func publishImmediately(_ request: MarkdownPreviewUpdateRequest) {
+        guard accepts(request) else { return }
+        document = parseDocument(request.markdown)
+    }
+
+    private func publish(_ request: MarkdownPreviewUpdateRequest) {
+        guard accepts(request) else { return }
+        scheduledUpdate = nil
+        document = parseDocument(request.markdown)
+    }
+
+    private func accepts(_ request: MarkdownPreviewUpdateRequest) -> Bool {
+        isActive
+            && activeEntryID == request.entryID
+            && lastRequestedMarkdown == request.markdown
+            && requestGeneration == request.generation
+    }
+
+    private func cancelScheduledUpdate() {
+        scheduledUpdate?.cancel()
+        scheduledUpdate = nil
+    }
+}
+
 struct MarkdownPreviewView: View {
+    let entryID: UUID
     let markdown: String
     var accent: Color = .teal
     var maxContentWidth: CGFloat = 720
+    @StateObject private var updateModel: MarkdownPreviewUpdateModel
+
+    init(
+        entryID: UUID,
+        markdown: String,
+        accent: Color = .teal,
+        maxContentWidth: CGFloat = 720,
+        scheduler: any MarkdownPreviewScheduling = TaskMarkdownPreviewScheduler()
+    ) {
+        self.entryID = entryID
+        self.markdown = markdown
+        self.accent = accent
+        self.maxContentWidth = maxContentWidth
+        _updateModel = StateObject(
+            wrappedValue: MarkdownPreviewUpdateModel(scheduler: scheduler)
+        )
+    }
 
     var body: some View {
-        let document = MarkdownBlockParser.parseDocument(markdown)
+        let document = updateModel.document
         let shouldUseSectionGroups = document.shouldUseSectionGroups
 
         ScrollView {
@@ -31,6 +201,18 @@ struct MarkdownPreviewView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .background(previewBackground)
+        .onAppear {
+            updateModel.activate(entryID: entryID, markdown: markdown)
+        }
+        .onChange(of: markdown) { newMarkdown in
+            updateModel.update(entryID: entryID, markdown: newMarkdown)
+        }
+        .onChange(of: entryID) { newEntryID in
+            updateModel.activate(entryID: newEntryID, markdown: markdown)
+        }
+        .onDisappear {
+            updateModel.deactivate()
+        }
     }
 
     private var previewBackground: some View {
