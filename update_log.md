@@ -66,7 +66,8 @@
 - `MDJournal.xcresult` 和 `MDJournalMacCatalyst.xcresult` 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；`MDJournalTests.xcresult` 为 Passed，189 passed、0 failures。artifact 为 `428170` bytes，449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC 和逐文件 SHA-256 完整性检查通过。首次实现 artifact 已由 Agent C PASS，但文档收敛 commit 的最新 run/artifact 仍待补录。
 - 文档收敛 commit `ab53ff61c2a29664df5e06d7da19edf0ed74deba` 已在 `main` 推送到 `origin/main`。对应 GitHub Actions run `31293672546`、attempt `1` 成功；artifact ID `9032289770`，名称 `mdjournal-ci-v0.75-main-ab53ff6-run31293672546-attempt1`，digest `sha256:a0c842cfcef591111db130f30755428132087f94b3af65245bb7cbf23c6a070c`。
 - Agent C 已下载并复判 `/private/tmp/mdjournal-c-review-31293672546/` 的最新文档 HEAD 未加密 artifact：manifest 的 `version=v0.75`、`branch=main`、完整 `commitSha`、`runId` 和 `runAttempt` 完全匹配；JUnit 为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 `189 passed / 0 failed / 0 skipped`，4 项 `MarkdownPreviewTests` 各执行一次并通过。
-- 该文档 HEAD artifact 的三份 xcresult 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；ZIP 为 `427163` bytes、449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC、解压和逐文件 SHA-256 完整性检查通过。Agent C PASS；本条记录提交会触发新的最终 HEAD run，需继续只验收该最新 run。
+- 该文档 HEAD artifact 的三份 xcresult 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；ZIP 为 `427163` bytes、449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC、解压和逐文件 SHA-256 完整性检查通过。Agent C PASS。
+- 验收记录提交 `0215feacd27fa01a7369b684b647d62ab3f25efd` 触发的最终 HEAD run 为 `31294463918`、attempt `1`；artifact ID `9032564526`，名称 `mdjournal-ci-v0.75-main-0215fea-run31294463918-attempt1`，digest `sha256:45d6f4c37a20ff6ccb3de2951a7515098ad7310ea294dc2a00d0e7fbc3fcc53b`。Agent C 对该最新 `origin/main` artifact 最终 PASS。
 
 遗留事项：
 
