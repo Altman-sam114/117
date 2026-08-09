@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 文档 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试）。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 文档 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 新增 6 项 selection/navigation 纯测试，预期为 195 项，云端结果待补录。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,38 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.76 / 列表筛选选择一致性
+
+日期：2026-08-09
+
+核心变更：
+
+- `ContentView` 集中持有搜索文本、分类筛选和 `JournalEntryListSnapshot`；`EntryListView` 消费父级 snapshot 与 binding，不再维护分离的筛选状态或另算列表 selection 来源。
+- 新增 internal `JournalEntrySelectionPolicy`，生产 repair、detail guard、创建和删除后的修复共同使用“可见保留、隐藏切当前可见首项、空结果为 nil”规则；Mac Catalyst 较新/较早导航只遍历当前 `filteredEntries`，不跳转隐藏日记。
+- 保留分类计数基于完整 entries、搜索 trim、真实空集合与筛选空结果区分，以及既有 `JournalStore`、JSON、Markdown、保存 debounce/flush、正文 binding 和删除确认语义。
+- 新增 6 项纯测试：5 项 selection policy 测试覆盖可见保留、隐藏切首项、空结果 nil、筛选删除和新建匹配/隐藏，1 项 filtered navigation 测试覆盖可见顺序、隐藏目标和首尾不循环。
+
+关键文件：
+
+- `MDJournal/ContentView.swift`
+- `MDJournal/Views/EntryListView.swift`
+- `MDJournal/Utilities/JournalEntryListSnapshot.swift`
+- `MDJournalTests/JournalEntryListSnapshotTests.swift`
+- `MDJournalTests/JournalEntryNavigationTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.76（列表筛选选择一致性）.md`
+
+验证结果：
+
+- 本地轻量检查通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/JournalEntryListSnapshotTests.swift`、`xcrun swiftc -parse MDJournalTests/JournalEntryNavigationTests.swift`、workflow YAML 解析和 `VERSION: v0.76` 搜索均返回 0；Ruby YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，但仍输出 `yaml ok`。按人工要求不运行本地 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化或截图。
+- 实现 commit SHA、push 结果、GitHub Actions run id、run attempt、未加密 artifact 名称/ID/digest 和 Agent C 下载复判结果待补录；本轮不伪造云端验收。
+
+遗留事项：
+
+- 纯 policy 测试、Swift parse 和后续云端 build 不能证明真实筛选输入时序、NavigationSplitView selection/detail 瞬态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或鼠标/触控板/键盘交互，仍需人工验收。
+- v0.76 最终只能以最新 `origin/main` commit 对应的 GitHub Actions 未加密 artifact 为云端验收依据；Agent C 需补录 manifest、JUnit、日志、xcresult、digest 和 ZIP 完整性结果。
 
 ### v0.75 / Markdown 预览 latest-wins 防抖
 

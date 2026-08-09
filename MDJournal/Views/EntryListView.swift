@@ -26,24 +26,18 @@ struct JournalDeletionConfirmationState {
 }
 
 struct EntryListView: View {
-    let entries: [JournalEntry]
+    let overviewSnapshot: JournalListOverviewSnapshot
+    let snapshot: JournalEntryListSnapshot
     @Binding var selection: JournalEntry.ID?
+    @Binding var searchText: String
+    @Binding var selectedCategory: JournalEntry.Category?
     let onCreate: () -> Void
     let onDelete: (JournalEntry) -> Void
     let onShowStatistics: () -> Void
 
-    @State private var searchText = ""
-    @State private var selectedCategory: JournalEntry.Category?
     @State private var deletionConfirmation = JournalDeletionConfirmationState()
 
     var body: some View {
-        let overviewSnapshot = JournalListOverviewSnapshot(entries: entries)
-        let listSnapshot = JournalEntryListSnapshot(
-            entries: entries,
-            searchText: searchText,
-            selectedCategory: selectedCategory
-        )
-
         List(selection: $selection) {
             Section {
                 overviewCard(overviewSnapshot)
@@ -51,19 +45,19 @@ struct EntryListView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
-                categoryFilter(listSnapshot)
+                categoryFilter(snapshot)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
             }
 
             Section {
-                if listSnapshot.filteredEntries.isEmpty {
-                    listEmptyState(listSnapshot)
+                if snapshot.filteredEntries.isEmpty {
+                    listEmptyState(snapshot)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(listSnapshot.filteredEntries) { entry in
+                    ForEach(snapshot.filteredEntries) { entry in
                         EntryRowView(entry: entry, isSelected: selection == entry.id)
                             .tag(entry.id)
                             .listRowSeparator(.hidden)
@@ -86,7 +80,7 @@ struct EntryListView: View {
                         }
                 }
             } header: {
-                Text(listSnapshot.sectionTitle)
+                Text(snapshot.sectionTitle)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }

@@ -87,6 +87,194 @@ final class JournalEntryListSnapshotTests: XCTestCase {
         )
     }
 
+    func testSelectionPolicyRetainsVisibleSelection() {
+        let snapshot = JournalEntryListSnapshot(
+            entries: makeEntries(),
+            searchText: "draft",
+            selectedCategory: nil
+        )
+        let visibleID = snapshot.filteredEntries[0].id
+
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: visibleID,
+                visibleEntries: snapshot.filteredEntries
+            ),
+            visibleID
+        )
+    }
+
+    func testSelectionPolicyMovesHiddenSelectionToFirstVisibleEntry() {
+        let entries = makeEntries()
+        let snapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: "road",
+            selectedCategory: nil
+        )
+
+        XCTAssertEqual(snapshot.filteredEntries.map(\.title), ["Gamma"])
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: entries[0].id,
+                visibleEntries: snapshot.filteredEntries
+            ),
+            snapshot.filteredEntries.first?.id
+        )
+        XCTAssertNotEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: entries[0].id,
+                visibleEntries: snapshot.filteredEntries
+            ),
+            entries[0].id
+        )
+    }
+
+    func testSelectionPolicyReturnsNilForEmptyVisibleEntries() {
+        let entries = makeEntries()
+        let snapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: "does not exist",
+            selectedCategory: nil
+        )
+        let selections: [JournalEntry.ID?] = [nil, entries[0].id, UUID()]
+
+        XCTAssertTrue(snapshot.filteredEntries.isEmpty)
+        for selection in selections {
+            XCTAssertNil(
+                JournalEntrySelectionPolicy.repairedSelection(
+                    currentSelection: selection,
+                    visibleEntries: snapshot.filteredEntries
+                )
+            )
+        }
+    }
+
+    func testFilteredDeleteRepairsSelectionToRemainingVisibleEntry() {
+        let currentEntry = makeEntry(
+            title: "当前日记",
+            body: "当前内容",
+            category: .daily,
+            mood: .calm
+        )
+        let hiddenEntry = makeEntry(
+            title: "隐藏日记",
+            body: "隐藏内容",
+            category: .inspiration,
+            mood: .happy
+        )
+        let remainingEntry = makeEntry(
+            title: "剩余日记",
+            body: "剩余内容",
+            category: .daily,
+            mood: .focused
+        )
+        let entries = [currentEntry, hiddenEntry, remainingEntry]
+        let filteredSnapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: "",
+            selectedCategory: .daily
+        )
+        let entriesAfterDelete = entries.filter { $0.id != currentEntry.id }
+        let snapshotAfterDelete = JournalEntryListSnapshot(
+            entries: entriesAfterDelete,
+            searchText: "",
+            selectedCategory: .daily
+        )
+
+        XCTAssertEqual(filteredSnapshot.filteredEntries.map(\.id), [currentEntry.id, remainingEntry.id])
+        XCTAssertEqual(snapshotAfterDelete.filteredEntries.map(\.id), [remainingEntry.id])
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: currentEntry.id,
+                visibleEntries: snapshotAfterDelete.filteredEntries
+            ),
+            remainingEntry.id
+        )
+        XCTAssertNotEqual(snapshotAfterDelete.filteredEntries.first?.id, hiddenEntry.id)
+
+        let emptyAfterDeleteSnapshot = JournalEntryListSnapshot(
+            entries: [hiddenEntry],
+            searchText: "",
+            selectedCategory: .daily
+        )
+        XCTAssertNil(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: currentEntry.id,
+                visibleEntries: emptyAfterDeleteSnapshot.filteredEntries
+            )
+        )
+    }
+
+    func testFilteredCreateSelectsMatchingNewEntryOrVisibleFirstWhenHidden() {
+        let existingEntry = makeEntry(
+            title: "已有日记",
+            body: "已有内容",
+            category: .daily,
+            mood: .calm
+        )
+        let initialSnapshot = JournalEntryListSnapshot(
+            entries: [existingEntry],
+            searchText: "",
+            selectedCategory: .daily
+        )
+        let matchingNewEntry = makeEntry(
+            title: "新日记",
+            body: "新内容",
+            category: .daily,
+            mood: .focused
+        )
+        let snapshotAfterMatchingCreate = JournalEntryListSnapshot(
+            entries: [matchingNewEntry, existingEntry],
+            searchText: "",
+            selectedCategory: .daily
+        )
+        let hiddenNewEntry = makeEntry(
+            title: "隐藏的新日记",
+            body: "新内容",
+            category: .travel,
+            mood: .happy
+        )
+        let snapshotAfterHiddenCreate = JournalEntryListSnapshot(
+            entries: [hiddenNewEntry, existingEntry],
+            searchText: "",
+            selectedCategory: .daily
+        )
+
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: existingEntry.id,
+                visibleEntries: initialSnapshot.filteredEntries
+            ),
+            existingEntry.id
+        )
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: matchingNewEntry.id,
+                visibleEntries: snapshotAfterMatchingCreate.filteredEntries
+            ),
+            matchingNewEntry.id
+        )
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: hiddenNewEntry.id,
+                visibleEntries: snapshotAfterHiddenCreate.filteredEntries
+            ),
+            existingEntry.id
+        )
+
+        let emptyAfterHiddenCreateSnapshot = JournalEntryListSnapshot(
+            entries: [hiddenNewEntry],
+            searchText: "",
+            selectedCategory: .daily
+        )
+        XCTAssertNil(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: hiddenNewEntry.id,
+                visibleEntries: emptyAfterHiddenCreateSnapshot.filteredEntries
+            )
+        )
+    }
+
     func testBlankSearchReturnsAllEntriesAndCountsCategories() {
         let entries = makeEntries()
 

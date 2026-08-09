@@ -16,13 +16,14 @@ flowchart TD
   User --> CV["ContentView：维护选中日记和导航"]
   Menu --> CV
   Menu --> NavigationCommand["⌘⌥↑ / ⌘⌥↓：读取单一 focused navigation actions"]
-  Store --> NavigationRule["JournalEntryNavigation：按当前新到旧顺序解析相邻 ID，边界不循环"]
+  FilterSnapshot --> NavigationRule["JournalEntryNavigation：只按当前 filteredEntries 顺序解析相邻 ID，边界不循环"]
   NavigationRule --> NavigationActions["ContentView：为可达方向提供 selection-only 闭包，不可达方向为 nil"]
   NavigationActions --> NavigationCommand
   NavigationCommand --> CV
   CV --> NavigationSelection["selectedEntryID 切换；不保存、不改变筛选或焦点"]
   NavigationSelection --> Editor
   CV --> List["EntryListView：列表、搜索、分类筛选、统计入口"]
+  CV --> FilterState["ContentView：搜索文本 + 选中分类"]
   CV --> Editor["EntryEditorView：标题、分类、心情、正文；DatePicker 以隐藏的日记日期 label 编辑 createdAt"]
   Menu --> SnippetCommand["插入 Markdown 命令：focused value 路由到当前编辑器"]
   SnippetCommand --> Editor
@@ -56,8 +57,13 @@ flowchart TD
   Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
   Model --> SectionPresence["JournalSection.containsLevelThreeSection：单向扫描 ### 存在性并早退"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
-  Store --> ListSnapshot["JournalEntryListSnapshot：单次派生搜索、分类筛选、分类计数和集合空状态"]
+  Store --> FilterSnapshot["ContentView：store.entries + 筛选状态 -> JournalEntryListSnapshot"]
+  FilterState --> FilterSnapshot
+  FilterSnapshot --> ListSnapshot["JournalEntryListSnapshot：filteredEntries + 完整 entries 分类计数 + 空状态"]
   ListSnapshot --> List
+  ListSnapshot --> SelectionPolicy["JournalEntrySelectionPolicy：可见保留 / 隐藏切首项 / 空结果 nil"]
+  SelectionPolicy --> NavigationActions
+  SelectionPolicy --> CV
   Store --> ListOverview["JournalListOverviewSnapshot：通过 wordCount + ### 存在性快路径派生概览"]
   ListOverview --> List
   Model --> PreviewRequestCore["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
@@ -100,7 +106,7 @@ flowchart TD
   StarterSnapshot --> Render["SwiftUI 渲染列表和详情"]
   SortA --> Render
   ReadError --> Render
-  Render --> Select["ContentView 选择第一篇或修复选中项"]
+  Render --> Select["ContentView：从当前 filteredEntries 用 selection policy 选择或修复"]
   Select --> Edit{"用户操作类型"}
   Edit -- "新建" --> Create["JournalStore.createEntry 插入默认 ### 模板"]
   Edit -- "编辑" --> Update["JournalStore.update 更新时间并替换日记"]
@@ -191,8 +197,11 @@ flowchart LR
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
-  Entries --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数和集合空状态"]
+  FilterState2["ContentView 筛选状态"] --> ListSnapshot2["JournalEntryListSnapshot：搜索、分类筛选、分类计数和集合空状态"]
+  Entries --> ListSnapshot2
   ListSnapshot2 --> ListView["EntryListView：过滤列表、section 标题、44pt 分类 chip、稳定勾选与 selected 辅助功能语义、空结果恢复"]
+  ListSnapshot2 --> SelectionPolicy2["JournalEntrySelectionPolicy：repair、detail guard、创建删除修复"]
+  SelectionPolicy2 --> ListView
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
   OverviewWordCount --> ListOverview2
   SectionPresence2 --> ListOverview2
@@ -227,7 +236,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.75 按人工要求跳过本机 build/XCTest/app"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.76 跳过本机 build/XCTest/app，覆盖 selection policy 纯测试 parse"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]

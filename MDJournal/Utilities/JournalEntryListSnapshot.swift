@@ -55,6 +55,23 @@ struct JournalEntryListSnapshot: Equatable {
     }
 }
 
+enum JournalEntrySelectionPolicy {
+    static func repairedSelection(
+        currentSelection: JournalEntry.ID?,
+        visibleEntries: [JournalEntry]
+    ) -> JournalEntry.ID? {
+        guard let currentSelection else {
+            return visibleEntries.first?.id
+        }
+
+        if visibleEntries.contains(where: { $0.id == currentSelection }) {
+            return currentSelection
+        }
+
+        return visibleEntries.first?.id
+    }
+}
+
 private extension JournalEntry {
     func matchesListSearch(_ searchQuery: String) -> Bool {
         displayTitle.localizedCaseInsensitiveContains(searchQuery)

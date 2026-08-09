@@ -24,7 +24,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；正文连续变化使用 `150ms` trailing debounce，等待期间保留上一份预览，generation 与日记 ID 共同保证 latest-wins，旧请求不会覆盖新日记或最新正文；正文 binding 仍即时更新，accent、窗口宽度和 Dynamic Type 只重新布局已有结果。解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
 - 日记列表用卡片展示分类、心情、日期、词数和 `###` 小节摘要。
 - 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率；七日趋势在普通 Dynamic Type 下保持七列等分，在 Accessibility Dynamic Type 下使用稳定列宽的水平滚动，词数标签和图表容器可随语义文字自然增高。
-- 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
+- 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。`ContentView` 集中持有筛选状态和 `JournalEntryListSnapshot`，列表、detail、selection repair 以及 Mac Catalyst 较新/较早导航都只消费当前 `filteredEntries`；筛选、Store entries 变化、创建和删除后，隐藏 selection 会切到当前可见首项，可见结果为空则为 `nil`。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
 - 支持选择日记日期、心情、分类和系统分享。
 - iPhone 支持竖屏、横屏左和横屏右。
 - 支持 Mac Catalyst 构建，可在 macOS 上以 Mac app 形态运行同一套本地 JSON 日记数据模型。
@@ -112,7 +112,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、按当前数组顺序非循环切换较新/较早日记的纯导航规则及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.74 artifact 基线为 185 项，v0.75 实际总数以最新 artifact 为准。纯布局契约和预览策略测试不等价于真实 frame、Dynamic Type 渲染、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、`JournalEntrySelectionPolicy` 的可见保留/隐藏切首项/空结果 nil/筛选删除/新建匹配与隐藏规则、基于 `JournalEntryListSnapshot.filteredEntries` 的非循环较新/较早日记导航及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.75 云端基线为 189 项，v0.76 新增 6 项，预期总数为 195 项，最终总数和每项执行结果以最新 artifact 为准。纯 policy 测试、布局契约和预览策略测试不等价于真实 List selection/detail 时序、筛选输入时序、菜单 disabled 视觉、Dynamic Type、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -157,6 +157,7 @@ test -x script/build_and_run.sh
 
 ## 完成记录
 
+- 2026-08-09：v0.76 将筛选状态和 `JournalEntryListSnapshot` 提升到 `ContentView`，列表、详情、selection repair、创建/删除修复和 Mac Catalyst 较新/较早导航统一消费可见 `filteredEntries`；新增纯 `JournalEntrySelectionPolicy` 与筛选删除/新建/导航测试。云端 commit、run、artifact 和 Agent C 复判结果待补录，真实 UI 时序与辅助功能仍需人工验收。
 - 2026-07-26：v0.72 为列表滑动删除和 Mac Catalyst 右键删除增加统一系统确认；待确认状态稳定持有完整日记，确认先单次消费目标再进入既有 Store 删除链路，取消、Esc 或系统关闭只清理状态。
 - 2026-07-26：v0.68 为 Mac Catalyst “日记”菜单增加 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，按 Store 当前新到旧顺序导航，首尾独立禁用且不循环。
 - 2026-07-26：v0.67 优化正文输入直接写回；UIKit 已确认变化的普通输入、Markdown 回车续写和行缩进不再读取旧正文做全文比较，并用三项 Binding 计数测试锁定每次入口 `0 getter / 1 setter`。

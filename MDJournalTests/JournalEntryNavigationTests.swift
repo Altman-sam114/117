@@ -65,6 +65,61 @@ final class JournalEntryNavigationTests: XCTestCase {
         )
     }
 
+    func testFilteredNavigationUsesVisibleSnapshotOrderWithoutHiddenTargets() {
+        let hiddenID = UUID(uuidString: "00000000-0000-0000-0000-000000000004")!
+        let entries = [
+            entry(id: newestID, timestamp: 4, title: "Visible newest"),
+            entry(id: hiddenID, timestamp: 3, title: "Hidden"),
+            entry(id: middleID, timestamp: 2, title: "Visible middle"),
+            entry(id: oldestID, timestamp: 1, title: "Visible oldest")
+        ]
+        let snapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: "visible",
+            selectedCategory: nil
+        )
+
+        XCTAssertEqual(snapshot.filteredEntries.map(\.id), [newestID, middleID, oldestID])
+        XCTAssertEqual(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: middleID,
+                direction: .newer
+            ),
+            newestID
+        )
+        XCTAssertEqual(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: middleID,
+                direction: .older
+            ),
+            oldestID
+        )
+        XCTAssertNil(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: newestID,
+                direction: .newer
+            )
+        )
+        XCTAssertNil(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: oldestID,
+                direction: .older
+            )
+        )
+        XCTAssertNotEqual(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: newestID,
+                direction: .older
+            ),
+            hiddenID
+        )
+    }
+
     func testNavigationCommandMetadataAndShortcuts() {
         XCTAssertEqual(JournalEntryNavigationDirection.allCases, [.newer, .older])
         XCTAssertEqual(JournalEntryNavigationDirection.newer.title, "较新日记")
@@ -112,12 +167,17 @@ final class JournalEntryNavigationTests: XCTestCase {
         ]
     }
 
-    private func entry(id: UUID, timestamp: TimeInterval) -> JournalEntry {
+    private func entry(
+        id: UUID,
+        timestamp: TimeInterval,
+        title: String? = nil,
+        body: String = ""
+    ) -> JournalEntry {
         let date = Date(timeIntervalSince1970: timestamp)
         return JournalEntry(
             id: id,
-            title: id.uuidString,
-            body: "",
+            title: title ?? id.uuidString,
+            body: body,
             createdAt: date,
             updatedAt: date
         )

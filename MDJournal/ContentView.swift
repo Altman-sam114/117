@@ -8,13 +8,18 @@ struct ContentView: View {
 
     @ObservedObject var store: JournalStore
     @State private var selectedEntryID: JournalEntry.ID?
+    @State private var searchText = ""
+    @State private var selectedCategory: JournalEntry.Category?
     @State private var isShowingStatistics = false
 
     var body: some View {
         NavigationSplitView {
             EntryListView(
-                entries: store.entries,
+                overviewSnapshot: overviewSnapshot,
+                snapshot: listSnapshot,
                 selection: $selectedEntryID,
+                searchText: $searchText,
+                selectedCategory: $selectedCategory,
                 onCreate: createEntry,
                 onDelete: deleteEntry,
                 onShowStatistics: showStatistics
@@ -28,8 +33,14 @@ struct ContentView: View {
         }
         .tint(.teal)
         .onAppear(perform: selectInitialEntry)
-        .onChange(of: store.entries) { entries in
-            repairSelection(with: entries)
+        .onChange(of: store.entries) { _ in
+            repairSelection()
+        }
+        .onChange(of: searchText) { _ in
+            repairSelection()
+        }
+        .onChange(of: selectedCategory) { _ in
+            repairSelection()
         }
         .onChange(of: scenePhase) { phase in
             if phase != .active {
@@ -53,14 +64,26 @@ struct ContentView: View {
         }
     }
 
+    private var listSnapshot: JournalEntryListSnapshot {
+        JournalEntryListSnapshot(
+            entries: store.entries,
+            searchText: searchText,
+            selectedCategory: selectedCategory
+        )
+    }
+
+    private var overviewSnapshot: JournalListOverviewSnapshot {
+        JournalListOverviewSnapshot(entries: store.entries)
+    }
+
     private var journalEntryNavigationActions: JournalEntryNavigationActions {
         let newerID = JournalEntryNavigation.destinationID(
-            in: store.entries,
+            in: listSnapshot.filteredEntries,
             selection: selectedEntryID,
             direction: .newer
         )
         let olderID = JournalEntryNavigation.destinationID(
-            in: store.entries,
+            in: listSnapshot.filteredEntries,
             selection: selectedEntryID,
             direction: .older
         )
@@ -76,7 +99,13 @@ struct ContentView: View {
     }
 
     private var selectedEntryBinding: Binding<JournalEntry>? {
-        guard let selectedEntryID, store.entry(with: selectedEntryID) != nil else {
+        guard let selectedEntryID,
+              JournalEntrySelectionPolicy.repairedSelection(
+                  currentSelection: selectedEntryID,
+                  visibleEntries: listSnapshot.filteredEntries
+              ) == selectedEntryID,
+              store.entry(with: selectedEntryID) != nil
+        else {
             return nil
         }
 
@@ -102,7 +131,11 @@ struct ContentView: View {
     }
 
     private func createEntry() {
-        selectedEntryID = store.createEntry()
+        let createdID = store.createEntry()
+        selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
+            currentSelection: createdID,
+            visibleEntries: listSnapshot.filteredEntries
+        )
     }
 
     private func showStatistics() {
@@ -115,19 +148,17 @@ struct ContentView: View {
 
     private func deleteEntry(_ entry: JournalEntry) {
         store.delete(entry)
-        repairSelection(with: store.entries)
+        repairSelection()
     }
 
     private func selectInitialEntry() {
-        guard selectedEntryID == nil else { return }
-        selectedEntryID = store.entries.first?.id
+        repairSelection()
     }
 
-    private func repairSelection(with entries: [JournalEntry]) {
-        if let selectedEntryID, entries.contains(where: { $0.id == selectedEntryID }) {
-            return
-        }
-
-        selectedEntryID = entries.first?.id
+    private func repairSelection() {
+        selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
+            currentSelection: selectedEntryID,
+            visibleEntries: listSnapshot.filteredEntries
+        )
     }
 }

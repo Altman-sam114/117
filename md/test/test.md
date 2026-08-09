@@ -16,6 +16,7 @@
 - `MarkdownSnippetTests` 另覆盖 `EntryEditorAccessibilityContract.journalDateLabel` 精确等于“日记日期”且去空白后非空。该纯常量测试、Swift parse 和云端 build 不证明 `.labelsHidden()` 后的真实 accessibility tree、VoiceOver 日期值朗读、Mac Catalyst focus ring 或 compact picker 交互，这些仍需人工验收。
 - `MarkdownSnippetTests` 另覆盖 `EntryEditorLayoutContract`：`819/820pt × .large/.accessibility1/.accessibility5` 六格矩阵锁定工作区宽屏边界与头部布局彼此独立，普通 `820/.large` 是唯一横向紧凑头部和 `270pt` 统计宽度组合，Accessibility 下元数据、summary、统计 pill 堆叠且标题不限两行；测试同时锁定 `820/270/156pt` 正有限尺寸及小节行数策略。v0.73 artifact 基线为 182 项，v0.74 云端实际总数为 185 项。纯 contract 测试不证明真实 frame、Dynamic Type 像素渲染、`@ScaledMetric` 最终宽度、VoiceOver、focus ring、键盘、鼠标或触控板交互。
 - `MarkdownPreviewTests` 新增 4 项确定性策略测试：首次激活立即发布、正文连续变化的 150ms trailing scheduler、generation/entry ID latest-wins、切换日记或 deactivate 后失效，以及相同正文去重。测试使用手动 scheduler，并断言固定延迟，不使用真实 sleep、轮询、GCD、semaphore 或 detached task；它们只证明预览更新边界，不证明真实 Mac 输入延迟、Instruments 分配、像素排版或帧率。v0.75 预期云端总数高于 185 项，最终以最新 artifact 的 XCTest log / xcresult 为准。
+- v0.76 新增 6 项纯 selection/navigation 测试：`JournalEntrySelectionPolicy` 覆盖 visible retain、hidden -> first visible、empty -> nil、筛选删除后的修复、新建日记匹配/隐藏后的修复，以及把 `JournalEntryListSnapshot.filteredEntries` 传入 `JournalEntryNavigation` 的 filtered navigation。测试直接消费 production policy 和真实列表快照，不使用 SwiftUI host、系统 confirmation dialog、真实菜单、模拟器、截图或 snapshot test；它们不能证明真实筛选输入时序、NavigationSplitView selection/detail 瞬态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或鼠标/触控板/键盘交互。v0.75 云端基线为 189 项，v0.76 预期总数为 195 项，最终以最新 artifact 的 XCTest log / xcresult 为准。
 - `JournalStatisticsTests` 另覆盖 `SevenDayBarChartLayoutContract`：普通 `.large` / `.xxxLarge` 不滚动，`.accessibility1` / `.accessibility5` 使用水平滚动，并锁定 92pt 柱图区、14pt 词数最小高度、134pt 图表最小高度和 56pt Accessibility 列宽。纯契约测试不证明真实文字无裁切、滚动手感、普通字号像素级视觉或 Mac Catalyst 输入设备交互；v0.71 云端预期基线为 164 项 XCTest，最终数量以最新 artifact 为准。
 - `JournalEntryListSnapshotTests` 另覆盖 `JournalDeletionConfirmationState`：请求后稳定持有完整日记与准确标题、dismiss 幂等清理且不产生确认目标、确认目标只能消费一次，以及新请求替换旧请求且不依赖筛选结果回查。v0.72 新增 4 项纯状态测试，云端预期基线为 `168 passed / 0 failed / 0 skipped`；这些测试不证明真实系统对话框视觉、焦点、Esc、点击外部、右键菜单事件或滑动手势，生产接线和平台 API 由 diff 审查及云端 iOS / Mac Catalyst build 间接覆盖，最终数量以最新 artifact 为准。
 - `JournalStoreTests` 在 v0.73 从 5 项重构为 19 项：production writer JSON 字节策略、乱序拒绝、同 revision 幂等、失败重试；starter actor 路径；gate writer 等待期间 MainActor 可运行；手动 scheduler debounce；flush 取消/等待/追赶及无 mutation 不覆写；create/delete 内存即时、在途旧写入与 flush 后磁盘结果；Store 释放不取消已提交 writer 请求；无效删除；旧失败与同 revision 迟到失败仲裁、当前失败重试、读取错误保留和既有排序。gate 在 teardown 中幂等恢复未完成 continuation，测试不使用固定 sleep、轮询、GCD、semaphore、detached task 或真实大文件猜测时序。预期云端总数为 `182 passed / 0 failed / 0 skipped`，最终以最新 artifact 为准；这些测试不替代 Instruments、真实后台挂起、强杀或断电验证。
@@ -293,6 +294,14 @@ v0.75 预览策略专项核对：
 - `MarkdownPreviewTests` 的 4 项测试必须各执行一次并通过；XCTest 总数必须高于 v0.74 的 185 项。JUnit 的 `tests=4` 仍只表示 static / iOS build / Mac Catalyst build / XCTest 四个 workflow stage，不能替代 XCTest 用例总数。
 - static checks、generic iOS build、Mac Catalyst build 和 XCTest 必须 success；三份 xcresult 应存在且分别为 succeeded、0 errors、0 warnings、0 analyzer warnings。
 - Agent C 必须下载未加密 artifact，核对 GitHub digest 与本地 SHA-256、ZIP CRC 和逐文件完整性，并记录下载目录、artifact 名称、ID、run id 与 attempt。
+
+v0.76 列表筛选选择一致性专项核对：
+
+- manifest 的 `version=v0.76`、`branch`、完整 `commitSha`、`runId` 和 `runAttempt` 必须与最新 `origin/main` 和对应 run 完全一致。
+- `JournalEntrySelectionPolicy` 与 filtered navigation 新增测试必须各执行一次并通过，XCTest 总数必须高于 v0.75 的 189 项；JUnit 的 `tests=4` 仍只表示四个 workflow stage，不能替代 XCTest 用例总数。
+- static checks、generic iOS build、Mac Catalyst build 和 XCTest 必须 success；三个可用 `.xcresult` 应存在且分别为 succeeded、0 errors、0 warnings、0 analyzer warnings。
+- Agent C 必须下载未加密 artifact，核对 manifest、JUnit、static/build/Catalyst/test 日志、failure summary、GitHub digest、本地 SHA-256、ZIP CRC 和逐文件完整性；筛选状态、selection policy 与 Store/JSON/Markdown/保存边界的 diff 也必须复审。
+- 纯 policy 测试不能冒充真实 SwiftUI List selection/detail 时序、筛选输入竞态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或输入设备验收。
 
 ## 3. Agent C 下载和复判
 

@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`JournalEntryNavigation` 按 Store 当前新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`ContentView` 持有搜索/分类筛选状态并构造唯一的 `JournalEntryListSnapshot`，`JournalEntrySelectionPolicy` 统一修复可见 selection，列表、详情和 Mac 导航都消费同一份 `filteredEntries`，`JournalEntryNavigation` 按当前可见新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
@@ -45,9 +45,12 @@ JournalEntry.body
   -> 逐行迭代正文，避免预先构造整篇行数组；空白行由水平空白单次扫描识别并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断复用 Substring 切片，flush 后复用临时缓冲容量
   -> MarkdownPreviewView 复用小节分组判断；纯文本片段跳过内联 Markdown 解析，并用索引迭代渲染普通块、列表项或 ### 小节分组预览，其中有序列表保留用户输入编号
 
-[JournalEntry]
-  -> JournalEntryListSnapshot 单次派生列表搜索、分类筛选和分类计数
-  -> EntryListView 列表、section 标题和分类 chip
+[JournalEntry] + ContentView 筛选状态
+  -> ContentView 构造唯一 JournalEntryListSnapshot
+  -> JournalEntryListSnapshot.filteredEntries 单次派生列表搜索和分类筛选；categoryCounts 仍基于完整 entries
+  -> EntryListView 消费父级 snapshot 渲染列表、section 标题和分类 chip
+  -> JournalEntrySelectionPolicy repair/detail guard/创建删除修复使用当前可见结果
+  -> JournalEntryNavigation 只遍历当前 filteredEntries，Mac 菜单不跳转隐藏日记
 
 [JournalEntry]
   -> JournalListOverviewSnapshot 通过 wordCount(in:) 和 containsLevelThreeSection(in:) 轻量派生总篇数、总词数、连续天数和概览洞察
@@ -110,18 +113,18 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 
 ### 2.4 列表、筛选与删除
 
-1. `EntryListView` 接收 `entries` 和 `selection`。
-2. `JournalListOverviewSnapshot` 用 `entries`、`JournalEntryBodyMetrics.wordCount(in:)` 和 `JournalSection.containsLevelThreeSection(in:)` 单轮聚合列表概览卡需要的总篇数、总词数、连续天数和洞察文案；小节存在性扫描遇到首个合法 `### ` 标题便返回，不构造完整统计看板、正文摘要或小节数组。
-3. `JournalEntryListSnapshot` 用当前搜索文本和选中分类对 `entries` 做单次派生。
-4. 搜索文本先 trim，非空时匹配标题、正文、分类、心情。
-5. 分类芯片的 Button label 通过明确文案、稳定勾选槽和 `.isSelected` trait 表达同一选中状态；点击后仍只更新 `selectedCategory` 过滤列表，chip 数量保持基于全部 entries 的分类分布。
-6. `EntryListView` 使用列表快照渲染过滤结果、section 标题和分类计数，使用概览快照渲染顶部概览卡。
-7. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
-8. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
-9. 用户滑动删除或在 Mac Catalyst 下右键删除时，两个入口统一调用 `EntryListView.requestDeletion(of:)`；internal `JournalDeletionConfirmationState` 稳定持有完整 `JournalEntry`，不从筛选结果、selection 或 Store 回查目标。
-10. 列表显示系统 `confirmationDialog`，标题使用待确认目标的 `displayTitle`；取消、Esc、点击外部或系统关闭 presentation 都只清理待确认状态，不调用删除回调。
-11. 用户点击 destructive “删除”后，状态先通过 `consumeConfirmedTarget()` 清空并返回目标，再且仅再调用一次 `ContentView.deleteEntry(_:)`；重复确认不会再次产生目标。
-12. `JournalStore.delete(_:)` 仅在目标存在时同步移除、递增 revision 并绕过 debounce 立即安排 actor 写入；`ContentView.repairSelection` 立即修复选中项，磁盘完成由 async flush/result 确认。
+1. `ContentView` 持有搜索文本、选中分类和由 `store.entries` 派生的唯一 `JournalEntryListSnapshot`，同时生成不参与筛选的 `JournalListOverviewSnapshot`。
+2. `EntryListView` 只消费父级 snapshot、概览 snapshot 和搜索/分类 binding；列表 row tag、section 标题、过滤空状态和分类 chip 均来自同一份 snapshot。
+3. 搜索文本先 trim，非空时匹配标题、正文、分类、心情；分类 chip 数量仍基于完整 entries 的分类分布，点击只更新父级 `selectedCategory`。
+4. `JournalEntrySelectionPolicy.repairedSelection` 是生产和测试共用的纯值规则：当前 ID 在 `filteredEntries` 中则保留，不可见则返回首个可见 ID，可见结果为空则返回 `nil`。
+5. `ContentView` 在初始显示、搜索变化、分类变化和 Store entries 变化时用 policy repair；创建先沿既有 `JournalStore.createEntry()` 修改 Store，再用新 snapshot 让匹配的新 ID 可见，不匹配时回到可见首项或 `nil`。
+6. `selectedEntryBinding` 以同一 policy 对当前 `filteredEntries` 做 detail guard；隐藏 selection 不生成编辑器 binding。普通编辑仍通过原有 binding 回到 `JournalStore.update(_:)`。
+7. 删除入口仍由 `EntryListView.requestDeletion(of:)` 统一进入 confirmation dialog；待确认状态稳定持有完整目标，取消、Esc、外部关闭只清理状态，确认先消费一次目标再调用 `ContentView.deleteEntry(_:)`。
+8. `ContentView.deleteEntry(_:)` 仍只调用 `JournalStore.delete(_:)`，随后用删除后的 filtered snapshot 和 policy 修复 selection；筛选之外仍存在的日记不会被选回。
+9. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
+10. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
+11. `journalEntryNavigationActions` 只把当前 snapshot 的 `filteredEntries` 传给 `JournalEntryNavigation`；较新/较早继续按可见新到旧顺序相邻移动，首尾不循环，只改变 selection，不调用 Store、保存或正文焦点 API。
+12. Store/JSON、保存 debounce/flush/writer、Markdown parser/preview、编辑器正文和删除确认语义均不因筛选或 selection 状态改变。
 
 ### 2.5 Markdown 预览
 
@@ -239,6 +242,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
    - 可用时的 `MDJournalTests.xcresult`
 4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、iOS build destination、Mac Catalyst build destination、test destination、日志路径和各阶段 outcome，其中 `testOutcome` 和 `macCatalystBuildOutcome` 是真实 `success/failure`。
 5. v0.75 额外核对 `MarkdownPreviewTests` 的 4 项测试各执行一次，XCTest 总数高于 v0.74 的 185 项；JUnit 仍只代表 workflow 固定的四阶段摘要，具体 XCTest 总数以 `xctest.log` 或 `MDJournalTests.xcresult` 为准。
+6. v0.76 额外核对 `JournalEntrySelectionPolicy` 和 filtered navigation 新增测试各执行一次，XCTest 总数高于 v0.75 的 189 项；审查 production repair/create/delete/detail/navigation 均消费当前 `filteredEntries`，且不改变 Store/JSON/Markdown/保存语义。
 
 ### 3.6 Agent C 结果包验收
 
@@ -392,10 +396,22 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 禁止：把持久化、复杂统计或 Markdown 解析业务塞进视图。
 
+### 4.15 `JournalEntrySelectionPolicy`
+
+职责：把当前 selection 和当前列表 snapshot 的 `filteredEntries` 转成唯一有效的可见 selection。
+
+输入：可选当前日记 ID、当前 `JournalEntryListSnapshot.filteredEntries`。
+
+输出：可见的当前 ID、可见结果首个 ID，或空结果时的 `nil`。
+
+实现边界：当前 ID 可见时原样保留；不可见时选择可见首项；可见结果为空时无条件返回 `nil`。`ContentView` 的初始 repair、筛选/Store mutation repair、创建、删除和 detail guard，以及纯 XCTest 都必须消费这条规则；`EntryListView` 不维护第二套 selection/filter 状态。
+
+禁止：写入 Store/JSON、触发保存、改变 Markdown 解析或复制一套测试专用 if/else。
+
 ## 5. 关键边界
 
 - 数据层：`JournalStore` + `JournalEntry` + JSON 编解码。
-- 模型/规则层：`JournalEntryBodyMetrics`、`JournalEntryBodySummary`、`JournalEntryListSnapshot`、`JournalListOverviewSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet、`MarkdownSnippetInsertion`、`MarkdownLineContinuation`、`MarkdownLineIndentation` 和 `EditorWritingCommand`。
+- 模型/规则层：`JournalEntryBodyMetrics`、`JournalEntryBodySummary`、`JournalEntryListSnapshot`、`JournalEntrySelectionPolicy`、`JournalListOverviewSnapshot`、`MarkdownBlockParser`、`JournalStatistics`、日期格式化、Markdown snippet、`MarkdownSnippetInsertion`、`MarkdownLineContinuation`、`MarkdownLineIndentation` 和 `EditorWritingCommand`。
 - UI 层：`ContentView`、列表、编辑器、预览、统计、空状态、工具栏。
 - 工程配置：`MDJournal.xcodeproj/project.pbxproj` 控制 target、bundle id、iOS 版本、Mac Catalyst 支持和方向。
 - CI 层：`.github/workflows/ci-results.yml` 负责 main push 后的 iOS build、Mac Catalyst build、XCTest 云端重验证和结果包上传。
@@ -419,7 +435,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 数据层负责本地文件读写和错误上报。
 - 模型层负责兼容解码和派生属性。
 - 规则层负责 Markdown 解析与统计。
-- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、列表快照、列表概览轻量统计快照、Markdown 片段插入规则（含 CR/CRLF、尾随换行、有序编号和 UTF-16 边界）、Markdown 无序列表/待办/引用/有序列表回车续写规则（含空项退出水平空白边界）、Markdown 行缩进规则（含长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
+- 测试层当前包含本地轻量检查、本机可选 Mac Catalyst build、`MDJournalTests` 核心规则、列表快照与 `JournalEntrySelectionPolicy`（含可见保留、隐藏切首项、空结果 nil、筛选删除、新建匹配/隐藏和 filtered navigation）、列表概览轻量统计快照、Markdown 片段插入规则（含 CR/CRLF、尾随换行、有序编号和 UTF-16 边界）、Markdown 无序列表/待办/引用/有序列表回车续写规则（含空项退出水平空白边界）、Markdown 行缩进规则（含长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、写作命令快捷键与 `JournalStore` 写入节流和按需排序 XCTest，以及 GitHub Actions generic iOS build、Mac Catalyst build 和 iOS Simulator XCTest 重验证。
 
 ## 8. 已确认的铁律
 
@@ -427,6 +443,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 编辑过程可以节流提交，但内存状态必须即时更新；所有保存快照由单写者 actor 按 revision 串行编码和原子写盘。应用离开活跃态时异步 flush 并追赶最新 revision，但无后台 lease 时不承诺强杀 durability；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应由 update model 持有单次解析结果，正文变化经过 `150ms` trailing scheduler 合并并以 generation/entry ID latest-wins 发布；同一渲染周期不得重复解析正文，预览结果不进入 Store 或 JSON。
 - 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览只需要小节存在性时必须使用与完整提取等价的 `containsLevelThreeSection(in:)` 快路径，避免构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
+- `ContentView` 必须集中持有搜索/分类筛选状态和 `JournalEntryListSnapshot`；`EntryListView` 只能消费父级 snapshot。列表 row、detail guard、初始/筛选/Store mutation repair、创建、删除和 focused navigation 必须使用同一份 `filteredEntries` 语义，生产和纯测试共同消费 `JournalEntrySelectionPolicy`；可见 selection 保留，隐藏 selection 切可见首项，空结果为 `nil`，Mac 较新/较早导航不能跳到隐藏日记。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。
 - 日记排序按 `createdAt` 倒序。
