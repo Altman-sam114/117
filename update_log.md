@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 新增 4 项 Markdown 预览策略测试，最终总数以最新 artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 当前云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），最终以最新文档 HEAD artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -61,7 +61,9 @@
 - 本地轻量检查通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/MarkdownPreviewTests.swift`、workflow YAML 解析和 `VERSION: v0.75` 搜索均返回 0。Ruby YAML 解析输出本机 `/opt/homebrew/bin` world-writable PATH warning，但仍输出 `yaml ok`。
 - 两名只读 reviewer 和既有 code review 均未发现 Swift 隔离、iOS 16 / Mac Catalyst 13 API、Store/正文/JSON 越界或 latest-wins 逻辑阻断；测试 mock 允许主动触发取消回调以确定性覆盖迟到结果。
 - 本地完整 build、XCTest、模拟器和 app 均未运行，遵循人工要求；完整编译、concurrency warning 和测试执行只交给 GitHub Actions。
-- 当前实现 commit、push 状态、GitHub Actions run、attempt、artifact ID/名称/digest、manifest/JUnit/xcresult 和 Agent C 下载复判结果：待补录。
+- 实现 commit `8b6fcc7d7b6dd519a6816d522827776a0ec9cb89` 已在 `main` 推送到 `origin/main`。对应 GitHub Actions run `31293183509`、attempt `1` 成功；artifact ID `9032161859`，名称 `mdjournal-ci-v0.75-main-8b6fcc7-run31293183509-attempt1`，digest `sha256:02a3104fc5d1fa364b7fa6c55303c70ecf93b90ae334cc48714ce7e27c8f749c`。
+- Agent C 已下载并复判 `/private/tmp/mdjournal-c-review-31293183509/` 的未加密 artifact：manifest 的 `version=v0.75`、`branch=main`、完整 `commitSha`、`runId` 和 `runAttempt` 完全匹配；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`。JUnit 固定四阶段为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 `189 passed / 0 failed / 0 skipped`，4 项 `MarkdownPreviewTests` 各执行一次并通过。
+- `MDJournal.xcresult` 和 `MDJournalMacCatalyst.xcresult` 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；`MDJournalTests.xcresult` 为 Passed，189 passed、0 failures。artifact 为 `428170` bytes，449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC 和逐文件 SHA-256 完整性检查通过。首次实现 artifact 已由 Agent C PASS，但文档收敛 commit 的最新 run/artifact 仍待补录。
 
 遗留事项：
 
