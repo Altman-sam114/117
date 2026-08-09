@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 当前云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），最终以最新文档 HEAD artifact 为准。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 文档 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试）。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -64,11 +64,14 @@
 - 实现 commit `8b6fcc7d7b6dd519a6816d522827776a0ec9cb89` 已在 `main` 推送到 `origin/main`。对应 GitHub Actions run `31293183509`、attempt `1` 成功；artifact ID `9032161859`，名称 `mdjournal-ci-v0.75-main-8b6fcc7-run31293183509-attempt1`，digest `sha256:02a3104fc5d1fa364b7fa6c55303c70ecf93b90ae334cc48714ce7e27c8f749c`。
 - Agent C 已下载并复判 `/private/tmp/mdjournal-c-review-31293183509/` 的未加密 artifact：manifest 的 `version=v0.75`、`branch=main`、完整 `commitSha`、`runId` 和 `runAttempt` 完全匹配；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`。JUnit 固定四阶段为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 `189 passed / 0 failed / 0 skipped`，4 项 `MarkdownPreviewTests` 各执行一次并通过。
 - `MDJournal.xcresult` 和 `MDJournalMacCatalyst.xcresult` 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；`MDJournalTests.xcresult` 为 Passed，189 passed、0 failures。artifact 为 `428170` bytes，449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC 和逐文件 SHA-256 完整性检查通过。首次实现 artifact 已由 Agent C PASS，但文档收敛 commit 的最新 run/artifact 仍待补录。
+- 文档收敛 commit `ab53ff61c2a29664df5e06d7da19edf0ed74deba` 已在 `main` 推送到 `origin/main`。对应 GitHub Actions run `31293672546`、attempt `1` 成功；artifact ID `9032289770`，名称 `mdjournal-ci-v0.75-main-ab53ff6-run31293672546-attempt1`，digest `sha256:a0c842cfcef591111db130f30755428132087f94b3af65245bb7cbf23c6a070c`。
+- Agent C 已下载并复判 `/private/tmp/mdjournal-c-review-31293672546/` 的最新文档 HEAD 未加密 artifact：manifest 的 `version=v0.75`、`branch=main`、完整 `commitSha`、`runId` 和 `runAttempt` 完全匹配；JUnit 为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 `189 passed / 0 failed / 0 skipped`，4 项 `MarkdownPreviewTests` 各执行一次并通过。
+- 该文档 HEAD artifact 的三份 xcresult 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；ZIP 为 `427163` bytes、449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC、解压和逐文件 SHA-256 完整性检查通过。Agent C PASS；本条记录提交会触发新的最终 HEAD run，需继续只验收该最新 run。
 
 遗留事项：
 
 - 单次 Markdown parse 仍在 MainActor 执行；本轮通过 trailing debounce 降低连续输入的触发频率，没有把解析跨 actor 搬运或改变 parser 语义。真实 Mac 长文输入延迟、帧率、Instruments 分配、SwiftUI 生命周期竞态、VoiceOver、Dynamic Type 像素排版和输入设备交互仍需云端结果包之外的人工验收。
-- v0.75 必须只验收最新 `origin/main` commit 对应的未加密 artifact；XCTest 总数须高于 185，4 项预览策略测试各执行一次且通过，JUnit 的四阶段摘要不能替代 XCTest 用例总数。
+- v0.75 最终 HEAD 仍必须只验收最新 `origin/main` commit 对应的未加密 artifact；XCTest 总数须高于 185，4 项预览策略测试各执行一次且通过，JUnit 的四阶段摘要不能替代 XCTest 用例总数。
 
 ### v0.74 / 编辑器头部辅助字号布局
 
