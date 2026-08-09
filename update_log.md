@@ -35,6 +35,33 @@
 
 ## 历史记录
 
+### v0.77 / 正文小节流式派生
+
+日期：2026-08-09
+
+核心变更：
+
+- `JournalSection.extract(from:)` 改为单调 `String.Index`/`Substring` 逐行扫描，不再先用 `components(separatedBy: .newlines)` 物化整篇行数组；仅在标题命中和 section flush 时构造必要的 `String`。
+- 保留 Foundation `.newlines` 的 LF、CR、CRLF、VT、FF、NEL、LS、PS 分隔语义，CRLF 只作为一个换行；继续保留 ASCII 空格/tab marker、空标题 trim、section flush/order/id/markdown/excerpt、EOF/尾随换行和 fenced code 中合法 marker 语义。未改 `containsLevelThreeSection`、Store、JSON、Markdown parser/preview 和 UI。
+- `JournalEntryTests` 新增精确 extraction characterization，断言 count、title、markdown、excerpt、order 和 id，不含耗时或分配阈值。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.77（正文小节流式派生）.md`
+
+验证与交付状态：
+
+- 本轮按人工要求只运行 `git diff --check`、`git diff --cached --check`、Swift parse、workflow YAML、版本搜索和必要 plist 轻量检查；未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
+- 当前记录为待提交、待 push、待 GitHub Actions 和 Agent C artifact 验收；commit SHA、run id、attempt、artifact、digest 与 Agent C 结论不得在结果产生前预填。
+
+遗留事项：
+
+- Swift parse 不能替代云端 generic iOS/Mac Catalyst build 和 XCTest；本地 characterization 不能证明长文真实分配、帧率或设备交互，最终以最新 `origin/main` 对应的未加密 artifact 为准。
+
 ### v0.76 / 列表筛选选择一致性
 
 日期：2026-08-09

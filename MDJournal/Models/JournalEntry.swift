@@ -287,46 +287,82 @@ struct JournalSection: Identifiable, Hashable {
     }
 
     static func extract(from markdown: String) -> [JournalSection] {
-        let lines = markdown.components(separatedBy: .newlines)
         var sections: [JournalSection] = []
         var currentTitle: String?
-        var currentLines: [String] = []
+        var currentLines: [Substring] = []
 
         func flushSection() {
             guard let currentTitle else { return }
+
+            var sectionMarkdown = String()
+            for (index, line) in currentLines.enumerated() {
+                if index > 0 {
+                    sectionMarkdown.append("\n")
+                }
+                sectionMarkdown.append(contentsOf: line)
+            }
+
             sections.append(
                 JournalSection(
                     order: sections.count,
                     title: currentTitle,
-                    markdown: currentLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    markdown: sectionMarkdown.trimmingCharacters(in: .whitespacesAndNewlines)
                 )
             )
-            currentLines.removeAll()
+            currentLines.removeAll(keepingCapacity: true)
         }
 
-        for line in lines {
-            let trimmedLine = line.trimmingLeadingWhitespace()
+        forEachLineComponent(in: markdown) { rawLine in
+            let trimmedLine = rawLine.trimmingLeadingWhitespace()
 
             if trimmedLine.hasPrefix("### ") {
                 flushSection()
                 let sectionTitle = String(trimmedLine.dropFirst(4)).trimmingCharacters(in: .whitespacesAndNewlines)
                 currentTitle = sectionTitle.isEmpty ? "未命名小节" : sectionTitle
-                continue
+                return
             }
 
             if currentTitle != nil {
-                currentLines.append(line)
+                currentLines.append(rawLine)
             }
         }
 
         flushSection()
         return sections
     }
+
+    private static func forEachLineComponent(in markdown: String, _ body: (Substring) -> Void) {
+        var componentStart = markdown.startIndex
+
+        while componentStart < markdown.endIndex,
+              let separatorRange = markdown.rangeOfCharacter(
+                from: .newlines,
+                range: componentStart..<markdown.endIndex
+              ) {
+            body(markdown[componentStart..<separatorRange.lowerBound])
+            componentStart = markdown.indexAfterNewline(at: separatorRange)
+        }
+
+        body(markdown[componentStart..<markdown.endIndex])
+    }
+}
+
+private extension Substring {
+    func trimmingLeadingWhitespace() -> Substring {
+        drop(while: { $0 == " " || $0 == "\t" })
+    }
 }
 
 private extension String {
-    func trimmingLeadingWhitespace() -> String {
-        String(drop(while: { $0 == " " || $0 == "\t" }))
+    func indexAfterNewline(at range: Range<String.Index>) -> String.Index {
+        guard self[range] == "\r",
+              range.upperBound < endIndex,
+              self[range.upperBound] == "\n"
+        else {
+            return range.upperBound
+        }
+
+        return index(after: range.upperBound)
     }
 }
 

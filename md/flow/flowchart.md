@@ -56,6 +56,7 @@ flowchart TD
   JSON --> Store
   Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
   Model --> SectionPresence["JournalSection.containsLevelThreeSection：单向扫描 ### 存在性并早退"]
+  Model --> SectionExtract["JournalSection.extract：String.Index/Substring 逐行派生小节，保留 .newlines 与既有 marker 语义"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
   Store --> FilterSnapshot["ContentView：store.entries + 筛选状态 -> JournalEntryListSnapshot"]
   FilterState --> FilterSnapshot
@@ -236,7 +237,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.76 跳过本机 build/XCTest/app，覆盖 selection policy 纯测试 parse"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.77 跳过本机 build/XCTest/app，覆盖 extraction characterization 的 Swift parse"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]

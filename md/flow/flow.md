@@ -45,6 +45,11 @@ JournalEntry.body
   -> 逐行迭代正文，避免预先构造整篇行数组；空白行由水平空白单次扫描识别并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断复用 Substring 切片，flush 后复用临时缓冲容量
   -> MarkdownPreviewView 复用小节分组判断；纯文本片段跳过内联 Markdown 解析，并用索引迭代渲染普通块、列表项或 ### 小节分组预览，其中有序列表保留用户输入编号
 
+JournalEntry.body
+  -> JournalSection.extract(from:)
+  -> 以单调 String.Index/Substring 逐行扫描，不物化 `.newlines` 行数组；沿用 Foundation `.newlines`，CRLF 合并为一个分隔，section flush 时才 join/trim
+  -> JournalSection[]：保留 ASCII 空格/tab marker、空标题、顺序/id、markdown/excerpt 和 fenced code 中行首 marker 的既有语义
+
 [JournalEntry] + ContentView 筛选状态
   -> ContentView 构造唯一 JournalEntryListSnapshot
   -> JournalEntryListSnapshot.filteredEntries 单次派生列表搜索和分类筛选；categoryCounts 仍基于完整 entries

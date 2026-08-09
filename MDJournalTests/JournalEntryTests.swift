@@ -168,6 +168,75 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(sections[1].excerpt, "还没有内容")
     }
 
+    func testJournalSectionExtractPreservesExactSectionsAcrossNewlineAndMarkerBoundaries() {
+        let cases: [(name: String, body: String, titles: [String], markdown: [String], excerpts: [String])] = [
+            (
+                "LF",
+                "导言\n \t### 第一节\n内容一\n\n内容二\n### 第二节\n",
+                ["第一节", "第二节"],
+                ["内容一\n\n内容二", ""],
+                ["内容一 内容二", "还没有内容"]
+            ),
+            (
+                "CR",
+                "导言\r \t### 第一节\r内容一\r\r内容二\r### 第二节\r",
+                ["第一节", "第二节"],
+                ["内容一\n\n内容二", ""],
+                ["内容一 内容二", "还没有内容"]
+            ),
+            (
+                "CRLF",
+                "导言\r\n \t### 第一节\r\n内容一\r\n\r\n内容二\r\n### 第二节\r\n",
+                ["第一节", "第二节"],
+                ["内容一\n\n内容二", ""],
+                ["内容一 内容二", "还没有内容"]
+            ),
+            (
+                "mixed Foundation newlines",
+                "导言\r\n### A\u{000B}one\u{000C}two\u{0085}### B\u{2028}tail\u{2029}",
+                ["A", "B"],
+                ["one\ntwo", "tail"],
+                ["one two", "tail"]
+            ),
+            (
+                "invalid markers and non-ASCII indentation",
+                "正文\n###没有空格\n###\t非法\n###\u{00A0}非法\n\u{00A0}### 非法\n#### 四级\n \t### 合法\n正文",
+                ["合法"],
+                ["正文"],
+                ["正文"]
+            ),
+            (
+                "empty and consecutive sections",
+                "导言\n### \n###  \n \t\n### 有内容\n\n",
+                ["未命名小节", "未命名小节", "有内容"],
+                ["", "", ""],
+                ["还没有内容", "还没有内容", "还没有内容"]
+            ),
+            (
+                "fenced code remains ordinary text",
+                "```\n### 代码标题\n代码\n```\n### 正文标题\n正文",
+                ["代码标题", "正文标题"],
+                ["代码\n```", "正文"],
+                ["代码", "正文"]
+            )
+        ]
+
+        for testCase in cases {
+            let sections = JournalSection.extract(from: testCase.body)
+
+            XCTAssertEqual(sections.count, testCase.titles.count, "Unexpected count for \(testCase.name)")
+            XCTAssertEqual(sections.map(\.order), Array(testCase.titles.indices), "Unexpected order for \(testCase.name)")
+            XCTAssertEqual(sections.map(\.title), testCase.titles, "Unexpected titles for \(testCase.name)")
+            XCTAssertEqual(sections.map(\.markdown), testCase.markdown, "Unexpected markdown for \(testCase.name)")
+            XCTAssertEqual(sections.map(\.excerpt), testCase.excerpts, "Unexpected excerpts for \(testCase.name)")
+            XCTAssertEqual(
+                sections.map(\.id),
+                zip(testCase.titles.indices, testCase.titles).map { "\($0.0)-\($0.1)" },
+                "Unexpected IDs for \(testCase.name)"
+            )
+        }
+    }
+
     func testContainsLevelThreeSectionMatchesExtractionAcrossBoundaries() {
         let cases: [(name: String, body: String, expected: Bool)] = [
             ("empty", "", false),
