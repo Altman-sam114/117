@@ -56,11 +56,14 @@
 验证与交付状态：
 
 - 本轮按人工要求只运行 `git diff --check`、`git diff --cached --check`、Swift parse、workflow YAML、版本搜索和必要 plist 轻量检查；未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
-- 当前记录为待提交、待 push、待 GitHub Actions 和 Agent C artifact 验收；commit SHA、run id、attempt、artifact、digest 与 Agent C 结论不得在结果产生前预填。
+- 实现 commit `e128d52c499a591d2205fd464d80ba80a9dd2c66` 已在 `main` 推送到 `origin/main`；对应 `MD Journal CI Results` run `31300191066`、attempt `1` 成功，branch 为 `main`。
+- 对应未加密 artifact ID `9034343049`，名称 `mdjournal-ci-v0.77-main-e128d52-run31300191066-attempt1`，size `443241` bytes，GitHub digest 与本地 SHA-256 均为 `sha256:6b44de8ff5b650763f33747924edb38c2e90a3ce367c731099b96f456817e6f0`。
+- manifest 的 version、branch、commitSha、runId、runAttempt 完全匹配；static checks、generic iOS build、Mac Catalyst build 和 XCTest 均为 `success`。JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`；XCTest 为 `196 passed / 0 failed / 0 skipped`，新增 extraction characterization 已执行并通过。
+- Agent C 已下载并核对 artifact：ZIP 共 463 entries，全部未加密，CRC、fresh extract 文件清单和 463 项逐文件 SHA-256 均 PASS；三份 xcresult、failure summary、static/build/Mac Catalyst/XCTest 日志均已核对，Agent C 结论为 PASS。
 
 遗留事项：
 
-- Swift parse 不能替代云端 generic iOS/Mac Catalyst build 和 XCTest；本地 characterization 不能证明长文真实分配、帧率或设备交互，最终以最新 `origin/main` 对应的未加密 artifact 为准。
+- 云端 generic iOS/Mac Catalyst build 和 XCTest 已通过，但 Swift parse、本地 characterization 和云端单元测试不能证明长文真实分配、帧率、VoiceOver 或真实 iOS/Mac 设备交互；本机 build、XCTest、Simulator/CoreSimulator 和 app 均未运行。CI 日志中的 AppIntents metadata warning 与一次 Simulator app launch warning 未影响 XCTest result `Passed`，但仍属于环境级遗留风险。
 
 ### v0.76 / 列表筛选选择一致性
 
