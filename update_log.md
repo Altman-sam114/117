@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 implementation HEAD 云端 artifact 实际为 195 项（新增 6 项 selection/navigation 纯测试）。文档收敛 HEAD 的云端结果待补录。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 实际为 195 项（新增 6 项 selection/navigation 纯测试），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -62,12 +62,12 @@
 - 本地轻量检查通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/JournalEntryListSnapshotTests.swift`、`xcrun swiftc -parse MDJournalTests/JournalEntryNavigationTests.swift`、workflow YAML 解析和 `VERSION: v0.76` 搜索均返回 0；Ruby YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，但仍输出 `yaml ok`。按人工要求不运行本地 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化或截图。
 - implementation HEAD `d3b11c3b63ea4af8d94dfbe1bc4d660766c06627` 对应 GitHub Actions run `31296673536` attempt `1`；未加密 artifact ID `9033210493`，名称 `mdjournal-ci-v0.76-main-d3b11c3-run31296673536-attempt1`，size `437199`，digest `sha256:86755783b134e7b1ee6ad1c2db1b7d20f1b99476ba7b87e7f445ba60c49b425f`。
 - Agent C 已下载并核对 implementation artifact，结论 PASS：`195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次；`MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均 succeeded，errors/warnings/analyzer warnings 均为 `0`。ZIP 共 461 entries、未加密、CRC PASS，fresh extract list 与 ZIP 完全一致；下载工作目录额外存在一个本地 xcresulttool 生成的 `database.sqlite3`，已确认不属于 artifact。
-- 文档收敛提交将触发新的 GitHub Actions run；该新 HEAD 的 run、artifact、digest 和 Agent C 复判目前待补录，不能沿用 implementation artifact 冒充文档 HEAD 结果。本轮不伪造云端验收。
+- 最终文档 HEAD `822843b3af15dc180cb940587c10f372369eb69e`、branch `main` 对应 run `31297334280` attempt `1`；未加密 artifact ID `9033466495`，名称 `mdjournal-ci-v0.76-main-822843b-run31297334280-attempt1`，size `439409`，digest `sha256:7974609e893693967c7e47d848f58be1e132c729bd083fe90bedaa00a54e2fb1`。Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-31297334280/`，结论 PASS：manifest/JUnit/outcomes 通过，`195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次，三份 xcresult succeeded 且 errors/warnings/analyzer warnings 为 0；ZIP 共 461 entries、未加密、CRC PASS，fresh extract 文件清单差异为 0。下载工作目录额外的本地 xcresulttool `database.sqlite3` 不属于 artifact。
 
 遗留事项：
 
 - 纯 policy 测试、Swift parse 和后续云端 build 不能证明真实筛选输入时序、NavigationSplitView selection/detail 瞬态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或鼠标/触控板/键盘交互，仍需人工验收。
-- v0.76 implementation HEAD 已由 Agent C artifact PASS；文档收敛 HEAD 仍只能以其自己的最新 `origin/main` 未加密 artifact 验收，新的 manifest、JUnit、日志、xcresult、digest 和 ZIP 完整性结果待补录。
+- v0.76 implementation artifact 保留为历史实现验证；最终文档 HEAD 已由上述最新 `origin/main` 未加密 artifact PASS，普通 build/XCTest/app 未在本机运行，完整验证仍以该云端结果包为准。
 
 ### v0.75 / Markdown 预览 latest-wins 防抖
 

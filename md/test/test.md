@@ -312,6 +312,7 @@ v0.76 implementation HEAD 结果：
 
 - HEAD `d3b11c3b63ea4af8d94dfbe1bc4d660766c06627` 对应 run `31296673536` attempt `1`，artifact ID `9033210493`，名称 `mdjournal-ci-v0.76-main-d3b11c3-run31296673536-attempt1`，size `437199`，digest `sha256:86755783b134e7b1ee6ad1c2db1b7d20f1b99476ba7b87e7f445ba60c49b425f`。
 - Agent C PASS：`195 passed / 0 failed / 0 skipped`；6 项新增测试各执行一次，三个 xcresult 均 succeeded 且 errors/warnings/analyzer warnings 为 0。ZIP 共 461 entries、未加密、CRC PASS，fresh extract list 与 ZIP 完全一致；下载工作目录另有一个本地 xcresulttool 生成的 `database.sqlite3`，不属于 artifact。
+- 最终文档 HEAD `822843b3af15dc180cb940587c10f372369eb69e`、branch `main` 对应 run `31297334280` attempt `1`，artifact ID `9033466495`，名称 `mdjournal-ci-v0.76-main-822843b-run31297334280-attempt1`，size `439409`，digest `sha256:7974609e893693967c7e47d848f58be1e132c729bd083fe90bedaa00a54e2fb1`。Agent C 已从 `/private/tmp/mdjournal-c-review-31297334280/` 下载并核对 PASS：manifest/JUnit/outcomes 通过，`195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次，三份 xcresult succeeded 且 errors/warnings/analyzer warnings 为 0；ZIP 共 461 entries、未加密、CRC PASS，fresh extract 文件清单差异为 0。下载工作目录中的本地 xcresulttool 生成 `database.sqlite3` 不属于 artifact；普通 build/XCTest/app 未在本机运行。
 - 该结果包只验证 implementation HEAD；文档收敛提交会触发新的 run，不能沿用本 artifact 作为新 HEAD 的云端结果。完整 build/XCTest/app 仍只以 GitHub Actions artifact 为准，本机未运行。
 
 ## 3. Agent C 下载和复判
