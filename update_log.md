@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 文档 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 新增 6 项 selection/navigation 纯测试，预期为 195 项，云端结果待补录。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 implementation HEAD 云端 artifact 实际为 195 项（新增 6 项 selection/navigation 纯测试）。文档收敛 HEAD 的云端结果待补录。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -60,12 +60,14 @@
 验证结果：
 
 - 本地轻量检查通过：`git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/JournalEntryListSnapshotTests.swift`、`xcrun swiftc -parse MDJournalTests/JournalEntryNavigationTests.swift`、workflow YAML 解析和 `VERSION: v0.76` 搜索均返回 0；Ruby YAML 解析伴随本机 `/opt/homebrew/bin` world-writable PATH warning，但仍输出 `yaml ok`。按人工要求不运行本地 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化或截图。
-- 实现 commit SHA、push 结果、GitHub Actions run id、run attempt、未加密 artifact 名称/ID/digest 和 Agent C 下载复判结果待补录；本轮不伪造云端验收。
+- implementation HEAD `d3b11c3b63ea4af8d94dfbe1bc4d660766c06627` 对应 GitHub Actions run `31296673536` attempt `1`；未加密 artifact ID `9033210493`，名称 `mdjournal-ci-v0.76-main-d3b11c3-run31296673536-attempt1`，size `437199`，digest `sha256:86755783b134e7b1ee6ad1c2db1b7d20f1b99476ba7b87e7f445ba60c49b425f`。
+- Agent C 已下载并核对 implementation artifact，结论 PASS：`195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次；`MDJournal.xcresult`、`MDJournalMacCatalyst.xcresult`、`MDJournalTests.xcresult` 均 succeeded，errors/warnings/analyzer warnings 均为 `0`。ZIP 共 461 entries、未加密、CRC PASS，fresh extract list 与 ZIP 完全一致；下载工作目录额外存在一个本地 xcresulttool 生成的 `database.sqlite3`，已确认不属于 artifact。
+- 文档收敛提交将触发新的 GitHub Actions run；该新 HEAD 的 run、artifact、digest 和 Agent C 复判目前待补录，不能沿用 implementation artifact 冒充文档 HEAD 结果。本轮不伪造云端验收。
 
 遗留事项：
 
 - 纯 policy 测试、Swift parse 和后续云端 build 不能证明真实筛选输入时序、NavigationSplitView selection/detail 瞬态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或鼠标/触控板/键盘交互，仍需人工验收。
-- v0.76 最终只能以最新 `origin/main` commit 对应的 GitHub Actions 未加密 artifact 为云端验收依据；Agent C 需补录 manifest、JUnit、日志、xcresult、digest 和 ZIP 完整性结果。
+- v0.76 implementation HEAD 已由 Agent C artifact PASS；文档收敛 HEAD 仍只能以其自己的最新 `origin/main` 未加密 artifact 验收，新的 manifest、JUnit、日志、xcresult、digest 和 ZIP 完整性结果待补录。
 
 ### v0.75 / Markdown 预览 latest-wins 防抖
 
@@ -100,11 +102,13 @@
 - Agent C 已下载并复判 `/private/tmp/mdjournal-c-review-31293672546/` 的最新文档 HEAD 未加密 artifact：manifest 的 `version=v0.75`、`branch=main`、完整 `commitSha`、`runId` 和 `runAttempt` 完全匹配；JUnit 为 `tests=4`、`failures=0`、`errors=0`、`skipped=0`；XCTest 为 `189 passed / 0 failed / 0 skipped`，4 项 `MarkdownPreviewTests` 各执行一次并通过。
 - 该文档 HEAD artifact 的三份 xcresult 均为 `succeeded`，errors/warnings/analyzer warnings 全为 `0`；ZIP 为 `427163` bytes、449 个文件，未加密；GitHub digest 与本地 SHA-256 一致，ZIP CRC、解压和逐文件 SHA-256 完整性检查通过。Agent C PASS。
 - 验收记录提交 `0215feacd27fa01a7369b684b647d62ab3f25efd` 触发的最终 HEAD run 为 `31294463918`、attempt `1`；artifact ID `9032564526`，名称 `mdjournal-ci-v0.75-main-0215fea-run31294463918-attempt1`，digest `sha256:45d6f4c37a20ff6ccb3de2951a7515098ad7310ea294dc2a00d0e7fbc3fcc53b`。Agent C 对该最新 `origin/main` artifact 最终 PASS。
+- v0.75 最终 HEAD `f8a2d934e670a8a969958a2806f04af4bb24451a` 对应 run `31295125221`、attempt `1`；artifact ID `9032726874`，名称 `mdjournal-ci-v0.75-main-f8a2d93-run31295125221-attempt1`，size `425855`，digest `sha256:f40aa954660e4a86b19bfcc51ec140d9c200ece425c56e04c89705a782792efe`。
+- Agent C 已下载并核对 v0.75 最终 HEAD artifact，结论 PASS：`189 passed / 0 failed / 0 skipped`，ZIP 共 449 entries、未加密，CRC 与 manifest match。
 
 遗留事项：
 
 - 单次 Markdown parse 仍在 MainActor 执行；本轮通过 trailing debounce 降低连续输入的触发频率，没有把解析跨 actor 搬运或改变 parser 语义。真实 Mac 长文输入延迟、帧率、Instruments 分配、SwiftUI 生命周期竞态、VoiceOver、Dynamic Type 像素排版和输入设备交互仍需云端结果包之外的人工验收。
-- v0.75 最终 HEAD 仍必须只验收最新 `origin/main` commit 对应的未加密 artifact；XCTest 总数须高于 185，4 项预览策略测试各执行一次且通过，JUnit 的四阶段摘要不能替代 XCTest 用例总数。
+- v0.75 最终 HEAD 已由上述最新未加密 artifact PASS；`189 passed / 0 failed / 0 skipped`，4 项预览策略测试各执行一次且通过，JUnit 的四阶段摘要不能替代 XCTest 用例总数。
 
 ### v0.74 / 编辑器头部辅助字号布局
 
