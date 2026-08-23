@@ -57,7 +57,7 @@
 
 - 本机轻量检查已完成：`git diff --check`、应用和改动测试 Swift `-parse`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow YAML 解析和 `VERSION: v0.78` 搜索均通过；Ruby YAML 解析伴随本机 PATH 权限 warning，不影响 `yaml ok`。未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
 - 实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 已在 `main` 推送；对应 run `32626526380`、attempt `1` 成功。未加密 artifact ID `9489907904`，名称 `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`，size `444220` bytes，GitHub/local SHA-256 均为 `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`。
-- manifest 身份完全匹配；static checks、generic iOS build、Mac Catalyst build、XCTest 均 success；JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`；XCTest 为 `197 passed / 0 failed / 0 skipped`，新增 `testBodyMetricsPreservesWordAndSectionResultsInSharedScan` 已执行并通过。Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-32626526380/`；三份 xcresult 结构完整，ZIP 共 465 entries、未加密，CRC、fresh extract 文件清单和 465 项逐文件 SHA-256 均 PASS。当前 docs-only 收敛 commit 待产生，产生后必须验收新 HEAD。
+- manifest 身份完全匹配；static checks、generic iOS build、Mac Catalyst build、XCTest 均 success；JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`；XCTest 为 `197 passed / 0 failed / 0 skipped`，新增 `testBodyMetricsPreservesWordAndSectionResultsInSharedScan` 已执行并通过。Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-32626526380/`；三份 xcresult 结构完整，ZIP 共 465 entries、未加密，CRC、fresh extract 文件清单和 465 项逐文件 SHA-256 均 PASS。后续 docs-only 提交只收敛这些验收记录，不改变实现和测试内容；最终 HEAD 仍以其对应 CI artifact 为准。
 
 遗留事项：
 
