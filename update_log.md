@@ -15,7 +15,7 @@
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
 - 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 当前相对 v0.85 的源码差异新增 7 项同步状态/接线测试，云端 XCTest 总数应高于 205，实际数量和结果包待 Agent C 核对。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
-- v0.85 docs-close 仅更新文档，最终 docs HEAD、run、attempt、artifact、digest 和最终数量必须以该 HEAD 对应的 Agent C 未加密结果包核对为准，当前不预填任何 docs-close 结果。
+- v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -37,7 +37,7 @@
 
 ## 历史记录
 
-### v0.85 / 列表卡片 Accessibility Dynamic Type 布局（阶段一通过，docs-close 待云端复验）
+### v0.85 / 列表卡片 Accessibility Dynamic Type 布局（实现与 docs-close 均通过）
 
 日期：2026-08-23
 
@@ -61,7 +61,7 @@
 - 实现修复 HEAD 为 `dead07c3b2551b91a3ac335672b1315ca590997f`，branch 为 `main`。阶段一对应 `MD Journal CI Results` run `32645093679`、attempt `1`，artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`，artifact ID `9494746382`，size `456026` bytes，digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`，下载目录 `/private/tmp/mdjournal-c-review-32645093679/`。
 - 阶段一 static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`；JUnit 为 `tests=4 / failures=0 / errors=0 / skipped=0`，XCTest 为 `205/205 passed`，新增布局测试实际执行并通过。Artifact 共 481 项，全部未加密，CRC、fresh extract 和逐文件 SHA-256 均通过。
 - 早期实现 HEAD `e9674cd5c1fd4f82bd7fc93f488315f1bdbc5d01` 的 run `32644620613`、attempt `1` 明确失败，唯一原因是 `JournalEntryListSnapshotTests.swift` 缺少 `import SwiftUI`，导致 `DynamicTypeSize` 无法解析；该失败结果不计为 v0.85 通过。修复只增加测试文件的 `import SwiftUI`，未修改生产布局实现。
-- 本轮 docs-close 只更新 README、测试规范、核心流程、流程图和本更新日志；docs-close HEAD、run、attempt、artifact 名称/ID、size、digest 和最终测试数量尚未产生，必须由后续 GitHub Actions 与 Agent C 对最新 `origin/main` 独立核对，不能复用阶段一 artifact。
+- 本轮 docs-close 只更新 README、测试规范、核心流程、流程图和本更新日志；最终 docs-close HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，对应 run `32646077288`、attempt `1`、artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）；Agent C 已下载并核对，四阶段均为 `success`，XCTest `205/205 passed`，481/481 ZIP entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。阶段一 artifact 不能替代 docs-close artifact。
 
 遗留事项：
 
