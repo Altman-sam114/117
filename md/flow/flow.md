@@ -251,6 +251,8 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 4. manifest 必须记录 `branch`、`commitSha`、`runId`、`runAttempt`、workflow 名称、scheme、iOS build destination、Mac Catalyst build destination、test destination、日志路径和各阶段 outcome，其中 `testOutcome` 和 `macCatalystBuildOutcome` 是真实 `success/failure`。
 5. v0.75 额外核对 `MarkdownPreviewTests` 的 4 项测试各执行一次，XCTest 总数高于 v0.74 的 185 项；JUnit 仍只代表 workflow 固定的四阶段摘要，具体 XCTest 总数以 `xctest.log` 或 `MDJournalTests.xcresult` 为准。
 6. v0.76 额外核对 `JournalEntrySelectionPolicy` 和 filtered navigation 新增测试各执行一次，XCTest 总数高于 v0.75 的 189 项；审查 production repair/create/delete/detail/navigation 均消费当前 `filteredEntries`，且不改变 Store/JSON/Markdown/保存语义。
+7. v0.82 额外核对 `JournalEntryNavigationTests.testFilteredSnapshotDrivesSelectionRepairAndNavigationFromOneVisibleOrder` 与 filtered navigation characterization；XCTest 总数必须高于 v0.81 的 201 项，并审查 `ContentView.body` 的局部 snapshot 复用、事件路径最新 snapshot 和 Binding 不捕获过期 snapshot。
+8. v0.82 实现 HEAD `5f83de061ff4d573ff1b1bb9d3b6fcd8995be22a` 的 run `32636121799` attempt `1` 已由 Agent C PASS：artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249`，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`），`202 passed / 0 failed / 0 skipped`，475 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 通过；docs-only HEAD 必须重新验收自己的 artifact。
 
 ### 3.6 Agent C 结果包验收
 

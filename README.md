@@ -70,7 +70,7 @@ Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Ca
 
 Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_run.sh`。脚本会停止旧的 `MDJournal` 进程、构建 Mac Catalyst Debug app，并启动最新构建产物；该入口用于人工本机开发，自动验收仍以 GitHub Actions 回传结果包为准。
 
-`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.81 云端基线为 `201 passed / 0 failed / 0 skipped`，v0.82 新增列表快照复用的纯行为 characterization，完整结果以最新 GitHub Actions artifact 为准。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
+`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.81 云端基线为 `201 passed / 0 failed / 0 skipped`，v0.82 实现 HEAD 的列表快照复用 characterization 已在云端得到 `202 passed / 0 failed / 0 skipped`。对应未加密 artifact 为 `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249` bytes，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`）；docs-only HEAD 仍须用其自己的最新 artifact 重验。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
 
 ## 验证
 
@@ -163,6 +163,7 @@ test -x script/build_and_run.sh
 
 ## 完成记录
 
+- 2026-08-23：v0.82 让 `ContentView.body` 在同一次评估中只构造一份 `JournalEntryListSnapshot`，共享给列表、detail binding 和 Mac Catalyst 较新/较早导航；创建、删除和 selection repair 事件仍按需生成最新快照，Binding 不捕获过期 snapshot。新增搜索与分类组合的 filtered selection/navigation characterization，隐藏日记不会成为导航目标。实现 HEAD `5f83de061ff4d573ff1b1bb9d3b6fcd8995be22a` 对应 run `32636121799` attempt `1` 的未加密 artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249` bytes，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`）已由 Agent C PASS：`202 passed / 0 failed / 0 skipped`，新增 characterization 实际执行；475 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。docs-only HEAD 的完整云端验收仍需独立进行，真实 SwiftUI 筛选时序、Mac Catalyst 菜单状态、Dynamic Type、VoiceOver、长正文延迟和 Instruments 分配仍需人工/专门验收。
 - 2026-08-23：v0.81 实现 compact/窄屏预览焦点生命周期：进入预览清除正文焦点，现有 `⌘⌥P` 从预览回到编辑时复用正文聚焦入口，Picker 选回编辑保持未聚焦；新增 `EntryEditorFocusPolicy` 纯值契约，并为 `MarkdownBodyTextView` 的异步 first responder 请求加入最新 binding/请求代数门控。实现 HEAD `af6dfccddb266fa2966508b16fdd4df18eaadb9d` 对应 run `32632436582` attempt `1` 的未加密 artifact `mdjournal-ci-v0.81-main-af6dfcc-run32632436582-attempt1`（ID `9491532543`，size `452553` bytes，digest `sha256:037099d690ea27cbccd19f21c8b38a7f97ff1601eae3534a5ef3c763fb5e78bd`）已由 Agent C PASS：`201 passed / 0 failed / 0 skipped`，473 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；远端 Simulator `FBSOpenApplicationServiceErrorDomain` 启动 warning 不影响 `TEST SUCCEEDED`。真实 first responder、IME、VoiceOver、输入设备交互和帧率仍需人工验收。
 
 - 2026-08-23：v0.78 将 `JournalEntryBodyMetrics` 的词数和完整 `###` 小节派生收敛到模型层共享单次正文扫描；保留 v0.77 的换行、marker、trim、EOF、fenced code 和旧词数语义，新增精确 metrics characterization。实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 对应 run `32626526380` attempt `1` 的未加密 artifact `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`（ID `9489907904`，size `444220`，digest `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`）已由 Agent C PASS：`197 passed / 0 failed / 0 skipped`，新增 shared metrics 测试执行通过，465 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app。

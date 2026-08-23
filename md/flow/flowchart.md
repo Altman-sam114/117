@@ -275,6 +275,8 @@ flowchart TD
 
 读图说明：Agent C 不能只看文字汇报，必须下载最新 `origin/main` 对应 run 的 artifact，并核对结果包里的机器可读信息。
 
+当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。docs-only HEAD 仍必须使用自己的最新 run 和 artifact。
+
 ```mermaid
 flowchart LR
   OriginMain["origin/main 最新 commit"] --> Run["GitHub Actions 最新 run"]
