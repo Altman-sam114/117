@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -56,7 +56,8 @@
 验证与交付状态：
 
 - 本机轻量检查已完成：`git diff --check`、应用和改动测试 Swift `-parse`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow YAML 解析和 `VERSION: v0.78` 搜索均通过；Ruby YAML 解析伴随本机 PATH 权限 warning，不影响 `yaml ok`。未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
-- 实现、commit、push、GitHub Actions run/attempt、artifact、digest 和 Agent C 结论待产生后补录；不得用本地 parse 或旧 v0.77 artifact 代替本轮结果。
+- 实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 已在 `main` 推送；对应 run `32626526380`、attempt `1` 成功。未加密 artifact ID `9489907904`，名称 `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`，size `444220` bytes，GitHub/local SHA-256 均为 `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`。
+- manifest 身份完全匹配；static checks、generic iOS build、Mac Catalyst build、XCTest 均 success；JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`；XCTest 为 `197 passed / 0 failed / 0 skipped`，新增 `testBodyMetricsPreservesWordAndSectionResultsInSharedScan` 已执行并通过。Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-32626526380/`；三份 xcresult 结构完整，ZIP 共 465 entries、未加密，CRC、fresh extract 文件清单和 465 项逐文件 SHA-256 均 PASS。当前 docs-only 收敛 commit 待产生，产生后必须验收新 HEAD。
 
 遗留事项：
 
