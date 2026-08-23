@@ -4,7 +4,7 @@
 
 ## 核心逻辑图
 
-读图说明：从左到右看，用户在 SwiftUI 界面操作日记；状态变化进入 `JournalStore`；数据保存到本地 JSON；同一份日记数据再派生出列表、编辑器、预览和统计。图中每个节点都对应当前项目里的真实模块。
+读图说明：从左到右看，用户在 SwiftUI 界面操作日记；状态变化进入 `JournalStore`；数据保存到本地 JSON；同一份日记数据再派生出列表、编辑器、预览和统计。`ContentView.body` 同一次评估只构造一份列表快照并显式分发给列表、detail guard 和导航 actions，事件路径再按需生成最新快照。图中每个节点都对应当前项目里的真实模块。
 
 ```mermaid
 flowchart TD
@@ -16,7 +16,7 @@ flowchart TD
   User --> CV["ContentView：维护选中日记和导航"]
   Menu --> CV
   Menu --> NavigationCommand["⌘⌥↑ / ⌘⌥↓：读取单一 focused navigation actions"]
-  FilterSnapshot --> NavigationRule["JournalEntryNavigation：只按当前 filteredEntries 顺序解析相邻 ID，边界不循环"]
+  BodySnapshot --> NavigationRule["JournalEntryNavigation：只按当前 filteredEntries 顺序解析相邻 ID，边界不循环"]
   NavigationRule --> NavigationActions["ContentView：为可达方向提供 selection-only 闭包，不可达方向为 nil"]
   NavigationActions --> NavigationCommand
   NavigationCommand --> CV
@@ -61,9 +61,12 @@ flowchart TD
   Model --> OverviewMetrics["JournalEntryOverviewMetrics：一次 Character/Unicode scalar 扫描派生词数 + ### 存在性，不构造 sections"]
   Model --> SectionExtract["JournalSection.extract：String.Index/Substring 逐行派生小节，保留 .newlines 与既有 marker 语义"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
-  Store --> FilterSnapshot["ContentView：store.entries + 筛选状态 -> JournalEntryListSnapshot"]
+  Store --> FilterSnapshot["ContentView：store.entries + 筛选状态"]
   FilterState --> FilterSnapshot
-  FilterSnapshot --> ListSnapshot["JournalEntryListSnapshot：filteredEntries + 完整 entries 分类计数 + 空状态"]
+  FilterSnapshot --> BodySnapshot["ContentView.body 局部 JournalEntryListSnapshot：同一次评估只构造一次"]
+  BodySnapshot --> ListSnapshot["JournalEntryListSnapshot：filteredEntries + 完整 entries 分类计数 + 空状态"]
+  BodySnapshot --> DetailBinding["selectedEntryBinding(using:)：只用快照做 detail guard，Binding getter/setter 仍读写 Store"]
+  BodySnapshot --> NavigationActions
   ListSnapshot --> List
   ListSnapshot --> SelectionPolicy["JournalEntrySelectionPolicy：可见保留 / 隐藏切首项 / 空结果 nil"]
   SelectionPolicy --> NavigationActions

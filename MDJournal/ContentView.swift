@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var isShowingStatistics = false
 
     var body: some View {
+        let listSnapshot = makeListSnapshot()
+
         NavigationSplitView {
             EntryListView(
                 overviewSnapshot: overviewSnapshot,
@@ -32,7 +34,7 @@ struct ContentView: View {
             )
             #endif
         } detail: {
-            if let entryBinding = selectedEntryBinding {
+            if let entryBinding = selectedEntryBinding(using: listSnapshot) {
                 EntryEditorView(entry: entryBinding)
             } else {
                 EmptyStateView(onCreate: createEntry)
@@ -61,7 +63,10 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.createJournalEntryAction, createEntry)
         .focusedSceneValue(\.showJournalStatisticsAction, showStatistics)
-        .focusedSceneValue(\.journalEntryNavigationActions, journalEntryNavigationActions)
+        .focusedSceneValue(
+            \.journalEntryNavigationActions,
+            journalEntryNavigationActions(using: listSnapshot)
+        )
         .alert("无法保存日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {
                 store.dismissError()
@@ -71,7 +76,7 @@ struct ContentView: View {
         }
     }
 
-    private var listSnapshot: JournalEntryListSnapshot {
+    private func makeListSnapshot() -> JournalEntryListSnapshot {
         JournalEntryListSnapshot(
             entries: store.entries,
             searchText: searchText,
@@ -83,7 +88,9 @@ struct ContentView: View {
         JournalListOverviewSnapshot(entries: store.entries)
     }
 
-    private var journalEntryNavigationActions: JournalEntryNavigationActions {
+    private func journalEntryNavigationActions(
+        using listSnapshot: JournalEntryListSnapshot
+    ) -> JournalEntryNavigationActions {
         let newerID = JournalEntryNavigation.destinationID(
             in: listSnapshot.filteredEntries,
             selection: selectedEntryID,
@@ -105,7 +112,9 @@ struct ContentView: View {
         )
     }
 
-    private var selectedEntryBinding: Binding<JournalEntry>? {
+    private func selectedEntryBinding(
+        using listSnapshot: JournalEntryListSnapshot
+    ) -> Binding<JournalEntry>? {
         guard let selectedEntryID,
               JournalEntrySelectionPolicy.repairedSelection(
                   currentSelection: selectedEntryID,
@@ -141,7 +150,7 @@ struct ContentView: View {
         let createdID = store.createEntry()
         selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
             currentSelection: createdID,
-            visibleEntries: listSnapshot.filteredEntries
+            visibleEntries: makeListSnapshot().filteredEntries
         )
     }
 
@@ -165,7 +174,7 @@ struct ContentView: View {
     private func repairSelection() {
         selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
             currentSelection: selectedEntryID,
-            visibleEntries: listSnapshot.filteredEntries
+            visibleEntries: makeListSnapshot().filteredEntries
         )
     }
 }

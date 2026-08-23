@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.81
+      VERSION: v0.82
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS

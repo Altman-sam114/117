@@ -14,8 +14,8 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
-- `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 新增 1 项列表快照复用 characterization，云端结果待 Agent C 核对。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 
@@ -34,6 +34,32 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.82 / ContentView 列表快照复用
+
+日期：2026-08-23
+
+核心变更：
+
+- `ContentView.body` 通过局部 `JournalEntryListSnapshot` 让 `EntryListView`、`selectedEntryBinding(using:)` 和 `journalEntryNavigationActions(using:)` 在同一次评估中共享 `filteredEntries`，消除原先列表、detail guard 与两个导航方向的重复列表遍历。
+- 创建、删除和 selection repair 事件继续通过 `makeListSnapshot()` 按需取得最新状态；Binding getter/setter 不捕获过期快照，不改变 Store、JSON、搜索、分类计数、selection、导航、Markdown、焦点或窗口语义。
+- `JournalEntryNavigationTests` 新增搜索与分类组合的纯 characterization，锁定同一可见顺序下的 selection 保留/失效修复以及较新/较早目标，隐藏日记不进入导航。
+
+关键文件：
+
+- `MDJournal/ContentView.swift`
+- `MDJournalTests/JournalEntryNavigationTests.swift`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `.github/workflows/ci-results.yml`、`md/prompt/v0（性能优化）/v0.82（ContentView列表快照复用）.md`
+
+验证与交付状态：
+
+- Agent B 仅计划执行 `git diff --check`、`git diff --cached --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与测试 Swift `-parse`、workflow YAML 解析和 `VERSION: v0.82`/符号搜索；禁止本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化、截图、Instruments 和性能脚本。
+- 本记录由 Agent B 在 push 前维护；commit SHA、GitHub Actions run/attempt、artifact 名称、digest、测试数量和结果包完整性须由 Agent C 只对最新 `origin/main` 结果包补录，当前待云端验收。
+
+遗留事项：
+
+- 局部复用只覆盖单次 SwiftUI `body` 评估，不承诺跨评估缓存、固定帧率或真实长正文搜索延迟；真实 Mac Catalyst UI、VoiceOver、输入设备与 Instruments 分配仍需人工/专门性能验收。
 
 ### v0.81 / 预览焦点生命周期
 

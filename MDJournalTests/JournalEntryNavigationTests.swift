@@ -120,6 +120,53 @@ final class JournalEntryNavigationTests: XCTestCase {
         )
     }
 
+    func testFilteredSnapshotDrivesSelectionRepairAndNavigationFromOneVisibleOrder() {
+        let hiddenID = UUID(uuidString: "00000000-0000-0000-0000-000000000004")!
+        let entries = [
+            entry(id: newestID, timestamp: 4, title: "工作最新", body: "工作记录", category: .daily),
+            entry(id: hiddenID, timestamp: 3, title: "旅行记录", body: "工作记录", category: .travel),
+            entry(id: middleID, timestamp: 2, title: "工作中间", body: "工作记录", category: .daily),
+            entry(id: oldestID, timestamp: 1, title: "工作最早", body: "工作记录", category: .daily)
+        ]
+        let snapshot = JournalEntryListSnapshot(
+            entries: entries,
+            searchText: "工作",
+            selectedCategory: .daily
+        )
+
+        XCTAssertEqual(snapshot.filteredEntries.map(\.id), [newestID, middleID, oldestID])
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: middleID,
+                visibleEntries: snapshot.filteredEntries
+            ),
+            middleID
+        )
+        XCTAssertEqual(
+            JournalEntrySelectionPolicy.repairedSelection(
+                currentSelection: UUID(uuidString: "00000000-0000-0000-0000-000000000099"),
+                visibleEntries: snapshot.filteredEntries
+            ),
+            newestID
+        )
+        XCTAssertEqual(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: middleID,
+                direction: .newer
+            ),
+            newestID
+        )
+        XCTAssertEqual(
+            JournalEntryNavigation.destinationID(
+                in: snapshot.filteredEntries,
+                selection: middleID,
+                direction: .older
+            ),
+            oldestID
+        )
+    }
+
     func testNavigationCommandMetadataAndShortcuts() {
         XCTAssertEqual(JournalEntryNavigationDirection.allCases, [.newer, .older])
         XCTAssertEqual(JournalEntryNavigationDirection.newer.title, "较新日记")
@@ -171,7 +218,8 @@ final class JournalEntryNavigationTests: XCTestCase {
         id: UUID,
         timestamp: TimeInterval,
         title: String? = nil,
-        body: String = ""
+        body: String = "",
+        category: JournalEntry.Category = .daily
     ) -> JournalEntry {
         let date = Date(timeIntervalSince1970: timestamp)
         return JournalEntry(
@@ -179,7 +227,8 @@ final class JournalEntryNavigationTests: XCTestCase {
             title: title ?? id.uuidString,
             body: body,
             createdAt: date,
-            updatedAt: date
+            updatedAt: date,
+            category: category
         )
     }
 }

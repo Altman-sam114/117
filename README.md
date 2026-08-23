@@ -27,7 +27,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；正文连续变化使用 `150ms` trailing debounce，等待期间保留上一份预览，generation 与日记 ID 共同保证 latest-wins，旧请求不会覆盖新日记或最新正文；正文 binding 仍即时更新，accent、窗口宽度和 Dynamic Type 只重新布局已有结果。解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
 - 日记列表用卡片展示分类、心情、日期、词数和 `###` 小节摘要。
 - 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率；七日趋势在普通 Dynamic Type 下保持七列等分，在 Accessibility Dynamic Type 下使用稳定列宽的水平滚动，词数标签和图表容器可随语义文字自然增高。
-- 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。`ContentView` 集中持有筛选状态和 `JournalEntryListSnapshot`，列表、detail、selection repair 以及 Mac Catalyst 较新/较早导航都只消费当前 `filteredEntries`；筛选、Store entries 变化、创建和删除后，隐藏 selection 会切到当前可见首项，可见结果为空则为 `nil`。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
+- 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。`ContentView` 集中持有筛选状态，并在同一次 `body` 评估中只构造一份 `JournalEntryListSnapshot`，显式传给列表、detail binding 和 Mac Catalyst 较新/较早导航；创建、删除和 selection repair 等事件路径按需生成最新快照，不做跨评估缓存。列表、detail、selection repair 以及导航都只消费当前 `filteredEntries`；筛选、Store entries 变化、创建和删除后，隐藏 selection 会切到当前可见首项，可见结果为空则为 `nil`。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
 - 支持选择日记日期、心情、分类和系统分享。
 - iPhone 支持竖屏、横屏左和横屏右。
 - 支持 Mac Catalyst 构建，可在 macOS 上以 Mac app 形态运行同一套本地 JSON 日记数据模型。
@@ -70,7 +70,7 @@ Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Ca
 
 Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_run.sh`。脚本会停止旧的 `MDJournal` 进程、构建 Mac Catalyst Debug app，并启动最新构建产物；该入口用于人工本机开发，自动验收仍以 GitHub Actions 回传结果包为准。
 
-`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.80 云端基线为 `199 passed / 0 failed / 0 skipped`。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
+`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.81 云端基线为 `201 passed / 0 failed / 0 skipped`，v0.82 新增列表快照复用的纯行为 characterization，完整结果以最新 GitHub Actions artifact 为准。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
 
 ## 验证
 
