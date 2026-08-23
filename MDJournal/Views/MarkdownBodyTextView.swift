@@ -8,26 +8,33 @@ enum MarkdownBodyTextViewSyncDecision: Equatable {
 }
 
 struct MarkdownBodyTextViewSyncState {
-    private var pendingLocalSelection: NSRange?
+    private struct LocalPublication: Equatable {
+        let body: String
+        let selectedRange: NSRange
+    }
 
-    mutating func markLocalPublication(selectedRange: NSRange) {
-        pendingLocalSelection = selectedRange
+    private var pendingLocalPublication: LocalPublication?
+
+    mutating func markLocalPublication(body: String, selectedRange: NSRange) {
+        pendingLocalPublication = LocalPublication(body: body, selectedRange: selectedRange)
     }
 
     mutating func decision(
-        for selectedRange: NSRange,
+        for body: String,
+        selectedRange: NSRange,
         hasMarkedText: Bool
     ) -> MarkdownBodyTextViewSyncDecision {
         guard !hasMarkedText else {
             return .deferMarkedText
         }
 
-        guard let pendingLocalSelection else {
+        guard let pendingLocalPublication else {
             return .synchronizeBodyAndSelection
         }
 
-        self.pendingLocalSelection = nil
-        guard pendingLocalSelection == selectedRange else {
+        self.pendingLocalPublication = nil
+        guard pendingLocalPublication.body == body,
+              pendingLocalPublication.selectedRange == selectedRange else {
             return .synchronizeBodyAndSelection
         }
 
@@ -74,7 +81,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
         let hasMarkedText = textView.markedTextRange != nil
         let syncDecision = context.coordinator.syncState.decision(
-            for: selectedRange,
+            for: text,
+            selectedRange: selectedRange,
             hasMarkedText: hasMarkedText
         )
 
@@ -156,7 +164,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             textView.selectedRange = result.selectedRange
             publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
-            recordLocalPublication(selectedRange: result.selectedRange)
+            recordLocalPublication(body: result.body, selectedRange: result.selectedRange)
             return false
         }
 
@@ -179,18 +187,17 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             textView.selectedRange = result.selectedRange
             publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
-            recordLocalPublication(selectedRange: result.selectedRange)
+            recordLocalPublication(body: result.body, selectedRange: result.selectedRange)
         }
 
         func textViewDidChange(_ textView: UITextView) {
             publishText(textView.text)
             updateSelectedRangeIfNeeded(textView.selectedRange)
-            recordLocalPublication(selectedRange: textView.selectedRange)
+            recordLocalPublication(body: textView.text, selectedRange: textView.selectedRange)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
             updateSelectedRangeIfNeeded(textView.selectedRange)
-            recordLocalPublication(selectedRange: textView.selectedRange)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
@@ -217,9 +224,9 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             }
         }
 
-        private func recordLocalPublication(selectedRange: NSRange) {
+        private func recordLocalPublication(body: String, selectedRange: NSRange) {
             guard !isApplyingSwiftUISynchronization else { return }
-            syncState.markLocalPublication(selectedRange: selectedRange)
+            syncState.markLocalPublication(body: body, selectedRange: selectedRange)
         }
     }
 

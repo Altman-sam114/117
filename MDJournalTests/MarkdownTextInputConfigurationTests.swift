@@ -4,34 +4,52 @@ import XCTest
 @testable import MDJournal
 
 final class MarkdownTextInputConfigurationTests: XCTestCase {
+    func testMarkdownBodyTextViewSyncStateNeedsBodyPublicationForFastPath() {
+        var state = MarkdownBodyTextViewSyncState()
+        let body = "正文"
+        let changedSelection = NSRange(location: 2, length: 0)
+
+        XCTAssertEqual(
+            state.decision(
+                for: body,
+                selectedRange: changedSelection,
+                hasMarkedText: false
+            ),
+            .synchronizeBodyAndSelection
+        )
+    }
+
     func testMarkdownBodyTextViewSyncStateUsesOneShotLocalPublicationFastPath() {
         var state = MarkdownBodyTextViewSyncState()
+        let body = "本地正文"
         let selection = NSRange(location: 8, length: 0)
 
         XCTAssertEqual(
-            state.decision(for: selection, hasMarkedText: false),
+            state.decision(for: body, selectedRange: selection, hasMarkedText: false),
             .synchronizeBodyAndSelection
         )
 
-        state.markLocalPublication(selectedRange: selection)
+        state.markLocalPublication(body: body, selectedRange: selection)
 
         XCTAssertEqual(
-            state.decision(for: selection, hasMarkedText: false),
+            state.decision(for: body, selectedRange: selection, hasMarkedText: false),
             .keepLocalPublication
         )
         XCTAssertEqual(
-            state.decision(for: selection, hasMarkedText: false),
+            state.decision(for: body, selectedRange: selection, hasMarkedText: false),
             .synchronizeBodyAndSelection
         )
     }
 
     func testMarkdownBodyTextViewSyncStateRejectsMismatchedExternalSelection() {
         var state = MarkdownBodyTextViewSyncState()
-        state.markLocalPublication(selectedRange: NSRange(location: 8, length: 0))
+        let body = "本地正文"
+        state.markLocalPublication(body: body, selectedRange: NSRange(location: 8, length: 0))
 
         XCTAssertEqual(
             state.decision(
-                for: NSRange(location: 2, length: 1),
+                for: body,
+                selectedRange: NSRange(location: 2, length: 1),
                 hasMarkedText: false
             ),
             .synchronizeBodyAndSelection
@@ -40,16 +58,57 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
 
     func testMarkdownBodyTextViewSyncStateDefersMarkedTextWithoutConsumingLocalPublication() {
         var state = MarkdownBodyTextViewSyncState()
+        let body = "本地正文"
         let selection = NSRange(location: 8, length: 0)
-        state.markLocalPublication(selectedRange: selection)
+        state.markLocalPublication(body: body, selectedRange: selection)
 
         XCTAssertEqual(
-            state.decision(for: selection, hasMarkedText: true),
+            state.decision(for: body, selectedRange: selection, hasMarkedText: true),
             .deferMarkedText
         )
         XCTAssertEqual(
-            state.decision(for: selection, hasMarkedText: false),
+            state.decision(for: body, selectedRange: selection, hasMarkedText: false),
             .keepLocalPublication
+        )
+    }
+
+    func testMarkdownBodyTextViewSyncStateRejectsDifferentBodyWithMatchingSelection() {
+        var state = MarkdownBodyTextViewSyncState()
+        let selection = NSRange(location: 8, length: 0)
+        state.markLocalPublication(body: "本地正文", selectedRange: selection)
+
+        XCTAssertEqual(
+            state.decision(
+                for: "外部正文",
+                selectedRange: selection,
+                hasMarkedText: false
+            ),
+            .synchronizeBodyAndSelection
+        )
+    }
+
+    func testTextViewDidChangeSelectionDoesNotCreateBodyFastPath() {
+        let textProbe = BindingProbe(value: "正文")
+        let selectionProbe = BindingProbe(value: NSRange(location: 0, length: 0))
+        let focusProbe = BindingProbe(value: false)
+        let coordinator = MarkdownBodyTextView.Coordinator(
+            text: textProbe.binding,
+            selectedRange: selectionProbe.binding,
+            isFocused: focusProbe.binding
+        )
+        let textView = UITextView()
+        textView.text = textProbe.value
+        textView.selectedRange = NSRange(location: 2, length: 0)
+
+        coordinator.textViewDidChangeSelection(textView)
+
+        XCTAssertEqual(
+            coordinator.syncState.decision(
+                for: textView.text,
+                selectedRange: textView.selectedRange,
+                hasMarkedText: false
+            ),
+            .synchronizeBodyAndSelection
         )
     }
 
@@ -72,7 +131,8 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
 
         XCTAssertEqual(
             coordinator.syncState.decision(
-                for: updatedRange,
+                for: updatedText,
+                selectedRange: updatedRange,
                 hasMarkedText: false
             ),
             .keepLocalPublication
