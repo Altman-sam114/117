@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 当前处于实现阶段，新增 1 项摘要共享扫描 characterization，云端 run/artifact 尚未生成，最终 docs-close HEAD 仍须使用自己的最新 artifact 重验。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现 HEAD 第一阶段云端 artifact 为 204 项（新增 1 项摘要共享扫描 characterization），已由 Agent C PASS，docs-close HEAD 仍须使用自己的最新 artifact 重验。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -56,7 +56,7 @@
 验证与交付状态：
 
 - Agent B 已按本轮限制执行同步、源码/测试/文档边界检查和允许的轻量检查；未运行本机 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、Mac Catalyst App、UI 自动化、截图、Instruments 或性能脚本。
-- 当前 v0.84 实现 commit、push 结果、GitHub Actions run、attempt、artifact、digest、XCTest 数量和 ZIP 完整性暂不填充；这些字段必须由 Agent C 针对 push 后最新 `origin/main` 下载并核对的未加密 artifact 提供，旧 v0.83 artifact 不可复用。
+- 实现 HEAD `38885bb078f945ebeac65a5d9c17902ec088c678` 已 push 到 `origin/main`；对应 run `32641923529`、attempt `1` 的 artifact `mdjournal-ci-v0.84-main-38885bb-run32641923529-attempt1`（ID `9493893598`、size `454188` bytes、digest `sha256:84c00a40530ccaecbe0131a62ff1623ff1ce7a91e9fb77089ed2d664a134a132`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32641923529/` 下载并 PASS。Manifest、四阶段 outcome、JUnit `4/0/0/0`、两份 build summary、测试 summary `204 passed / 0 failed / 0 skipped`、新增 characterization、479 项未加密 ZIP、CRC、fresh extract、下载清单和逐文件 SHA-256 均核对通过；docs-only 提交会触发最终 HEAD 的独立 run，不能复用本 artifact。
 
 遗留事项：
 
