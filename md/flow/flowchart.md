@@ -34,7 +34,11 @@ flowchart TD
   FocusPolicy --> BodyTextView
   Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；已确认输入直接单次发布正文，外部正文按差异同步，最新 binding/请求代数门控异步焦点，选区/焦点按需写回；承载 Tab / Shift-Tab"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；本地已发布正文/选区由 Coordinator 一次性状态门控快速路径，外部正文或状态不匹配时按差异同步，marked text 延迟覆盖，最新 binding/请求代数门控异步焦点，承载 Tab / Shift-Tab"]
+  BodyTextView --> BodySyncState["Coordinator sync state：记录本地发布选区，只消费一次匹配 bridge 更新"]
+  BodySyncState --> LocalFastPath["匹配且非 marked：保留 UIKit 正文/选区，跳过重复比较与 UTF-16 clamp"]
+  BodySyncState --> ExternalBodySync["初始、选区不匹配或已消费：正文差异同步与 UTF-16 clamp"]
+  BodySyncState --> MarkedTextDefer["marked text：延迟外部覆盖，保留组合输入"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，空项非分配水平空白判断，单次扫描 fenced code 状态"]
@@ -186,7 +190,7 @@ flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：共享单次扫描派生非持久化词数、### 小节和 hasVisibleContent"]
   Body --> OverviewMetrics2["JournalEntryOverviewMetrics：一次扫描同时派生 wordCount + hasLevelThreeSection"]
   Body --> Summary["JournalEntryBodySummary：同一次 derivation 同时得到 metrics + 完整正文 excerpt；section excerpt 保留独立路径"]
-  Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；已确认输入直接单次写正文，外部同步差异检查，UTF-16 选区/焦点按需更新"]
+  Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；本地已发布正文/选区一次性快速路径，外部同步差异检查，marked text 延迟，UTF-16 选区/焦点按需更新"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
   ContinueRule --> Body
   BodyText --> IndentRule["MarkdownLineIndentation：Tab / Shift-Tab 行缩进，扫描到选区有效结束行并收集 UTF-16 offset，基于原正文单次构造结果"]

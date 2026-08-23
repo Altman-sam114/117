@@ -14,11 +14,12 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 当前新增 4 项同步状态/接线测试，云端 XCTest 总数应高于 205，实际数量和结果包待 Agent C 核对。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - v0.85 docs-close 仅更新文档，最终 docs HEAD、run、attempt、artifact、digest 和最终数量必须以该 HEAD 对应的 Agent C 未加密结果包核对为准，当前不预填任何 docs-close 结果。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
+- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 记录 UIKit 已发布的选区，并在下一次匹配的非 marked bridge 更新中一次性跳过正文重比较与选区 UTF-16 长度 clamp；状态不匹配、已消费或 marked text 时保持外部同步/组合输入保护。对应云端 run、attempt、artifact、digest 和最终测试数量尚未产生，不能预填。
 
 ## 关键决策
 

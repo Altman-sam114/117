@@ -109,7 +109,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文；头部系统 `DatePicker` 以隐藏但可访问的“日记日期” label 编辑 `createdAt`，保留 compact 视觉，日期值与调整语义由系统控件提供。
 3. `EntryEditorLayoutContract` 只根据容器宽度和 `DynamicTypeSize` 派生非持久化布局：`width >= 820` 独立决定编辑/预览双栏，普通宽屏才使用横向紧凑头部；窄屏或 Accessibility 字号让元数据、summary 与必要的统计 pill 堆叠，Accessibility 标题自然增高。该契约不参与 entry binding、Markdown 或持久化。
 4. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片，卡片宽度按 `.caption` Dynamic Type 缩放且 excerpt 使用 `.caption`。
-5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；`EntryEditorView.body` 把同一次得到的 `JournalEntryBodyMetrics` 显式传到编辑区域，正文 placeholder 只消费 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 语义且不再独立扫描正文。`EntryEditorView` 通过 `EntryEditorFocusPolicy` 管理 compact 的 mode/editorFocused 边界：进入预览 resign，⌘⌥P 返回编辑 focus，Picker 选回编辑 preserve。
+5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写、成功缩进和用户选区变化会记录非持久化同步状态，下一次匹配选区的非 marked bridge 更新直接保留已发布正文/选区，跳过重复正文比较和 UTF-16 长度 clamp；状态不匹配或已消费时仍按差异同步外部正文，marked text 延迟同步，选区和焦点继续按需写回。`EntryEditorView.body` 把同一次得到的 `JournalEntryBodyMetrics` 显式传到编辑区域，正文 placeholder 只消费 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 语义且不再独立扫描正文。`EntryEditorView` 通过 `EntryEditorFocusPolicy` 管理 compact 的 mode/editorFocused 边界：进入预览 resign，⌘⌥P 返回编辑 focus，Picker 选回编辑 preserve。
 6. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
 7. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项用 `.whitespaces` 水平空白扫描判断并退出当前结构，不为判断创建临时 trimmed 字符串，代码围栏内通过单次索引扫描识别并回退系统默认输入，IME marked text 或普通输入继续走系统默认行为。
 8. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
@@ -411,7 +411,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.14 `MarkdownBodyTextView`
 
-职责：用最小 `UITextView` bridge 提供正文编辑、rounded body 字体按需配置、Markdown 安全输入 traits 按需配置、光标/选区同步、焦点同步、回车续写规则入口和 Tab / Shift-Tab 行缩进入口；正文、选区和焦点 binding 只在值真实变化时写回，异步 first responder 请求以最新 binding 和请求代数门控。
+职责：用最小 `UITextView` bridge 提供正文编辑、rounded body 字体按需配置、Markdown 安全输入 traits 按需配置、光标/选区同步、焦点同步、回车续写规则入口和 Tab / Shift-Tab 行缩进入口；Coordinator 的非持久化同步状态只对 UIKit 已发布且选区匹配的下一次 bridge 更新启用一次正文/选区快速路径，marked text 或状态不匹配时保守走外部同步，正文、选区和焦点 binding 只在值真实变化时写回，异步 first responder 请求以最新 binding 和请求代数门控。
 
 输入：正文 binding、选区 binding、焦点 binding。
 

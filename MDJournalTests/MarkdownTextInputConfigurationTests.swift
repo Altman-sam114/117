@@ -4,6 +4,81 @@ import XCTest
 @testable import MDJournal
 
 final class MarkdownTextInputConfigurationTests: XCTestCase {
+    func testMarkdownBodyTextViewSyncStateUsesOneShotLocalPublicationFastPath() {
+        var state = MarkdownBodyTextViewSyncState()
+        let selection = NSRange(location: 8, length: 0)
+
+        XCTAssertEqual(
+            state.decision(for: selection, hasMarkedText: false),
+            .synchronizeBodyAndSelection
+        )
+
+        state.markLocalPublication(selectedRange: selection)
+
+        XCTAssertEqual(
+            state.decision(for: selection, hasMarkedText: false),
+            .keepLocalPublication
+        )
+        XCTAssertEqual(
+            state.decision(for: selection, hasMarkedText: false),
+            .synchronizeBodyAndSelection
+        )
+    }
+
+    func testMarkdownBodyTextViewSyncStateRejectsMismatchedExternalSelection() {
+        var state = MarkdownBodyTextViewSyncState()
+        state.markLocalPublication(selectedRange: NSRange(location: 8, length: 0))
+
+        XCTAssertEqual(
+            state.decision(
+                for: NSRange(location: 2, length: 1),
+                hasMarkedText: false
+            ),
+            .synchronizeBodyAndSelection
+        )
+    }
+
+    func testMarkdownBodyTextViewSyncStateDefersMarkedTextWithoutConsumingLocalPublication() {
+        var state = MarkdownBodyTextViewSyncState()
+        let selection = NSRange(location: 8, length: 0)
+        state.markLocalPublication(selectedRange: selection)
+
+        XCTAssertEqual(
+            state.decision(for: selection, hasMarkedText: true),
+            .deferMarkedText
+        )
+        XCTAssertEqual(
+            state.decision(for: selection, hasMarkedText: false),
+            .keepLocalPublication
+        )
+    }
+
+    func testTextViewDidChangeRecordsLocalPublicationForTheNextBridgeUpdate() {
+        let textProbe = BindingProbe(value: "旧正文")
+        let selectionProbe = BindingProbe(value: NSRange(location: 0, length: 0))
+        let focusProbe = BindingProbe(value: false)
+        let coordinator = MarkdownBodyTextView.Coordinator(
+            text: textProbe.binding,
+            selectedRange: selectionProbe.binding,
+            isFocused: focusProbe.binding
+        )
+        let textView = UITextView()
+        let updatedText = "新的正文"
+        let updatedRange = NSRange(location: updatedText.utf16.count, length: 0)
+        textView.text = updatedText
+        textView.selectedRange = updatedRange
+
+        coordinator.textViewDidChange(textView)
+
+        XCTAssertEqual(
+            coordinator.syncState.decision(
+                for: updatedRange,
+                hasMarkedText: false
+            ),
+            .keepLocalPublication
+        )
+    }
+
     func testMarkdownBodyFontConfigurationAppliesPreferredRoundedBodyFont() {
         let textView = UITextView()
         textView.font = .systemFont(ofSize: 10)

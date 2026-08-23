@@ -1,6 +1,40 @@
 import SwiftUI
 import UIKit
 
+enum MarkdownBodyTextViewSyncDecision: Equatable {
+    case synchronizeBodyAndSelection
+    case keepLocalPublication
+    case deferMarkedText
+}
+
+struct MarkdownBodyTextViewSyncState {
+    private var pendingLocalSelection: NSRange?
+
+    mutating func markLocalPublication(selectedRange: NSRange) {
+        pendingLocalSelection = selectedRange
+    }
+
+    mutating func decision(
+        for selectedRange: NSRange,
+        hasMarkedText: Bool
+    ) -> MarkdownBodyTextViewSyncDecision {
+        guard !hasMarkedText else {
+            return .deferMarkedText
+        }
+
+        guard let pendingLocalSelection else {
+            return .synchronizeBodyAndSelection
+        }
+
+        self.pendingLocalSelection = nil
+        guard pendingLocalSelection == selectedRange else {
+            return .synchronizeBodyAndSelection
+        }
+
+        return .keepLocalPublication
+    }
+}
+
 struct MarkdownBodyTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var selectedRange: NSRange
@@ -39,15 +73,24 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         Self.configureMarkdownInputTraits(textView)
 
         let hasMarkedText = textView.markedTextRange != nil
+        let syncDecision = context.coordinator.syncState.decision(
+            for: selectedRange,
+            hasMarkedText: hasMarkedText
+        )
 
-        if !hasMarkedText, textView.text != text {
-            textView.text = text
-        }
+        if syncDecision == .synchronizeBodyAndSelection {
+            context.coordinator.isApplyingSwiftUISynchronization = true
+            defer { context.coordinator.isApplyingSwiftUISynchronization = false }
 
-        if !hasMarkedText {
-            let clampedSelection = Self.clampedRange(selectedRange, in: textView.text)
-            if textView.selectedRange != clampedSelection {
-                textView.selectedRange = clampedSelection
+            if textView.text != text {
+                textView.text = text
+            }
+
+            if textView.selectedRange != selectedRange {
+                let clampedSelection = Self.clampedRange(selectedRange, in: textView.text)
+                if textView.selectedRange != clampedSelection {
+                    textView.selectedRange = clampedSelection
+                }
             }
         }
 
@@ -58,6 +101,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         var text: Binding<String>
         var selectedRange: Binding<NSRange>
         var isFocused: Binding<Bool>
+        var syncState = MarkdownBodyTextViewSyncState()
+        var isApplyingSwiftUISynchronization = false
         private var focusRequestGeneration = 0
 
         init(text: Binding<String>, selectedRange: Binding<NSRange>, isFocused: Binding<Bool>) {
@@ -111,6 +156,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             textView.selectedRange = result.selectedRange
             publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
+            recordLocalPublication(selectedRange: result.selectedRange)
             return false
         }
 
@@ -133,15 +179,18 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             textView.selectedRange = result.selectedRange
             publishText(result.body)
             updateSelectedRangeIfNeeded(result.selectedRange)
+            recordLocalPublication(selectedRange: result.selectedRange)
         }
 
         func textViewDidChange(_ textView: UITextView) {
             publishText(textView.text)
             updateSelectedRangeIfNeeded(textView.selectedRange)
+            recordLocalPublication(selectedRange: textView.selectedRange)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
             updateSelectedRangeIfNeeded(textView.selectedRange)
+            recordLocalPublication(selectedRange: textView.selectedRange)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
@@ -166,6 +215,11 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             if isFocused.wrappedValue != newValue {
                 isFocused.wrappedValue = newValue
             }
+        }
+
+        private func recordLocalPublication(selectedRange: NSRange) {
+            guard !isApplyingSwiftUISynchronization else { return }
+            syncState.markLocalPublication(selectedRange: selectedRange)
         }
     }
 
