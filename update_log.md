@@ -19,7 +19,7 @@
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
-- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 仅在普通输入、成功回车续写、成功缩进或 `textViewDidChange` 实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区均匹配时才减少重复 bridge 同步并跳过实际选区 clamp；正文不同即使 `NSRange` 相同也保持外部同步，状态不匹配、已消费或 marked text 时继续保护组合输入。v0.86 实现 HEAD 为 `40aac99970885506ec458543e1a4695b79f9239d`，云端阶段曾因快速路径 P1 和文档事实不一致退回，尚未完成 Agent C artifact 验收；当前 docs-close HEAD 为 `34d027346f8270c93ee99d8227841974ab4f099c`，未记录任何未最终验收的 run、attempt、artifact、digest 或测试总数。
+- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 仅在普通输入、成功回车续写、成功缩进或 `textViewDidChange` 实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区均匹配时才减少重复 bridge 同步并跳过实际选区 clamp；正文不同即使 `NSRange` 相同也保持外部同步，状态不匹配、已消费或 marked text 时继续保护组合输入。v0.86 实现 HEAD 为 `40aac99970885506ec458543e1a4695b79f9239d`，云端阶段曾因快速路径 P1 和文档事实不一致退回，尚未完成 Agent C artifact 验收；`34d027346f8270c93ee99d8227841974ab4f099c` 是此前文档基线/中间 docs-fix HEAD，不是当前 docs-close；当前最新 docs HEAD 为 `27ddcdf9d8adad55c4c789927e20d788b2a0e8af`，未记录任何未最终验收的 run、attempt、artifact、digest 或测试总数。
 
 ## 关键决策
 
