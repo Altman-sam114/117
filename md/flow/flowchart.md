@@ -276,7 +276,7 @@ flowchart TD
 
 读图说明：Agent C 不能只看文字汇报，必须下载最新 `origin/main` 对应 run 的 artifact，并核对结果包里的机器可读信息。
 
-当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 实现 HEAD `d923cd3` 的第一阶段 run 为 `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，Agent C 已核对 `203 passed / 0 failed / 0 skipped`、477 项未加密 ZIP 及其完整性。v0.84 实现 HEAD `38885bb` 的第一阶段 run 为 `32641923529`、attempt `1`，artifact `mdjournal-ci-v0.84-main-38885bb-run32641923529-attempt1`（ID `9493893598`、size `454188`、digest `sha256:84c00a40530ccaecbe0131a62ff1623ff1ce7a91e9fb77089ed2d664a134a132`），Agent C 已核对 `204 passed / 0 failed / 0 skipped`、479 项未加密 ZIP、CRC、fresh extract 和逐文件 SHA-256；docs-close 最终 HEAD 仍须下载并核对自己的结果包。
+当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 实现 HEAD `d923cd3` 的第一阶段 run 为 `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，Agent C 已核对 `203 passed / 0 failed / 0 skipped`、477 项未加密 ZIP 及其完整性。v0.84 实现 HEAD `38885bb` 的 run `32641923529` 和最终 docs HEAD `8d12e64` 的 run `32642592068` 均已由 Agent C PASS；最终 artifact `mdjournal-ci-v0.84-main-8d12e64-run32642592068-attempt1`（ID `9494058101`、size `453752`、digest `sha256:c2bd17d5cbce074f24ff745020aeb59703ed5d64cf35e642d303a308dd3617c`）对应 `204 passed / 0 failed / 0 skipped`、479 项未加密 ZIP、CRC、fresh extract 和逐文件 SHA-256，下载目录为 `/private/tmp/mdjournal-c-review-32642592068/`。v0.84 两阶段验收已完成。
 
 ```mermaid
 flowchart LR
