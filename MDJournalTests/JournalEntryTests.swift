@@ -93,6 +93,30 @@ final class JournalEntryTests: XCTestCase {
         }
     }
 
+    func testBodyMetricsReportsVisibleContentUsingCharacterWhitespaceSemantics() {
+        let cases: [(name: String, body: String)] = [
+            ("empty", ""),
+            ("ASCII whitespace", " \t\n\r"),
+            ("Foundation newlines", "\r\n\u{000B}\u{000C}\u{0085}\u{2028}\u{2029}"),
+            ("Unicode whitespace", "\u{00A0}\u{2003}\u{3000}"),
+            ("punctuation", "!?.,;:"),
+            ("emoji", "😀"),
+            ("standalone combining mark", "\u{301}"),
+            ("composed character", "e\u{301}"),
+            ("Markdown marker", "### "),
+            ("ordinary body", "中文 English\n普通正文"),
+            ("long body", String(repeating: "长正文 e\u{301}\n", count: 128))
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(
+                JournalEntryBodyMetrics(body: testCase.body).hasVisibleContent,
+                testCase.body.contains { !$0.isWhitespace },
+                "Unexpected visible-content result for \(testCase.name)"
+            )
+        }
+    }
+
     func testBodyMetricsPreservesWordAndSectionResultsInSharedScan() {
         let cases: [
             (

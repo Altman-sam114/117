@@ -8,13 +8,13 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - 本地 JSON 自动保存，不依赖服务器。
 - 编辑时先在 MainActor 即时更新界面状态并生成单调 revision 快照，再短延迟合并提交给单写者 actor；JSON 编码和原子写盘不再占用 MainActor。正文等非日期更新不会触发无效列表重排，减少长文本输入时的磁盘写入和主线程工作。
 - 新建和删除会同步改变内存状态并绕过编辑 debounce 立即安排 actor 写入，但同步 API 返回时磁盘可能尚未开始或仍在写；`await flushPendingSave()` 会取消等待中的 debounce、等待当前写入并追赶期间产生的最新 revision。生命周期异步 flush 没有系统后台执行 lease，快速挂起、崩溃或强杀仍可能使尚未 durable 的更新丢失。
-- 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，metrics 在同一条正文扫描中同时派生词数和完整 `###` 小节，列表概览通过 `JournalEntryOverviewMetrics` 在同一条正文扫描中派生词数与小节存在性，不生成完整小节数组、excerpt 或 summary，避免重复遍历；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
+- 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，metrics 在同一条正文扫描中同时派生词数、完整 `###` 小节和编辑器 placeholder 所需的 `hasVisibleContent`，列表概览通过 `JournalEntryOverviewMetrics` 在同一条正文扫描中派生词数与小节存在性，不生成完整小节数组、excerpt 或 summary，避免重复遍历；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
 - 编辑器头部直接使用轻量正文 metrics 展示词数和 `###` 小节，横向小节概览采用懒加载，避免正文输入时为未展示的摘要或离屏小节卡片做额外构建。
 - 编辑器头部的系统日期选择器保留 compact 视觉，并以隐藏但可访问的“日记日期”标签提供稳定字段名称；日期值、语言和调整语义继续由系统控件处理，真实 VoiceOver 朗读仍需人工验收。
-- 编辑器正文占位提示使用非分配空白判断，长文输入重渲染时不为 placeholder 条件创建临时字符串。
+- 编辑器正文 placeholder 直接消费同一次 `JournalEntryBodyMetrics` shared scan 产出的 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 的 Character 空白语义；长文输入重渲染时不再为 placeholder 单独全文扫描。该派生字段只存在于内存，不进入 JSON。
 - 列表首页概览使用轻量统计快照，只计算总篇数、连续天数、总词数和概览洞察；其中 `JournalEntryOverviewMetrics` 在一次线性扫描中同时得到旧口径词数和 `###` 存在性，并在首个合法标题处停止 marker 检测，避免编辑正文时重复扫描或构造完整统计看板、正文摘要或每篇日记的完整小节数组。
 - `JournalSection.extract(from:)` 使用单调 `String.Index` 和 `Substring` 逐行扫描正文，不先物化 `.newlines` 行数组；保留 LF、CR、CRLF 与 Foundation Unicode newline、ASCII 空格/tab marker、空标题、section flush/order/id/markdown/excerpt 及 fenced code 语义。该路径仍在需要时构造 section 标题和最终 markdown，不承诺零分配。
-- `JournalEntryBodyMetrics` 使用模型层共享的单调扫描，同时派生 `wordCount` 与 `sections`；独立的 `wordCount(in:)` 和 `JournalSection.extract(from:)` 仍保留各自兼容 API，不改变词数或小节语义。该优化减少编辑器头部、统计和列表行高频重算时的重复正文遍历，但云端测试不等同于真实 Instruments 分配或 Mac 输入延迟测量。
+- `JournalEntryBodyMetrics` 使用模型层共享的单调扫描，同时派生 `wordCount`、`sections` 和非持久化 `hasVisibleContent`；独立的 `wordCount(in:)` 和 `JournalSection.extract(from:)` 仍保留各自兼容 API，不改变词数或小节语义。该优化减少编辑器头部、placeholder、统计和列表行高频重算时的重复正文遍历，但云端测试不等同于真实 Instruments 分配或 Mac 输入延迟测量。
 - 支持日常、工作学习、灵感、旅行、健康分类，并可在列表中按分类筛选；分类筛选按钮至少为 `44pt` 高且可随 Dynamic Type 自然增高，使用稳定勾选槽表达选中状态，并向 VoiceOver 提供明确文案与 selected trait。
 - Markdown 编辑器，带 `###` 小节、加粗、引用、无序列表、有序列表、待办、代码块和分割线快捷按钮；每个图标按钮使用 `44×44pt` 稳定矩形交互区，同时保留快捷键 hover help 和辅助功能标签；片段会按当前光标或选区插入，引用、列表、待办和有序列表转换选区时用 LF 单次扫描增量构造结果，跳过空白行并保留 CR/CRLF 和尾随换行语义，Mac Catalyst 下也可从“插入 Markdown”菜单、写作工具栏和键盘快捷键触发。
 - Markdown 无序列表、待办、引用和有序列表支持回车续写；非空项会延续同缩进前缀，有序列表会递增编号，空项按回车退出当前结构，空项判断直接扫描水平空白、不创建临时 trimmed 字符串，代码围栏内回车保持系统默认输入。

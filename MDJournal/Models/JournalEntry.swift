@@ -190,6 +190,7 @@ struct JournalEntry: Identifiable, Codable, Hashable, Sendable {
 struct JournalEntryBodyMetrics: Equatable {
     let wordCount: Int
     let sections: [JournalSection]
+    let hasVisibleContent: Bool
 
     var sectionCount: Int {
         sections.count
@@ -203,6 +204,7 @@ struct JournalEntryBodyMetrics: Equatable {
         )
         wordCount = derivation.wordCount
         sections = derivation.sections
+        hasVisibleContent = derivation.hasVisibleContent
     }
 
     static func wordCount(in body: String) -> Int {
@@ -307,6 +309,7 @@ private enum JournalBodyDerivation {
     struct Result {
         var wordCount: Int
         var sections: [JournalSection]
+        var hasVisibleContent: Bool
     }
 
     struct OverviewResult {
@@ -322,12 +325,17 @@ private enum JournalBodyDerivation {
         var wordCount = 0
         var isInsideWord = false
         var sectionAccumulator = JournalSectionAccumulator()
+        var hasVisibleContent = false
         var lineStart = body.startIndex
         var index = body.startIndex
 
         while index < body.endIndex {
             let character = body[index]
             let nextIndex = body.index(after: index)
+
+            if !character.isWhitespace {
+                hasVisibleContent = true
+            }
 
             if derivesWordCount {
                 if character.isWhitespace || character.isNewline {
@@ -353,7 +361,8 @@ private enum JournalBodyDerivation {
 
         return Result(
             wordCount: wordCount,
-            sections: derivesSections ? sectionAccumulator.sections : []
+            sections: derivesSections ? sectionAccumulator.sections : [],
+            hasVisibleContent: hasVisibleContent
         )
     }
 

@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`ContentView` 持有搜索/分类筛选状态，并在一次 `body` 评估中构造一份局部 `JournalEntryListSnapshot` 显式分发给列表、detail binding 和 focused navigation actions；创建、删除与 selection repair 事件按需生成最新快照，不做跨评估缓存。`JournalEntrySelectionPolicy` 统一修复可见 selection，列表、详情和 Mac 导航都消费同一份 `filteredEntries`，`JournalEntryNavigation` 按当前可见新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数单次扫描和 `###` 小节轻量派生，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`ContentView` 持有搜索/分类筛选状态，并在一次 `body` 评估中构造一份局部 `JournalEntryListSnapshot` 显式分发给列表、detail binding 和 focused navigation actions；创建、删除与 selection repair 事件按需生成最新快照，不做跨评估缓存。`JournalEntrySelectionPolicy` 统一修复可见 selection，列表、详情和 Mac 导航都消费同一份 `filteredEntries`，`JournalEntryNavigation` 按当前可见新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数、`###` 小节和 `hasVisibleContent` 的单次扫描派生，编辑器 placeholder 复用同一次 body 评估的 metrics 并保持 `body.contains { !$0.isWhitespace }` 语义，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
@@ -26,9 +26,9 @@ Markdown 与统计派生数据流：
 ```text
 JournalEntry.body
   -> JournalEntryBodyMetrics
-  -> 共享单次 Character/Index 扫描同时派生 wordCount / sections / sectionCount
+  -> 共享单次 Character/Index 扫描同时派生 wordCount / sections / sectionCount / hasVisibleContent
   -> wordCount 不创建 split 片段；sections 沿用 Foundation newline、ASCII marker 和旧 trim/flush 语义
-  -> EntryEditorView 头部和 JournalStatistics 轻量复用，不生成 excerpt；头部横向小节概览懒加载离屏卡片
+  -> EntryEditorView 头部和正文 placeholder、JournalStatistics 轻量复用，不生成 excerpt；placeholder 保持 body.contains { !$0.isWhitespace } 语义，头部横向小节概览懒加载离屏卡片
 
 JournalEntry.body
   -> JournalEntryOverviewMetrics 单次 Character/Unicode scalar 扫描同时取得词数和小节存在性
@@ -102,7 +102,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文；头部系统 `DatePicker` 以隐藏但可访问的“日记日期” label 编辑 `createdAt`，保留 compact 视觉，日期值与调整语义由系统控件提供。
 3. `EntryEditorLayoutContract` 只根据容器宽度和 `DynamicTypeSize` 派生非持久化布局：`width >= 820` 独立决定编辑/预览双栏，普通宽屏才使用横向紧凑头部；窄屏或 Accessibility 字号让元数据、summary 与必要的统计 pill 堆叠，Accessibility 标题自然增高。该契约不参与 entry binding、Markdown 或持久化。
 4. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片，卡片宽度按 `.caption` Dynamic Type 缩放且 excerpt 使用 `.caption`。
-5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；正文 placeholder 使用非分配空白判断，避免长文输入重渲染时创建临时 trimmed 字符串。`EntryEditorView` 通过 `EntryEditorFocusPolicy` 管理 compact 的 mode/editorFocused 边界：进入预览 resign，⌘⌥P 返回编辑 focus，Picker 选回编辑 preserve。
+5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 已确认变化的普通输入、成功回车续写和成功缩进直接且仅一次写正文 binding，不先读取旧正文做全文比较；外部 SwiftUI 正文同步仍在无 marked text 且值不同时更新 UIKit，选区和焦点继续按需写回；`EntryEditorView.body` 把同一次得到的 `JournalEntryBodyMetrics` 显式传到编辑区域，正文 placeholder 只消费 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 语义且不再独立扫描正文。`EntryEditorView` 通过 `EntryEditorFocusPolicy` 管理 compact 的 mode/editorFocused 边界：进入预览 resign，⌘⌥P 返回编辑 focus，Picker 选回编辑 preserve。
 6. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
 7. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项用 `.whitespaces` 水平空白扫描判断并退出当前结构，不为判断创建临时 trimmed 字符串，代码围栏内通过单次索引扫描识别并回退系统默认输入，IME marked text 或普通输入继续走系统默认行为。
 8. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
@@ -253,6 +253,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 6. v0.76 额外核对 `JournalEntrySelectionPolicy` 和 filtered navigation 新增测试各执行一次，XCTest 总数高于 v0.75 的 189 项；审查 production repair/create/delete/detail/navigation 均消费当前 `filteredEntries`，且不改变 Store/JSON/Markdown/保存语义。
 7. v0.82 额外核对 `JournalEntryNavigationTests.testFilteredSnapshotDrivesSelectionRepairAndNavigationFromOneVisibleOrder` 与 filtered navigation characterization；XCTest 总数必须高于 v0.81 的 201 项，并审查 `ContentView.body` 的局部 snapshot 复用、事件路径最新 snapshot 和 Binding 不捕获过期 snapshot。
 8. v0.82 实现 HEAD `5f83de061ff4d573ff1b1bb9d3b6fcd8995be22a` 的 run `32636121799` attempt `1` 已由 Agent C PASS：artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249`，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`），`202 passed / 0 failed / 0 skipped`，475 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 通过；docs-only HEAD 必须重新验收自己的 artifact。
+9. v0.83 额外核对 `JournalEntryTests.testBodyMetricsReportsVisibleContentUsingCharacterWhitespaceSemantics` 实际执行并通过；XCTest 总数必须高于 v0.82 的 202 项且无 skipped，并审查 `JournalEntryBodyMetrics.hasVisibleContent` 来自既有 shared scan，`EntryEditorView` 只消费同一次 body 评估的 metrics，且没有 JSON、Store、Markdown、focus 或窗口无关 diff。v0.83 run、attempt、artifact、digest 和最终 docs HEAD 均待 Agent C 从最新 origin/main 实际下载复判后补记。
 
 ### 3.6 Agent C 结果包验收
 
@@ -276,11 +277,11 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.2 `JournalEntryBodyMetrics`
 
-职责：在内存中用共享单次正文扫描派生词数、`###` 小节和小节数；词数避免创建 split 片段，小节保持独立 API 的兼容语义。
+职责：在内存中用共享单次正文扫描派生词数、`###` 小节、小节数和 `hasVisibleContent`；词数避免创建 split 片段，可见性保持 Character.isWhitespace 兼容语义，小节保持独立 API 的兼容语义。
 
 输入：`JournalEntry.body`。
 
-输出：`wordCount`、`sections`、`sectionCount`。
+输出：`wordCount`、`sections`、`sectionCount`、`hasVisibleContent`。
 
 禁止：作为 `JournalEntry` 的持久化字段写入 JSON；让存在性快路径与 `JournalSection.extract(from:)` 的小节识别语义分叉；改变旧有词数或小节识别语义。
 
@@ -462,7 +463,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流提交，但内存状态必须即时更新；所有保存快照由单写者 actor 按 revision 串行编码和原子写盘。应用离开活跃态时异步 flush 并追赶最新 revision，但无后台 lease 时不承诺强杀 durability；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应由 update model 持有单次解析结果，正文变化经过 `150ms` trailing scheduler 合并并以 generation/entry ID latest-wins 发布；同一渲染周期不得重复解析正文，预览结果不进入 Store 或 JSON。
-- 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览必须使用 `JournalEntryOverviewMetrics` 在一次扫描中取得词数和小节存在性，避免重复遍历或构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
+- 正文词数、完整 `###` 小节和 `hasVisibleContent` 可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部、placeholder 和统计在不需要摘要时必须优先使用 metrics，placeholder 必须保持 `body.contains { !$0.isWhitespace }` 语义；列表概览必须使用 `JournalEntryOverviewMetrics` 在一次扫描中取得词数和小节存在性，避免重复遍历或构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - `ContentView` 必须集中持有搜索/分类筛选状态和 `JournalEntryListSnapshot`；`EntryListView` 只能消费父级 snapshot。列表 row、detail guard、初始/筛选/Store mutation repair、创建、删除和 focused navigation 必须使用同一份 `filteredEntries` 语义，生产和纯测试共同消费 `JournalEntrySelectionPolicy`；可见 selection 保留，隐藏 selection 切可见首项，空结果为 `nil`，Mac 较新/较早导航不能跳到隐藏日记。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。

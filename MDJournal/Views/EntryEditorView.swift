@@ -96,9 +96,9 @@ struct EntryEditorView: View {
                 header(layout: layout, bodyMetrics: bodyMetrics)
 
                 if layout.isWideEditorLayout {
-                    wideEditor
+                    wideEditor(bodyMetrics: bodyMetrics)
                 } else {
-                    compactEditor
+                    compactEditor(bodyMetrics: bodyMetrics)
                 }
             }
             .onAppear {
@@ -318,7 +318,10 @@ struct EntryEditorView: View {
         }
     }
 
-    private func editor(limitsWritingWidth: Bool = false) -> some View {
+    private func editor(
+        bodyMetrics: JournalEntryBodyMetrics,
+        limitsWritingWidth: Bool = false
+    ) -> some View {
         VStack(spacing: 0) {
             MarkdownToolbar(accent: entry.category.tint, onInsert: insertSnippet)
             Divider()
@@ -327,12 +330,12 @@ struct EntryEditorView: View {
                 if limitsWritingWidth {
                     HStack(spacing: 0) {
                         Spacer(minLength: 0)
-                        bodyEditorArea
+                        bodyEditorArea(bodyMetrics: bodyMetrics)
                             .frame(maxWidth: focusedWritingMaxWidth)
                         Spacer(minLength: 0)
                     }
                 } else {
-                    bodyEditorArea
+                    bodyEditorArea(bodyMetrics: bodyMetrics)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -340,9 +343,9 @@ struct EntryEditorView: View {
         }
     }
 
-    private var bodyEditorArea: some View {
+    private func bodyEditorArea(bodyMetrics: JournalEntryBodyMetrics) -> some View {
         ZStack(alignment: .topLeading) {
-            if !bodyContainsVisibleContent {
+            if !bodyMetrics.hasVisibleContent {
                 Text("用 ### 小节组织今天的记录。")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
@@ -358,7 +361,7 @@ struct EntryEditorView: View {
         }
     }
 
-    private var compactEditor: some View {
+    private func compactEditor(bodyMetrics: JournalEntryBodyMetrics) -> some View {
         VStack(spacing: 0) {
             Picker("模式", selection: compactModeSelection) {
                 ForEach(Mode.allCases) { mode in
@@ -370,16 +373,19 @@ struct EntryEditorView: View {
             .padding(.vertical, 10)
 
             if mode == .edit {
-                editor()
+                editor(bodyMetrics: bodyMetrics)
             } else {
                 MarkdownPreviewView(entryID: entry.id, markdown: entry.body, accent: entry.category.tint)
             }
         }
     }
 
-    private var wideEditor: some View {
+    private func wideEditor(bodyMetrics: JournalEntryBodyMetrics) -> some View {
         HStack(spacing: 0) {
-            editorColumn(limitsWritingWidth: !isPreviewColumnVisible)
+            editorColumn(
+                bodyMetrics: bodyMetrics,
+                limitsWritingWidth: !isPreviewColumnVisible
+            )
                 .frame(maxWidth: .infinity)
 
             if isPreviewColumnVisible {
@@ -400,10 +406,13 @@ struct EntryEditorView: View {
         .background(Color(.secondarySystemGroupedBackground))
     }
 
-    private func editorColumn(limitsWritingWidth: Bool) -> some View {
+    private func editorColumn(
+        bodyMetrics: JournalEntryBodyMetrics,
+        limitsWritingWidth: Bool
+    ) -> some View {
         VStack(spacing: 0) {
             WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
-            editor(limitsWritingWidth: limitsWritingWidth)
+            editor(bodyMetrics: bodyMetrics, limitsWritingWidth: limitsWritingWidth)
         }
     }
 
@@ -501,9 +510,6 @@ struct EntryEditorView: View {
         bodySelectedRange = result.selectedRange
     }
 
-    private var bodyContainsVisibleContent: Bool {
-        entry.body.contains { !$0.isWhitespace }
-    }
 }
 
 private struct WorkspacePaneHeader: View {
