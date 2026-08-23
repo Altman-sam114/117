@@ -14,12 +14,37 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 当前相对 v0.85 的源码差异新增 7 项同步状态/接线测试，云端 XCTest 总数应高于 205，实际数量和结果包待 Agent C 核对。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 实现验证 HEAD 云端 artifact 为 212 项（新增 7 项同步状态/接线测试），已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
-- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 仅在普通输入、成功回车续写、成功缩进或 `textViewDidChange` 实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区均匹配时才减少重复 bridge 同步并跳过实际选区 clamp；正文不同即使 `NSRange` 相同也保持外部同步，状态不匹配、已消费或 marked text 时继续保护组合输入。v0.86 实现 HEAD 为 `40aac99970885506ec458543e1a4695b79f9239d`，云端阶段曾因快速路径 P1 和文档事实不一致退回，尚未完成 Agent C artifact 验收；`34d027346f8270c93ee99d8227841974ab4f099c` 是此前文档基线/中间 docs-fix HEAD，不是当前 docs-close；当前最新 docs HEAD 为 `27ddcdf9d8adad55c4c789927e20d788b2a0e8af`，未记录任何未最终验收的 run、attempt、artifact、digest 或测试总数。
+- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 仅在普通输入、成功回车续写、成功缩进或 `textViewDidChange` 实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区均匹配时才减少重复 bridge 同步并跳过实际选区 clamp；正文不同即使 `NSRange` 相同也保持外部同步，状态不匹配、已消费或 marked text 时继续保护组合输入。实现验证 HEAD 为 `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745`，对应 run `32650916069`、attempt `1` 的 artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`（ID `9496324008`、size `466015` bytes、digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32650916069/` 下载并核对：static checks、generic iOS build、Mac Catalyst build、XCTest 四阶段均为 `success`，JUnit `4/0/0/0`，XCTest `212/212 passed`，7 项新增测试均通过，495/495 ZIP entries 未加密且 CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。该 HEAD 是实现验证 HEAD/docs-close source baseline，不是本轮 docs-only commit 的最终 HEAD；本轮 docs-only commit 将由 Agent C 针对新 `origin/main` HEAD 独立复核，不预填未来 run/artifact。真实 Mac Catalyst 输入延迟、IME、VoiceOver、帧率和 Instruments 分配仍需人工或专门工具验收。
+
+### v0.86 / Markdown 正文 bridge 同步快速路径（实现验证通过，docs-close 独立复核）
+
+日期：2026-08-24
+
+核心变更：
+
+- `MarkdownBodyTextView.Coordinator` 仅在正文实际发布时建立绑定正文与 UTF-16 选区的一次性 token；选区变化不建立正文 token，正文不同即使 `NSRange` 相同仍走外部同步，marked text 继续延迟覆盖。
+- `MarkdownTextInputConfigurationTests` 相对 v0.85 新增 7 项同步状态纯值与 Coordinator 接线测试；不改变 Store、JSON、Markdown continuation/indentation、preview 或 UI 布局。
+
+关键文件：
+
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownTextInputConfigurationTests.swift`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`update_log.md`
+
+验证与交付状态：
+
+- 实现验证 HEAD `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745` 对应 `MD Journal CI Results` run `32650916069`、attempt `1`，artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`，ID `9496324008`，size `466015` bytes，digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`，下载目录 `/private/tmp/mdjournal-c-review-32650916069/`。
+- Agent C 已核对 manifest 和结果：static checks、generic iOS build、Mac Catalyst build、XCTest 四阶段均为 `success`；JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`，XCTest 为 `212/212 passed`，7 项新增测试均实际执行并通过；495/495 ZIP entries 全部未加密，CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。
+- 上述 artifact 是实现验证 HEAD/docs-close source baseline；本轮 docs-only 提交只同步已核对事实，不复用该 artifact 作为新 HEAD 证据。提交后 Agent C 必须针对新的 `origin/main` HEAD 独立下载和核对结果包，本文不预填未来 run、attempt 或 artifact。
+
+遗留事项：
+
+- 本轮未运行本机 build、XCTest、`xcodebuild`、Simulator、Mac Catalyst App、UI 自动化、截图或 Instruments；真实 Mac Catalyst 输入延迟、IME、VoiceOver、帧率和内存分配仍需人工或专门工具验收。
 
 ## 关键决策
 

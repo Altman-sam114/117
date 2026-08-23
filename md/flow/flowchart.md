@@ -289,6 +289,8 @@ flowchart TD
 
 v0.85 阶段一实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 对应 run `32645093679`、attempt `1`，artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`、size `456026` bytes、digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。早期 `e9674cd5c1fd4f82bd7fc93f488315f1bdbc5d01` / run `32644620613` / attempt `1` 仅因缺少 `import SwiftUI` 失败。docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。
 
+v0.86 实现验证 HEAD `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745` 对应 run `32650916069`、attempt `1`，artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`（ID `9496324008`、size `466015` bytes、digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32650916069/` 下载并 PASS。四阶段均为 `success`；JUnit 为 `4/0/0/0`，XCTest `212/212 passed`，7 项新增测试均实际执行并通过；495/495 ZIP entries 未加密且 CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。该 HEAD 是实现验证/docs-close source baseline；本轮 docs-only commit 将由 Agent C 针对新 `origin/main` HEAD 独立复核，不预填未来 run 或 artifact。
+
 ```mermaid
 flowchart LR
   OriginMain["origin/main 最新 commit"] --> Run["GitHub Actions 最新 run"]
