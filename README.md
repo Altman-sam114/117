@@ -38,6 +38,8 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Mac Catalyst 写作工具栏可隐藏或显示预览栏，也可一键进入专注写作状态，隐藏预览栏并聚焦正文，正文输入区会在宽窗口中居中并限制最大宽度，给长文输入更稳定的行长并减少实时预览解析压力；预览隐藏、离开视图或切换日记时会使等待中的预览请求失效。
 - 统计看板在宽屏下使用两列布局，列表概览和小节摘要会自适应窄屏与横屏空间。
 
+v0.85 列表卡片由非持久化 `EntryRowLayoutContract` 按 `DynamicTypeSize` 选择布局：`.large` / `.xxxLarge` 保留 metadata、footer 横排、标题与小节标题单行以及水平小节条；`.accessibility1` 至 `.accessibility5` 将 metadata/footer 垂直堆叠、标题取消单行限制，小节改为有限宽度的垂直栈并允许标题至少两行，避免水平 `ScrollView` 的无限宽度提议使换行失效。该契约只消费字号，不进入 Store、JSON、列表快照、正文 metrics、selection 或编辑器状态。
+
 ## 日记结构建议
 
 正文推荐用三级标题组织日记：
@@ -147,6 +149,8 @@ test -x script/build_and_run.sh
 
 当前环境的 CoreSimulator 服务不可用，因此未启动 iOS 模拟器做交互运行验证。
 
+v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。v0.84 云端基线为 `204 passed / 0 failed / 0 skipped`，本轮预期至少 `205 passed / 0 failed / 0 skipped`，最终以最新 GitHub Actions 未加密 artifact 为准；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
+
 ## 协作与云端验证
 
 - `agenta` / `a:` 召唤 Agent A 写版本化实现提示词。
@@ -164,6 +168,7 @@ test -x script/build_and_run.sh
 
 ## 完成记录
 
+- 2026-08-23（v0.85 实现阶段）：列表卡片新增 `EntryRowLayoutContract`，普通字号保持既有横向密度，Accessibility 字号使用明确的 metadata/footer 垂直布局、标题自然增高和有限宽度垂直小节栈；新增普通与 Accessibility Dynamic Type 纯契约测试，CI 版本更新为 `v0.85`。Agent B 仅执行本轮允许的轻量检查并推送 `main`；云端 run、attempt、artifact 和最终测试数量待 Agent C 以最新 `origin/main` 结果包核对，当前不作通过声明。真实卡片行高、VoiceOver、辅助字号像素排版和 Mac Catalyst 输入设备交互仍需人工验收。
 - 2026-08-23（v0.84）：列表摘要把 metrics 与完整正文 excerpt 合并到同一次 `JournalBodyDerivation` 扫描，新增纯值 characterization 覆盖摘要 Markdown 口径、换行、空标题、EOF、fenced code、Unicode/组合字符和长正文；`JournalSection.excerpt` 仍保留独立的 task/list marker 清理路径。实现 HEAD `38885bb078f945ebeac65a5d9c17902ec088c678` 对应 `MD Journal CI Results` run `32641923529`、attempt `1` 已由 Agent C PASS：artifact `mdjournal-ci-v0.84-main-38885bb-run32641923529-attempt1`（ID `9493893598`，size `454188` bytes，GitHub/local SHA-256 `sha256:84c00a40530ccaecbe0131a62ff1623ff1ce7a91e9fb77089ed2d664a134a132`），static checks、generic iOS build、Mac Catalyst build、XCTest 全部 success，JUnit 为 `tests=4 / failures=0 / errors=0 / skipped=0`，XCTest 为 `204 passed / 0 failed / 0 skipped` 且新增摘要 characterization 实际通过；479 项 ZIP 全部未加密，CRC、fresh extract、下载清单和逐文件 SHA-256 均通过。最终 docs HEAD `8d12e641b0c188bbd839ae7902b06979897fa311` 对应 run `32642592068`、attempt `1` 的 artifact `mdjournal-ci-v0.84-main-8d12e64-run32642592068-attempt1`（ID `9494058101`，size `453752` bytes，digest `sha256:c2bd17d5cbce074f24ff745020aeb59703ed5d64cf35e642d303a308dd3617c`）也已由 Agent C PASS：`204 passed / 0 failed / 0 skipped`，479 项未加密 ZIP 的 CRC、fresh extract 和逐文件 SHA-256 均通过，下载目录为 `/private/tmp/mdjournal-c-review-32642592068/`。两阶段云端验收已完成，真实 Mac 长文性能、IME、VoiceOver 和像素排版仍需人工验收。
 
 - 2026-08-23：v0.83 将编辑器 placeholder 的可见性判断并入 `JournalBodyDerivation` 既有单次 Character/Index 扫描，`EntryEditorView` 在同一次 body 评估中把 `JournalEntryBodyMetrics` 传入编辑区，保持 `body.contains { !$0.isWhitespace }` 语义且不改变 JSON、Store、Markdown、focus 或窗口行为。实现 HEAD `d923cd3720da5c8739bcf216a404379c752618b7` 的第一阶段 run `32638983543`、attempt `1` 对应未加密 artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`（ID `9493173578`，size `453266` bytes，digest `sha256:abfca59c408c01d0e9fbf59fb64f62d6c84d3dbff86b048254a82d4f94812fd5`），Agent C 已核对 `203 passed / 0 failed / 0 skipped`、新增测试实际执行、477 项 ZIP 未加密、CRC、fresh extract 和逐文件 SHA-256 均通过；最终 docs-only HEAD 仍须独立云端复核，真实 Mac 长文分配、IME、VoiceOver、placeholder 像素排版和帧率仍需人工/专门工具验收。

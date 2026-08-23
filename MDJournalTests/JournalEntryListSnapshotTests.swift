@@ -87,6 +87,28 @@ final class JournalEntryListSnapshotTests: XCTestCase {
         )
     }
 
+    func testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts() {
+        for dynamicTypeSize in [DynamicTypeSize.large, .xxxLarge] {
+            let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
+
+            XCTAssertEqual(layout.metadataAxis, .horizontal)
+            XCTAssertEqual(layout.footerAxis, .horizontal)
+            XCTAssertEqual(layout.titleLineLimit, 1)
+            XCTAssertEqual(layout.sectionTitleLineLimit, 1)
+            XCTAssertFalse(layout.usesVerticalSectionLayout)
+        }
+
+        for dynamicTypeSize in [DynamicTypeSize.accessibility1, .accessibility5] {
+            let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
+
+            XCTAssertEqual(layout.metadataAxis, .vertical)
+            XCTAssertEqual(layout.footerAxis, .vertical)
+            XCTAssertNil(layout.titleLineLimit)
+            XCTAssertGreaterThanOrEqual(layout.sectionTitleLineLimit, 2)
+            XCTAssertTrue(layout.usesVerticalSectionLayout)
+        }
+    }
+
     func testSelectionPolicyRetainsVisibleSelection() {
         let snapshot = JournalEntryListSnapshot(
             entries: makeEntries(),

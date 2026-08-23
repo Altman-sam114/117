@@ -4,7 +4,7 @@
 
 ## 核心逻辑图
 
-读图说明：从左到右看，用户在 SwiftUI 界面操作日记；状态变化进入 `JournalStore`；数据保存到本地 JSON；同一份日记数据再派生出列表、编辑器、预览和统计。`ContentView.body` 同一次评估只构造一份列表快照并显式分发给列表、detail guard 和导航 actions，事件路径再按需生成最新快照。图中每个节点都对应当前项目里的真实模块。
+读图说明：从左到右看，用户在 SwiftUI 界面操作日记；状态变化进入 `JournalStore`；数据保存到本地 JSON；同一份日记数据再派生出列表、编辑器、预览和统计。`ContentView.body` 同一次评估只构造一份列表快照并显式分发给列表、detail guard 和导航 actions，事件路径再按需生成最新快照；列表卡片另由 `EntryRowLayoutContract` 按 Dynamic Type 选择普通横排或 Accessibility 有限宽度垂直布局。图中每个节点都对应当前项目里的真实模块。
 
 ```mermaid
 flowchart TD
@@ -85,6 +85,11 @@ flowchart TD
   TrendLayout -- "Accessibility 字号" --> ScrollingTrend["七日趋势：56pt 稳定列宽水平滚动"]
   Stats --> Dashboard
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
+  RowTypeSize["DynamicTypeSize"] --> RowLayout["EntryRowLayoutContract：只消费字号的纯值布局策略"]
+  Row --> RowTypeSize
+  RowLayout -- "large / xxxLarge" --> RowRegular["普通：metadata/footer 横排；标题/小节标题单行；水平小节条"]
+  RowLayout -- "accessibility1...5" --> RowAccessibility["Accessibility：metadata/footer 垂直；标题自然增高；小节有限宽度垂直栈"]
+  RowAccessibility --> RowAccessibleSections["前三个小节 +N：不使用水平无限提议"]
   Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
   MetricsNode --> Stats
   OverviewMetrics --> ListOverview

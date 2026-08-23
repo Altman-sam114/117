@@ -32,6 +32,8 @@
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
 
+v0.85 在 `JournalEntryListSnapshotTests` 增加 `testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`：`.large` / `.xxxLarge` 锁定 metadata/footer 横排、标题和小节标题单行及普通水平小节条；`.accessibility1` / `.accessibility5` 锁定 metadata/footer 垂直、标题不限单行、小节标题至少两行和有限宽度垂直小节布局。Accessibility 分支不保留水平 `ScrollView`，避免无限水平提议使 `lineLimit(2)` 失效；契约只消费 `DynamicTypeSize`，不进入 Store/JSON/list snapshot/metrics/Markdown/focus/window。v0.84 云端基线为 `204 passed / 0 failed / 0 skipped`，本轮预期至少 `205 passed / 0 failed / 0 skipped`；本机只做 diff、Swift parse、YAML、版本和边界检查，完整 build/XCTest/App/UI/Instruments 待最新 `origin/main` artifact，真实 Dynamic Type frame、VoiceOver 和输入设备交互仍需人工验收。
+
 ## 1. 本地轻量检查
 
 本地轻量检查用于尽快发现空白、配置、语法和 workflow 断点。除非人工明确要求，本机不默认跑完整 build。
@@ -352,6 +354,8 @@ v0.84 摘要共享正文扫描专项核对（实现 HEAD 与最终 docs HEAD 均
 - Agent C 已核对 manifest 的 `version=v0.84`、完整 `commitSha`、`branch=main`、run/attempt、workflow、scheme、generic iOS/Mac Catalyst/test destination 和三条结果路径；static checks、generic iOS build、Mac Catalyst build、XCTest 均为 `success`。JUnit 为 `tests=4 / failures=0 / errors=0 / skipped=0`；三份 xcresult 的 `Info.plist` 均通过 `plutil -lint`，generic iOS/Mac Catalyst build summary 为 succeeded 且 errors/analyzer warnings 为 0，测试 xcresult summary 为 `204 passed / 0 failed / 0 skipped`；日志包含两处 `BUILD SUCCEEDED` 和一处 `TEST SUCCEEDED`，`testBodySummaryPreservesExcerptAndMetricsAcrossSharedScan` 实际执行并通过。
 - ZIP 共 479 项且全部未加密；`unzip -tq` CRC、fresh extract 文件清单、`gh run download` 清单和 479 项逐文件 SHA-256 均通过。源码 diff 确认 `JournalEntryBodySummary` 只消费一次带 excerpt 的 shared derivation，`MarkdownSummaryText.plainText` wrapper 保留 literal LF/marker/空行语义，`JournalSection.excerpt` 继续独立消费 section markdown，未改 JSON、Store、Markdown preview/focus/window 或 workflow 行为；本机未运行 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、App、UI 自动化、截图或 Instruments。
 - 最终 docs HEAD `8d12e641b0c188bbd839ae7902b06979897fa311` 对应 run `32642592068`、attempt `1` 的 artifact `mdjournal-ci-v0.84-main-8d12e64-run32642592068-attempt1`（ID `9494058101`，size `453752` bytes，digest `sha256:c2bd17d5cbce074f24ff745020aeb59703ed5d64cf35e642d303a308dd3617c`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32642592068/` 下载并 PASS；manifest/JUnit/log/三份 xcresult、`204 passed / 0 failed / 0 skipped`、479 项未加密 ZIP、CRC、fresh extract、下载清单和逐文件 SHA-256 均通过。两阶段验收完成；纯值测试和 CI 仍不能证明真实 Mac Catalyst 长文帧率、分配、IME、VoiceOver 或像素排版。
+
+v0.85 Agent C 验收时必须只下载最新 `origin/main` 的未加密 artifact，确认 manifest 的 `version=v0.85`、完整 commit SHA、branch、run id、attempt 和结果路径一致；四阶段均为 `success`，新增 EntryRow contract 测试实际执行，XCTest 高于 v0.84 的 `204 passed`，并核对 JUnit、日志、三份 `.xcresult`、digest、size、CRC、fresh extract、文件清单和逐文件 SHA-256。阶段二 docs-close HEAD 仍必须独立复核，不能复用实现 HEAD artifact。
 
 ## 3. Agent C 下载和复判
 

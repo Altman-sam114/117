@@ -40,6 +40,12 @@ JournalEntry.body
   -> 保留 MarkdownSummaryText.plainText 的 literal LF、标记跳过、空行折叠和 Unicode 语义
   -> 列表卡片复用同一次正文展示派生结果；JournalSection.excerpt 仍独立消费 section markdown
 
+EntryRowView + DynamicTypeSize
+  -> EntryRowLayoutContract：只按 isAccessibilitySize 派生非持久化布局策略
+  -> 普通字号：metadata/footer 横排、标题/小节标题单行、保留水平小节条
+  -> Accessibility 字号：metadata/footer 垂直堆叠、标题不限单行、小节在有限宽度垂直栈中至少允许两行
+  -> 不进入 JournalStore、JSON、JournalEntryListSnapshot、正文 metrics、selection、Markdown 或焦点状态
+
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
   -> MarkdownParseResult.blocks / sectionGroups
@@ -131,9 +137,10 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 7. 删除入口仍由 `EntryListView.requestDeletion(of:)` 统一进入 confirmation dialog；待确认状态稳定持有完整目标，取消、Esc、外部关闭只清理状态，确认先消费一次目标再调用 `ContentView.deleteEntry(_:)`。
 8. `ContentView.deleteEntry(_:)` 仍只调用 `JournalStore.delete(_:)`，随后用删除后的 filtered snapshot 和 policy 修复 selection；筛选之外仍存在的日记不会被选回。
 9. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
-10. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题。
-11. `journalEntryNavigationActions(using:)` 只把本次 body 评估共享 snapshot 的 `filteredEntries` 传给 `JournalEntryNavigation`；较新/较早继续按可见新到旧顺序相邻移动，首尾不循环，只改变 selection，不调用 Store、保存或正文焦点 API。
-12. Store/JSON、保存 debounce/flush/writer、Markdown parser/preview、编辑器正文和删除确认语义均不因筛选或 selection 状态改变。
+10. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题；`EntryRowLayoutContract` 只消费 `DynamicTypeSize`，普通字号保持既有横向布局，Accessibility 字号使用垂直 metadata/footer、自然增高标题和有限宽度垂直小节栈。
+11. Accessibility 小节路径不使用水平 `ScrollView` 或无限宽度提议；前三个小节和 `+N` 仍按既有顺序展示，空状态也进入有限宽度容器。列表卡片布局策略不写入 Store/JSON，也不改变摘要、metrics、selection 或编辑器状态。
+12. `journalEntryNavigationActions(using:)` 只把本次 body 评估共享 snapshot 的 `filteredEntries` 传给 `JournalEntryNavigation`；较新/较早继续按可见新到旧顺序相邻移动，首尾不循环，只改变 selection，不调用 Store、保存或正文焦点 API。
+13. Store/JSON、保存 debounce/flush/writer、Markdown parser/preview、编辑器正文和删除确认语义均不因筛选或 selection 状态改变。
 
 ### 2.5 Markdown 预览
 
