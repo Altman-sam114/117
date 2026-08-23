@@ -196,24 +196,21 @@ struct JournalEntryBodyMetrics: Equatable {
     }
 
     init(body: String) {
-        wordCount = Self.wordCount(in: body)
-        sections = JournalSection.extract(from: body)
+        let derivation = JournalBodyDerivation.scan(
+            body,
+            derivesWordCount: true,
+            derivesSections: true
+        )
+        wordCount = derivation.wordCount
+        sections = derivation.sections
     }
 
     static func wordCount(in body: String) -> Int {
-        var count = 0
-        var isInsideWord = false
-
-        for character in body {
-            if character.isWhitespace || character.isNewline {
-                isInsideWord = false
-            } else if !isInsideWord {
-                count += 1
-                isInsideWord = true
-            }
-        }
-
-        return count
+        JournalBodyDerivation.scan(
+            body,
+            derivesWordCount: true,
+            derivesSections: false
+        ).wordCount
     }
 }
 
@@ -287,63 +284,105 @@ struct JournalSection: Identifiable, Hashable {
     }
 
     static func extract(from markdown: String) -> [JournalSection] {
-        var sections: [JournalSection] = []
-        var currentTitle: String?
-        var currentLines: [Substring] = []
+        JournalBodyDerivation.scan(
+            markdown,
+            derivesWordCount: false,
+            derivesSections: true
+        ).sections
+    }
+}
 
-        func flushSection() {
-            guard let currentTitle else { return }
-
-            var sectionMarkdown = String()
-            for (index, line) in currentLines.enumerated() {
-                if index > 0 {
-                    sectionMarkdown.append("\n")
-                }
-                sectionMarkdown.append(contentsOf: line)
-            }
-
-            sections.append(
-                JournalSection(
-                    order: sections.count,
-                    title: currentTitle,
-                    markdown: sectionMarkdown.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
-            )
-            currentLines.removeAll(keepingCapacity: true)
-        }
-
-        forEachLineComponent(in: markdown) { rawLine in
-            let trimmedLine = rawLine.trimmingLeadingWhitespace()
-
-            if trimmedLine.hasPrefix("### ") {
-                flushSection()
-                let sectionTitle = String(trimmedLine.dropFirst(4)).trimmingCharacters(in: .whitespacesAndNewlines)
-                currentTitle = sectionTitle.isEmpty ? "未命名小节" : sectionTitle
-                return
-            }
-
-            if currentTitle != nil {
-                currentLines.append(rawLine)
-            }
-        }
-
-        flushSection()
-        return sections
+private enum JournalBodyDerivation {
+    struct Result {
+        var wordCount: Int
+        var sections: [JournalSection]
     }
 
-    private static func forEachLineComponent(in markdown: String, _ body: (Substring) -> Void) {
-        var componentStart = markdown.startIndex
+    static func scan(
+        _ body: String,
+        derivesWordCount: Bool,
+        derivesSections: Bool
+    ) -> Result {
+        var wordCount = 0
+        var isInsideWord = false
+        var sectionAccumulator = JournalSectionAccumulator()
+        var lineStart = body.startIndex
+        var index = body.startIndex
 
-        while componentStart < markdown.endIndex,
-              let separatorRange = markdown.rangeOfCharacter(
-                from: .newlines,
-                range: componentStart..<markdown.endIndex
-              ) {
-            body(markdown[componentStart..<separatorRange.lowerBound])
-            componentStart = markdown.indexAfterNewline(at: separatorRange)
+        while index < body.endIndex {
+            let character = body[index]
+            let nextIndex = body.index(after: index)
+
+            if derivesWordCount {
+                if character.isWhitespace || character.isNewline {
+                    isInsideWord = false
+                } else if !isInsideWord {
+                    wordCount += 1
+                    isInsideWord = true
+                }
+            }
+
+            if derivesSections, character.isFoundationNewline {
+                sectionAccumulator.consume(body[lineStart..<index])
+                lineStart = nextIndex
+            }
+
+            index = nextIndex
         }
 
-        body(markdown[componentStart..<markdown.endIndex])
+        if derivesSections {
+            sectionAccumulator.consume(body[lineStart..<body.endIndex])
+            sectionAccumulator.finish()
+        }
+
+        return Result(
+            wordCount: wordCount,
+            sections: derivesSections ? sectionAccumulator.sections : []
+        )
+    }
+}
+
+private struct JournalSectionAccumulator {
+    private(set) var sections: [JournalSection] = []
+    private var currentTitle: String?
+    private var currentLines: [Substring] = []
+
+    mutating func consume(_ rawLine: Substring) {
+        let trimmedLine = rawLine.trimmingLeadingWhitespace()
+
+        if trimmedLine.hasPrefix("### ") {
+            flushSection()
+            let sectionTitle = String(trimmedLine.dropFirst(4))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            currentTitle = sectionTitle.isEmpty ? "未命名小节" : sectionTitle
+        } else if currentTitle != nil {
+            currentLines.append(rawLine)
+        }
+    }
+
+    mutating func finish() {
+        flushSection()
+    }
+
+    private mutating func flushSection() {
+        guard let currentTitle else { return }
+
+        var sectionMarkdown = String()
+        for (index, line) in currentLines.enumerated() {
+            if index > 0 {
+                sectionMarkdown.append("\n")
+            }
+            sectionMarkdown.append(contentsOf: line)
+        }
+
+        sections.append(
+            JournalSection(
+                order: sections.count,
+                title: currentTitle,
+                markdown: sectionMarkdown.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        )
+        currentLines.removeAll(keepingCapacity: true)
     }
 }
 
@@ -353,16 +392,9 @@ private extension Substring {
     }
 }
 
-private extension String {
-    func indexAfterNewline(at range: Range<String.Index>) -> String.Index {
-        guard self[range] == "\r",
-              range.upperBound < endIndex,
-              self[range.upperBound] == "\n"
-        else {
-            return range.upperBound
-        }
-
-        return index(after: range.upperBound)
+private extension Character {
+    var isFoundationNewline: Bool {
+        unicodeScalars.allSatisfy { CharacterSet.newlines.contains($0) }
     }
 }
 

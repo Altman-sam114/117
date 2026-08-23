@@ -14,7 +14,7 @@
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 实际为 195 项（新增 6 项 selection/navigation 纯测试），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），manifest/JUnit/outcomes 和三份 xcresult 均已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
@@ -34,6 +34,33 @@
 - Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
 
 ## 历史记录
+
+### v0.78 / 正文 metrics 单次扫描
+
+日期：2026-08-23
+
+核心变更：
+
+- `JournalEntryBodyMetrics` 通过模型层 `JournalBodyDerivation` 共享单调 Character/Index 扫描，在一次正文遍历中同时派生 `wordCount` 和 `sections`；编辑器头部、统计和其他 metrics 调用方不再先独立扫词数再完整扫描小节。
+- `JournalSection.extract(from:)` 和 `JournalEntryBodyMetrics.wordCount(in:)` 继续保留兼容 API，并按需复用同一内部扫描器；保留 LF、CR、CRLF、VT、FF、NEL、LS、PS、ASCII 空格/tab marker、空标题、trim、EOF、section order/id/markdown/excerpt、fenced code ordinary marker 和旧词数口径。
+- `JournalEntryTests` 新增 shared metrics characterization，精确断言 wordCount、section count、title、markdown、excerpt、order 和 id；不加入耗时或分配阈值。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.78（正文metrics单次扫描）.md`
+
+验证与交付状态：
+
+- 本机轻量检查已完成：`git diff --check`、应用和改动测试 Swift `-parse`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow YAML 解析和 `VERSION: v0.78` 搜索均通过；Ruby YAML 解析伴随本机 PATH 权限 warning，不影响 `yaml ok`。未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
+- 实现、commit、push、GitHub Actions run/attempt、artifact、digest 和 Agent C 结论待产生后补录；不得用本地 parse 或旧 v0.77 artifact 代替本轮结果。
+
+遗留事项：
+
+- Swift parse 与纯值 characterization 不证明真实 Mac 长文输入的分配、帧率、VoiceOver 或设备交互；完整 iOS/Mac Catalyst build 和 XCTest 只以最新未加密 CI artifact 为准。
 
 ### v0.77 / 正文小节流式派生
 

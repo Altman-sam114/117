@@ -26,8 +26,8 @@ Markdown 与统计派生数据流：
 ```text
 JournalEntry.body
   -> JournalEntryBodyMetrics
-  -> wordCount / sections / sectionCount
-  -> wordCount 由单次字符扫描派生，不为词数统计创建 split 片段
+  -> 共享单次 Character/Index 扫描同时派生 wordCount / sections / sectionCount
+  -> wordCount 不创建 split 片段；sections 沿用 Foundation newline、ASCII marker 和旧 trim/flush 语义
   -> EntryEditorView 头部和 JournalStatistics 轻量复用，不生成 excerpt；头部横向小节概览懒加载离屏卡片
 
 JournalEntry.body
@@ -271,7 +271,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.2 `JournalEntryBodyMetrics`
 
-职责：在内存中把正文单次轻量派生为词数、`###` 小节和小节数；词数使用单次字符扫描，避免为计数创建 split 片段。
+职责：在内存中用共享单次正文扫描派生词数、`###` 小节和小节数；词数避免创建 split 片段，小节保持独立 API 的兼容语义。
 
 输入：`JournalEntry.body`。
 
@@ -333,7 +333,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 职责：把 `[JournalEntry]` 转成列表首页概览卡所需的轻量统计数据。
 
-实现边界：词数直接调用 `JournalEntryBodyMetrics.wordCount(in:)`；小节覆盖只调用 `JournalSection.containsLevelThreeSection(in:)`，后者按 Unicode scalar 单向扫描、只跳过行首 ASCII 空格/tab、使用 `CharacterSet.newlines` 识别换行并在首个精确 `### ` 前缀处早退。编辑器、列表行和统计看板等需要小节内容的调用方仍使用 `JournalSection.extract(from:)` 生成完整数组。
+实现边界：metrics 生产入口用同一条 Character/Index 单调扫描同时计算词数和完整 sections；词数独立 API 与 `JournalSection.extract(from:)` 仍通过同一内部扫描器按需启用对应派生。小节存在性快路径仍按 Unicode scalar 单向扫描、只跳过行首 ASCII 空格/tab、使用 `CharacterSet.newlines` 识别换行并在首个精确 `### ` 前缀处早退。列表概览继续只调用词数和存在性快路径，不构造完整小节数组。
 
 输入：日记数组、日历、当前时间。
 

@@ -54,7 +54,7 @@ flowchart TD
   Store --> Model["JournalEntry：日记模型、兼容解码、展示标题"]
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
-  Model --> MetricsNode["JournalEntryBodyMetrics：单次扫描词数、非持久化 ### 小节"]
+  Model --> MetricsNode["JournalEntryBodyMetrics：共享单次扫描同时派生词数与非持久化 ### 小节"]
   Model --> SectionPresence["JournalSection.containsLevelThreeSection：单向扫描 ### 存在性并早退"]
   Model --> SectionExtract["JournalSection.extract：String.Index/Substring 逐行派生小节，保留 .newlines 与既有 marker 语义"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
@@ -166,8 +166,8 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：非持久化词数和 ### 小节"]
-  Body --> OverviewWordCount["JournalEntryBodyMetrics.wordCount(in:)：单次词数扫描"]
+  Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：共享单次扫描派生非持久化词数和 ### 小节"]
+  Body --> OverviewWordCount["JournalEntryBodyMetrics.wordCount(in:)：共享扫描器的词数按需路径"]
   Body --> SectionPresence2["JournalSection.containsLevelThreeSection(in:)：Unicode scalar 单向扫描并早退"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；已确认输入直接单次写正文，外部同步差异检查，UTF-16 选区/焦点按需更新"]
@@ -237,7 +237,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.77 跳过本机 build/XCTest/app，覆盖 extraction characterization 的 Swift parse"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.78 跳过本机 build/XCTest/app，覆盖 shared metrics characterization 的 Swift parse"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]

@@ -93,6 +93,61 @@ final class JournalEntryTests: XCTestCase {
         }
     }
 
+    func testBodyMetricsPreservesWordAndSectionResultsInSharedScan() {
+        let cases: [
+            (
+                name: String,
+                body: String,
+                wordCount: Int,
+                titles: [String],
+                markdown: [String],
+                excerpts: [String]
+            )
+        ] = [
+            (
+                "plain body without sections",
+                "中文 English\r\n混排 😀",
+                4,
+                [],
+                [],
+                []
+            ),
+            (
+                "mixed Foundation newlines and composed characters",
+                "导言\r\n### 第一节\u{000B}内容 😀\u{000C}### 第二节\u{0085}e\u{301} 结束\u{2028}",
+                9,
+                ["第一节", "第二节"],
+                ["内容 😀", "e\u{301} 结束"],
+                ["内容 😀", "e\u{301} 结束"]
+            ),
+            (
+                "empty title invalid marker and fenced code",
+                "前言\n###无效\n \t### \n\u{0060}\u{0060}\u{0060}\n### 代码\n正文\n\u{0060}\u{0060}\u{0060}",
+                8,
+                ["未命名小节", "代码"],
+                ["\u{0060}\u{0060}\u{0060}", "正文\n\u{0060}\u{0060}\u{0060}"],
+                ["还没有内容", "正文"]
+            )
+        ]
+
+        for testCase in cases {
+            let metrics = JournalEntryBodyMetrics(body: testCase.body)
+
+            XCTAssertEqual(metrics.wordCount, testCase.wordCount, "Unexpected word count for \(testCase.name)")
+            XCTAssertEqual(metrics.sectionCount, testCase.titles.count, "Unexpected section count for \(testCase.name)")
+            XCTAssertEqual(metrics.sections.map(\.order), Array(testCase.titles.indices))
+            XCTAssertEqual(metrics.sections.map(\.title), testCase.titles)
+            XCTAssertEqual(metrics.sections.map(\.markdown), testCase.markdown)
+            XCTAssertEqual(metrics.sections.map(\.excerpt), testCase.excerpts)
+            XCTAssertEqual(
+                metrics.sections.map(\.id),
+                zip(testCase.titles.indices, testCase.titles).map { "\($0.0)-\($0.1)" }
+            )
+            XCTAssertEqual(metrics.sections, JournalSection.extract(from: testCase.body))
+            XCTAssertEqual(metrics.wordCount, JournalEntryBodyMetrics.wordCount(in: testCase.body))
+        }
+    }
+
     func testBodySummaryCleansMarkdownMarkersWithoutKeepingBlankLines() {
         let body = [
             "# 标题",
