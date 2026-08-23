@@ -34,10 +34,10 @@ flowchart TD
   FocusPolicy --> BodyTextView
   Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；本地已发布正文/选区由 Coordinator 一次性状态门控快速路径，外部正文或状态不匹配时按差异同步，marked text 延迟覆盖，最新 binding/请求代数门控异步焦点，承载 Tab / Shift-Tab"]
-  BodyTextView --> BodySyncState["Coordinator sync state：记录本地发布选区，只消费一次匹配 bridge 更新"]
-  BodySyncState --> LocalFastPath["匹配且非 marked：保留 UIKit 正文/选区，跳过重复比较与 UTF-16 clamp"]
-  BodySyncState --> ExternalBodySync["初始、选区不匹配或已消费：正文差异同步与 UTF-16 clamp"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；正文发布时由 Coordinator 建立一次性 token，外部正文或状态不匹配时按差异同步，marked text 延迟覆盖，最新 binding/请求代数门控异步焦点，承载 Tab / Shift-Tab"]
+  BodyTextView --> BodySyncState["Coordinator sync state：正文发布时记录 body + selection token；选区变化只更新选区，不建 token"]
+  BodySyncState --> LocalFastPath["正文与 NSRange 均匹配且非 marked：保留 UIKit 正文/选区，减少重复 bridge 同步与选区 clamp"]
+  BodySyncState --> ExternalBodySync["初始、正文不同、选区不匹配或已消费：正文差异同步与 UTF-16 clamp"]
   BodySyncState --> MarkedTextDefer["marked text：延迟外部覆盖，保留组合输入"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation

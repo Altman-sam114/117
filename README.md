@@ -40,7 +40,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 v0.85 列表卡片由非持久化 `EntryRowLayoutContract` 按 `DynamicTypeSize` 选择布局：`.large` / `.xxxLarge` 保留 metadata、footer 横排、标题与小节标题单行以及水平小节条；`.accessibility1` 至 `.accessibility5` 将 metadata/footer 垂直堆叠、标题取消单行限制，小节改为有限宽度的垂直栈并允许标题至少两行，避免水平 `ScrollView` 的无限宽度提议使换行失效。该契约只消费字号，不进入 Store、JSON、列表快照、正文 metrics、selection 或编辑器状态。
 
-v0.86 的 `MarkdownBodyTextView` 在 Coordinator 内维护非持久化的一次性同步状态：UIKit 普通输入、回车续写、缩进和用户选区变化发布后，下一次匹配选区的非 marked bridge 更新直接保留已发布正文/选区，跳过重复正文比较和 UTF-16 长度 clamp；状态不匹配或已消费时仍走外部正文差异同步，marked text、UTF-16 `NSRange`、焦点、traits 和 Markdown 输入语义不变。新增纯值同步状态测试；本轮实现尚待最新 `origin/main` 对应的 GitHub Actions artifact 验收，不能用本地轻量检查代替云端 build/XCTest 或真实 Mac 输入性能验证。
+v0.86 的 `MarkdownBodyTextView` 在 Coordinator 内维护非持久化的一次性同步状态：UIKit 普通输入、回车续写和缩进实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新仅在正文和 `NSRange` 都匹配时保留已发布正文/选区并减少重复 bridge 同步；即使 `NSRange` 相同，只要外部正文不同仍走外部同步。状态不匹配或已消费时仍按现有规则同步，marked text、UTF-16 选区、焦点、traits 和 Markdown 输入语义不变。新增 7 项纯值同步状态与 Coordinator 接线测试；本轮实现尚待最新 `origin/main` 对应的 GitHub Actions artifact 验收，不能用本地轻量检查代替云端 build/XCTest，也不能据此承诺完全消除 O(n)、零分配、固定帧率或真实 Mac 输入性能。
 
 ## 日记结构建议
 
@@ -153,7 +153,7 @@ test -x script/build_and_run.sh
 
 v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的阶段一云端结果为 `205/205 passed`，static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均成功；对应未加密 artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`，size `456026` bytes，digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`，run `32645093679`，attempt `1`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并核对，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。docs-close 文档提交会触发新的 run，不能复用该 artifact；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
 
-v0.86 当前新增 `MarkdownTextInputConfigurationTests` 的同步状态纯值与 Coordinator 接线测试，预期云端 XCTest 总数高于 v0.85 的 205 项；实际测试数量、run、attempt 和 artifact 必须由 Agent C 针对最新 `origin/main` 结果包核对后补记。
+v0.86 当前相对 v0.85 的源码差异新增 `MarkdownTextInputConfigurationTests` 7 项同步状态纯值与 Coordinator 接线测试，预期云端 XCTest 总数高于 v0.85 的 205 项；实际云端测试数量、run、attempt 和 artifact 必须由 Agent C 针对最新 `origin/main` 结果包核对后补记。
 
 ## 协作与云端验证
 
