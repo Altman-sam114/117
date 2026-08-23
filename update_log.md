@@ -56,7 +56,8 @@
 验证与交付状态：
 
 - 本轮本机仅执行 `git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与相关测试 Swift `-parse`、workflow YAML 解析和版本/符号搜索；Ruby YAML 解析伴随既有 PATH warning，但输出 `yaml ok`。未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化、截图或 Instruments。
-- 实现 commit、GitHub Actions run/attempt、未加密 artifact 和 Agent C 结果待本轮 push 后产生并核对；不得使用旧 v0.80 artifact 代替本轮验收。
+- 实现 HEAD `af6dfccddb266fa2966508b16fdd4df18eaadb9d` 对应 GitHub Actions run `32632436582`、attempt `1` 已由 Agent C PASS。未加密 artifact 为 `mdjournal-ci-v0.81-main-af6dfcc-run32632436582-attempt1`，ID `9491532543`，size `452553` bytes，digest `sha256:037099d690ea27cbccd19f21c8b38a7f97ff1601eae3534a5ef3c763fb5e78bd`。
+- Agent C 核对 manifest 身份与 outcomes 均匹配；JUnit 为 `tests=4, failures=0, errors=0, skipped=0`，三份 xcresult 均存在且可读取，XCTest 为 `201 passed / 0 failed / 0 skipped`。ZIP 共 473 项且未加密，CRC、fresh extract 文件清单和逐文件 SHA-256 均通过；runner 的远端 Simulator `FBSOpenApplicationServiceErrorDomain` 启动 warning 不影响 `TEST SUCCEEDED`。
 
 遗留事项：
 
