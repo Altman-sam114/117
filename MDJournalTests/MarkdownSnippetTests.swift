@@ -69,6 +69,24 @@ final class MarkdownSnippetTests: XCTestCase {
         )
     }
 
+    func testEntryEditorFocusPolicyResignsWhenEnteringPreview() {
+        XCTAssertEqual(
+            EntryEditorFocusPolicy.action(for: .enterPreview),
+            .resign
+        )
+    }
+
+    func testEntryEditorFocusPolicyDistinguishesCommandReturnFromPickerSelection() {
+        XCTAssertEqual(
+            EntryEditorFocusPolicy.action(for: .returnToEditFromPreviewCommand),
+            .focus
+        )
+        XCTAssertEqual(
+            EntryEditorFocusPolicy.action(for: .selectEditModeFromPicker),
+            .preserve
+        )
+    }
+
     func testEntryEditorLayoutContractUsesWidthBoundaryIndependentlyFromDynamicType() {
         for dynamicTypeSize in [DynamicTypeSize.large, .accessibility1, .accessibility5] {
             XCTAssertFalse(

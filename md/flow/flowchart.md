@@ -29,9 +29,12 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键，辅助功能标签与命令标题对齐，并按状态表达预览切换动作"]
   WritingCommand --> Editor
+  Editor --> CompactFocus["compact 模式：Picker / ⌘⌥P / editorFocused"]
+  CompactFocus --> FocusPolicy["EntryEditorFocusPolicy：进入预览 resign；⌘⌥P 返回编辑 focus；Picker 选回编辑 preserve"]
+  FocusPolicy --> BodyTextView
   Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion
-  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；已确认输入直接单次发布正文，外部正文按差异同步，选区/焦点按需写回；承载 Tab / Shift-Tab"]
+  Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；已确认输入直接单次发布正文，外部正文按差异同步，最新 binding/请求代数门控异步焦点，选区/焦点按需写回；承载 Tab / Shift-Tab"]
   Editor --> WritingIndent["EntryEditorView.applyIndentation：菜单/工具栏缩进入口"]
   WritingIndent --> LineIndentation
   BodyTextView --> LineContinuation["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写或退出，空项非分配水平空白判断，单次扫描 fenced code 状态"]
@@ -242,7 +245,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.80 只做 diff/plist/Swift parse/版本搜索，跳过本机 build/XCTest/app"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.81 只做 diff/plist/Swift parse/YAML/版本搜索，跳过本机 build/XCTest/app"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]

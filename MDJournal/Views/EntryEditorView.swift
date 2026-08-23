@@ -41,6 +41,31 @@ internal struct EntryEditorLayoutContract: Equatable {
     }
 }
 
+internal enum EntryEditorFocusPolicy {
+    enum Transition: Equatable {
+        case enterPreview
+        case returnToEditFromPreviewCommand
+        case selectEditModeFromPicker
+    }
+
+    enum Action: Equatable {
+        case resign
+        case focus
+        case preserve
+    }
+
+    static func action(for transition: Transition) -> Action {
+        switch transition {
+        case .enterPreview:
+            return .resign
+        case .returnToEditFromPreviewCommand:
+            return .focus
+        case .selectEditModeFromPicker:
+            return .preserve
+        }
+    }
+}
+
 struct EntryEditorView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case edit = "编辑"
@@ -335,7 +360,7 @@ struct EntryEditorView: View {
 
     private var compactEditor: some View {
         VStack(spacing: 0) {
-            Picker("模式", selection: $mode) {
+            Picker("模式", selection: compactModeSelection) {
                 ForEach(Mode.allCases) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
@@ -405,6 +430,33 @@ struct EntryEditorView: View {
         editorFocused = true
     }
 
+    private var compactModeSelection: Binding<Mode> {
+        Binding(
+            get: { mode },
+            set: { newMode in
+                guard newMode != mode else { return }
+
+                mode = newMode
+                if newMode == .preview {
+                    applyCompactFocusPolicy(for: .enterPreview)
+                } else {
+                    applyCompactFocusPolicy(for: .selectEditModeFromPicker)
+                }
+            }
+        )
+    }
+
+    private func applyCompactFocusPolicy(for transition: EntryEditorFocusPolicy.Transition) {
+        switch EntryEditorFocusPolicy.action(for: transition) {
+        case .resign:
+            editorFocused = false
+        case .focus:
+            focusBody()
+        case .preserve:
+            break
+        }
+    }
+
     private func resetBodySelectionToEnd() {
         bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
     }
@@ -413,7 +465,12 @@ struct EntryEditorView: View {
         if isWideLayoutActive {
             isPreviewColumnVisible.toggle()
         } else {
-            mode = mode == .preview ? .edit : .preview
+            if mode == .preview {
+                applyCompactFocusPolicy(for: .returnToEditFromPreviewCommand)
+            } else {
+                mode = .preview
+                applyCompactFocusPolicy(for: .enterPreview)
+            }
         }
     }
 

@@ -21,6 +21,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Markdown 正文支持 Tab / Shift-Tab 对当前行或多行选区缩进和反缩进；反缩进会删除一个 tab 或最多两个行首空格，行首 UTF-16 offset 会在单次扫描中收集且只扫描到选区有效结束行，多行改写基于原正文单次构造结果，Mac Catalyst 下也可从“写作”菜单和写作工具栏触发。
 - Markdown 正文输入会禁用智能引号、智能破折号和智能插入删除，并只在配置被重置时重新写入 traits，避免系统自动改写 Markdown 标记。
 - Markdown 正文输入 bridge 按需配置 rounded body 字体，只在目标字体变化时写入；UIKit 已确认变化的普通输入、Markdown 回车续写和行缩进会直接且仅一次发布正文，不再先读取旧正文做全文比较，外部正文同步仍按差异更新，光标/选区和焦点继续按需写回。
+- 紧凑/窄屏编辑器由 `EntryEditorFocusPolicy` 明确区分预览焦点生命周期：进入预览清除正文焦点，现有 `⌘⌥P` 从预览回到编辑时请求焦点，Picker 直接选回编辑则保持未聚焦；`MarkdownBodyTextView` 的异步 first responder 请求以最新焦点 binding 和请求代数门控，不改变 IME、marked text、选区或正文写回语义。纯 policy 测试不等价于真实 Mac first responder、VoiceOver 或输入设备交互验收。
 - Markdown 预览，支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线渲染。
 - 正文包含 `###` 时，预览会按三级标题分组显示每个日记小节。
 - Markdown 预览在单次渲染中复用同一份解析结果和小节分组判断；正文连续变化使用 `150ms` trailing debounce，等待期间保留上一份预览，generation 与日记 ID 共同保证 latest-wins，旧请求不会覆盖新日记或最新正文；正文 binding 仍即时更新，accent、窗口宽度和 Dynamic Type 只重新布局已有结果。解析器逐行迭代正文，不先构造整篇行数组，空行判断直接扫描水平空白并在裁剪行首前短路，代码块内只执行围栏识别所需的行首裁剪，行首 marker 判断使用原行切片，不创建临时 trimmed 字符串，解析缓冲在 flush 后保留容量；内联文本没有 Markdown 触发字符时直接走纯文本 `AttributedString`，并用索引迭代渲染块和列表项，减少大正文编辑时的重复解析、重复派生和临时数组分配。
@@ -68,6 +69,8 @@ Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Ca
 ```
 
 Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_run.sh`。脚本会停止旧的 `MDJournal` 进程、构建 Mac Catalyst Debug app，并启动最新构建产物；该入口用于人工本机开发，自动验收仍以 GitHub Actions 回传结果包为准。
+
+`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.80 云端基线为 `199 passed / 0 failed / 0 skipped`。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
 
 ## 验证
 
@@ -159,6 +162,8 @@ test -x script/build_and_run.sh
 - Agent B 默认在 `main` 上直推 `origin/main` 触发云端重验证；Agent C 最终以最新结果包验收，不通过时退回 Agent B 追加修复 commit。
 
 ## 完成记录
+
+- 2026-08-23：v0.81 实现 compact/窄屏预览焦点生命周期：进入预览清除正文焦点，现有 `⌘⌥P` 从预览回到编辑时复用正文聚焦入口，Picker 选回编辑保持未聚焦；新增 `EntryEditorFocusPolicy` 纯值契约，并为 `MarkdownBodyTextView` 的异步 first responder 请求加入最新 binding/请求代数门控。实现提交与 GitHub Actions run/artifact 待本轮推送和 Agent C 核对；本机只执行轻量检查，真实 Mac first responder、Picker、VoiceOver、IME 和输入设备交互仍需人工验收。
 
 - 2026-08-23：v0.78 将 `JournalEntryBodyMetrics` 的词数和完整 `###` 小节派生收敛到模型层共享单次正文扫描；保留 v0.77 的换行、marker、trim、EOF、fenced code 和旧词数语义，新增精确 metrics characterization。实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 对应 run `32626526380` attempt `1` 的未加密 artifact `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`（ID `9489907904`，size `444220`，digest `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`）已由 Agent C PASS：`197 passed / 0 failed / 0 skipped`，新增 shared metrics 测试执行通过，465 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app。
 - 2026-08-23：v0.80 将列表概览的词数和 `###` 小节存在性收敛到模型层 `JournalEntryOverviewMetrics` 单次正文扫描；保留旧词数、Unicode newline、ASCII marker、空标题、EOF、连续 marker、fenced code 和 emoji/组合字符语义，不构造完整 sections/summary。新增 overview characterization，更新 CI 版本为 `v0.80`。实现 HEAD `38c04d4f7d5ab6a19cd54e90b36cb8ef9102c80c` 对应 run `32630508182` attempt `1` 的未加密 artifact `mdjournal-ci-v0.80-main-38c04d4-run32630508182-attempt1`（ID `9490952804`，size `443686`，digest `sha256:7d7b2615a5c0b2f9fb7c9511d2dac6f93a1fad3d449e23f30e3950035f8fb626`）已由 Agent C PASS：`199 passed / 0 failed / 0 skipped`，469 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app，真实长文分配、帧率和交互仍需人工验收。

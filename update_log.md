@@ -35,6 +35,33 @@
 
 ## 历史记录
 
+### v0.81 / 预览焦点生命周期
+
+日期：2026-08-23
+
+核心变更：
+
+- compact/窄屏进入预览时由 `EntryEditorFocusPolicy` 映射为 `resign`，现有 `⌘⌥P` 从预览返回编辑时映射为 `focus` 并复用 `focusBody()`，Picker 直接选回编辑映射为 `preserve`。
+- `MarkdownBodyTextView` 继续只消费正文、选区和焦点 binding；异步 first responder 请求增加最新 binding 与请求代数门控，避免过期 become 请求越过预览清焦点状态，不改变 IME、marked text、选区、正文写回、Tab/回车和缩进语义。
+- 宽屏 `isPreviewColumnVisible`、`focusWriting()`、菜单快捷键定义、`MarkdownPreviewUpdateModel`、Store、JSON、Markdown parser/preview、窗口/sidebar 和 deployment target 均未改变。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`
+- `MDJournal/Views/MarkdownBodyTextView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `.github/workflows/ci-results.yml`、`md/prompt/v0（Mac体验）/v0.81（预览焦点生命周期）.md`
+
+验证与交付状态：
+
+- 本轮本机仅执行 `git diff --check`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、应用与相关测试 Swift `-parse`、workflow YAML 解析和版本/符号搜索；Ruby YAML 解析伴随既有 PATH warning，但输出 `yaml ok`。未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化、截图或 Instruments。
+- 实现 commit、GitHub Actions run/attempt、未加密 artifact 和 Agent C 结果待本轮 push 后产生并核对；不得使用旧 v0.80 artifact 代替本轮验收。
+
+遗留事项：
+
+- 纯 policy 测试和 bridge 静态检查不证明真实 Mac Catalyst first responder 时序、Picker 交互、键盘焦点环、VoiceOver、Dynamic Type、中文 IME marked text、输入设备交互或长文帧率；完整 iOS/Mac Catalyst build、XCTest 和结果包完整性以最新 v0.81 GitHub Actions artifact 为准。
+
 ### v0.80 / 列表概览双指标共享扫描
 
 日期：2026-08-23

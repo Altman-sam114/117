@@ -51,26 +51,40 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             }
         }
 
-        if isFocused, !textView.isFirstResponder {
-            DispatchQueue.main.async {
-                textView.becomeFirstResponder()
-            }
-        } else if !isFocused, textView.isFirstResponder {
-            DispatchQueue.main.async {
-                textView.resignFirstResponder()
-            }
-        }
+        context.coordinator.synchronizeFocus(textView, shouldBeFocused: isFocused)
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
         var text: Binding<String>
         var selectedRange: Binding<NSRange>
         var isFocused: Binding<Bool>
+        private var focusRequestGeneration = 0
 
         init(text: Binding<String>, selectedRange: Binding<NSRange>, isFocused: Binding<Bool>) {
             self.text = text
             self.selectedRange = selectedRange
             self.isFocused = isFocused
+        }
+
+        func synchronizeFocus(_ textView: UITextView, shouldBeFocused: Bool) {
+            focusRequestGeneration += 1
+            let requestGeneration = focusRequestGeneration
+
+            guard shouldBeFocused != textView.isFirstResponder else { return }
+
+            DispatchQueue.main.async { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                guard self.focusRequestGeneration == requestGeneration else { return }
+                guard self.isFocused.wrappedValue == shouldBeFocused else { return }
+
+                if shouldBeFocused {
+                    guard !textView.isFirstResponder else { return }
+                    textView.becomeFirstResponder()
+                } else {
+                    guard textView.isFirstResponder else { return }
+                    textView.resignFirstResponder()
+                }
+            }
         }
 
         func textView(
