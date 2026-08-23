@@ -276,7 +276,7 @@ flowchart TD
 
 读图说明：Agent C 不能只看文字汇报，必须下载最新 `origin/main` 对应 run 的 artifact，并核对结果包里的机器可读信息。
 
-当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 的最新 run、artifact 和最终 docs HEAD 尚待 Agent C 从最新 `origin/main` 下载核对，不能沿用 v0.82 结果。
+当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 实现 HEAD `d923cd3` 的第一阶段 run 为 `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，Agent C 已核对 `203 passed / 0 failed / 0 skipped`、477 项未加密 ZIP 及其完整性；docs-only 最终 HEAD 仍须下载并核对自己的最新结果包。
 
 ```mermaid
 flowchart LR

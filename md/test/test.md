@@ -337,12 +337,12 @@ v0.82 ContentView 列表快照复用专项核对：
 - `JournalEntryNavigationTests.testFilteredSnapshotDrivesSelectionRepairAndNavigationFromOneVisibleOrder` 与 filtered navigation characterization 均在 `xctest.log` 实际执行并通过，XCTest 总数为 `202 passed / 0 failed / 0 skipped`。ZIP 共 475 项且未加密，CRC、fresh extract、文件清单和 475 项逐文件 SHA-256 均通过；本轮完整 build/XCTest/xcodebuild/Simulator/CoreSimulator/App/UI 自动化/Instruments 未在本机运行。
 - docs-only 收敛提交将触发新的 run；最终 docs HEAD 必须重新下载并核对自己的 manifest、JUnit、日志、三份 xcresult、artifact digest、ZIP CRC、fresh extract 和逐文件 SHA-256，不能复用实现 HEAD artifact。
 
-v0.83 编辑器 placeholder shared metrics 专项核对（待 Agent C）：
+v0.83 编辑器 placeholder shared metrics 专项核对（第一阶段实现 HEAD 已通过，最终 docs HEAD 待第二阶段）：
 
-- 只验收最新 `origin/main` 对应的 `MD Journal CI Results` run；manifest 的 `version=v0.83`、`branch=main`、完整 `commitSha`、`runId`、`runAttempt` 和 workflow 必须完全匹配，不能复用 v0.82 artifact。
-- `JournalEntryTests.testBodyMetricsReportsVisibleContentUsingCharacterWhitespaceSemantics` 必须实际执行并通过；XCTest 总数必须高于 v0.82 的 202 项且无 failed/skipped。static checks、generic iOS build、Mac Catalyst build 和 XCTest 必须 success。
-- Agent C 必须下载未加密 artifact，核对 manifest、JUnit、failure summary、全部日志、三份 xcresult、GitHub/local digest、ZIP CRC、fresh extract 和逐文件 SHA-256，并复审 `hasVisibleContent` 来自 shared scan、没有 JSON/Store/Markdown/focus/window 无关 diff。
-- 本轮 Agent B 尚未获得云端 run、artifact、ID、size 或 digest；这些字段不能由本地 parse 或本轮文字报告代替，待 Agent C 实际下载核对后补记。
+- 实现 HEAD `d923cd3720da5c8739bcf216a404379c752618b7`、branch `main` 对应 `MD Journal CI Results` run `32638983543`、attempt `1`；artifact ID `9493173578`，名称 `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，size `453266` bytes，GitHub/local SHA-256 均为 `sha256:abfca59c408c01d0e9fbf59fb64f62d6c84d3dbff86b048254a82d4f94812fd5`。
+- Agent C 已从 `/private/tmp/mdjournal-c-review-32638983543/` 下载并核对最新 `origin/main` artifact：manifest 的 `version=v0.83`、branch、完整 commitSha、runId、runAttempt、workflow、scheme、destination 和结果路径完全匹配；static checks、generic iOS build、Mac Catalyst build、XCTest 均为 `success`。JUnit 为 `tests=4 / failures=0 / errors=0 / skipped=0`；两份 build 日志包含 `BUILD SUCCEEDED`，测试日志包含 `TEST SUCCEEDED`，三份 xcresult 的 `Info.plist` 均通过 `plutil -lint`，测试 xcresult summary 为 `203 passed / 0 failed / 0 skipped`。
+- `JournalEntryTests.testBodyMetricsReportsVisibleContentUsingCharacterWhitespaceSemantics` 在 `xctest.log` 实际执行并通过，XCTest 总数为 `203 passed / 0 failed / 0 skipped`。ZIP 共 477 项且全部未加密，`unzip -tq` CRC、fresh extract 文件清单、下载目录清单和 477 项逐文件 SHA-256 均通过；本机未运行 build、XCTest、`xcodebuild`、Simulator/CoreSimulator、App、UI 自动化、截图或 Instruments。
+- 源码 diff 复审确认 `hasVisibleContent` 来自 `JournalBodyDerivation` 既有单次 Character/Index 扫描，`EntryEditorView` 只消费同一次 body 评估的 `bodyMetrics`，没有 JSON/Store/Markdown/focus/window/workflow 行为无关 diff。docs-only 收敛提交触发新 run 后，第二阶段必须对最终 `origin/main` HEAD 重新下载并完整核对 manifest、JUnit、failure summary、全部日志、三份 xcresult、测试数量、digest、ZIP CRC、fresh extract 和逐文件 SHA-256，不能复用本阶段 artifact。
 
 ## 3. Agent C 下载和复判
 
