@@ -55,7 +55,7 @@ flowchart TD
   Store --> JSON["Documents/md-journal-entries.json：本地 JSON 持久化"]
   JSON --> Store
   Model --> MetricsNode["JournalEntryBodyMetrics：共享单次扫描同时派生词数与非持久化 ### 小节"]
-  Model --> SectionPresence["JournalSection.containsLevelThreeSection：单向扫描 ### 存在性并早退"]
+  Model --> OverviewMetrics["JournalEntryOverviewMetrics：一次 Character/Unicode scalar 扫描派生词数 + ### 存在性，不构造 sections"]
   Model --> SectionExtract["JournalSection.extract：String.Index/Substring 逐行派生小节，保留 .newlines 与既有 marker 语义"]
   Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
   Store --> FilterSnapshot["ContentView：store.entries + 筛选状态 -> JournalEntryListSnapshot"]
@@ -65,7 +65,7 @@ flowchart TD
   ListSnapshot --> SelectionPolicy["JournalEntrySelectionPolicy：可见保留 / 隐藏切首项 / 空结果 nil"]
   SelectionPolicy --> NavigationActions
   SelectionPolicy --> CV
-  Store --> ListOverview["JournalListOverviewSnapshot：通过 wordCount + ### 存在性快路径派生概览"]
+  Store --> ListOverview["JournalListOverviewSnapshot：每篇正文只消费一次 overview metrics"]
   ListOverview --> List
   Model --> PreviewRequestCore["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
   PreviewRequestCore --> PreviewSchedulerCore["150ms trailing scheduler：取消旧 request，等待期间保留旧结果"]
@@ -81,7 +81,7 @@ flowchart TD
   Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
   Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
   MetricsNode --> Stats
-  SectionPresence --> ListOverview
+  OverviewMetrics --> ListOverview
   Store --> Error["errorMessage：读取/保存失败"]
   Error --> Alert["ContentView Alert：展示本地数据错误"]
 ```
@@ -173,8 +173,7 @@ flowchart TD
 ```mermaid
 flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：共享单次扫描派生非持久化词数和 ### 小节"]
-  Body --> OverviewWordCount["JournalEntryBodyMetrics.wordCount(in:)：共享扫描器的词数按需路径"]
-  Body --> SectionPresence2["JournalSection.containsLevelThreeSection(in:)：Unicode scalar 单向扫描并早退"]
+  Body --> OverviewMetrics2["JournalEntryOverviewMetrics：一次扫描同时派生 wordCount + hasLevelThreeSection"]
   Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；已确认输入直接单次写正文，外部同步差异检查，UTF-16 选区/焦点按需更新"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
@@ -211,8 +210,7 @@ flowchart LR
   ListSnapshot2 --> SelectionPolicy2["JournalEntrySelectionPolicy：repair、detail guard、创建删除修复"]
   SelectionPolicy2 --> ListView
   Entries --> ListOverview2["JournalListOverviewSnapshot：列表概览轻量统计"]
-  OverviewWordCount --> ListOverview2
-  SectionPresence2 --> ListOverview2
+  OverviewMetrics2 --> ListOverview2
   ListOverview2 --> ListView
   Statistics --> Metrics["总篇数、总词数、平均值、连续天数"]
   Statistics --> Distributions["分类分布、心情分布、分布最大值和主导项"]
@@ -244,7 +242,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.79 只做 diff/plist/Swift parse/版本搜索，跳过本机 build/XCTest/app"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.80 只做 diff/plist/Swift parse/版本搜索，跳过本机 build/XCTest/app"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]

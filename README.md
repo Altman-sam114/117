@@ -8,11 +8,11 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - 本地 JSON 自动保存，不依赖服务器。
 - 编辑时先在 MainActor 即时更新界面状态并生成单调 revision 快照，再短延迟合并提交给单写者 actor；JSON 编码和原子写盘不再占用 MainActor。正文等非日期更新不会触发无效列表重排，减少长文本输入时的磁盘写入和主线程工作。
 - 新建和删除会同步改变内存状态并绕过编辑 debounce 立即安排 actor 写入，但同步 API 返回时磁盘可能尚未开始或仍在写；`await flushPendingSave()` 会取消等待中的 debounce、等待当前写入并追赶期间产生的最新 revision。生命周期异步 flush 没有系统后台执行 lease，快速挂起、崩溃或强杀仍可能使尚未 durable 的更新丢失。
-- 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，metrics 在同一条正文扫描中同时派生词数和完整 `###` 小节，列表概览仍分别使用词数和小节存在性快路径，避免不需要摘要时生成 excerpt、为词数创建 split 片段或为概览构造完整小节数组；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
+- 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，metrics 在同一条正文扫描中同时派生词数和完整 `###` 小节，列表概览通过 `JournalEntryOverviewMetrics` 在同一条正文扫描中派生词数与小节存在性，不生成完整小节数组、excerpt 或 summary，避免重复遍历；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
 - 编辑器头部直接使用轻量正文 metrics 展示词数和 `###` 小节，横向小节概览采用懒加载，避免正文输入时为未展示的摘要或离屏小节卡片做额外构建。
 - 编辑器头部的系统日期选择器保留 compact 视觉，并以隐藏但可访问的“日记日期”标签提供稳定字段名称；日期值、语言和调整语义继续由系统控件处理，真实 VoiceOver 朗读仍需人工验收。
 - 编辑器正文占位提示使用非分配空白判断，长文输入重渲染时不为 placeholder 条件创建临时字符串。
-- 列表首页概览使用轻量统计快照，只计算总篇数、连续天数、总词数和概览洞察；其中 `###` 存在性用单向 Unicode scalar 扫描并在首个合法标题处早退，避免编辑正文时反复构造完整统计看板、正文摘要或每篇日记的完整小节数组。
+- 列表首页概览使用轻量统计快照，只计算总篇数、连续天数、总词数和概览洞察；其中 `JournalEntryOverviewMetrics` 在一次线性扫描中同时得到旧口径词数和 `###` 存在性，并在首个合法标题处停止 marker 检测，避免编辑正文时重复扫描或构造完整统计看板、正文摘要或每篇日记的完整小节数组。
 - `JournalSection.extract(from:)` 使用单调 `String.Index` 和 `Substring` 逐行扫描正文，不先物化 `.newlines` 行数组；保留 LF、CR、CRLF 与 Foundation Unicode newline、ASCII 空格/tab marker、空标题、section flush/order/id/markdown/excerpt 及 fenced code 语义。该路径仍在需要时构造 section 标题和最终 markdown，不承诺零分配。
 - `JournalEntryBodyMetrics` 使用模型层共享的单调扫描，同时派生 `wordCount` 与 `sections`；独立的 `wordCount(in:)` 和 `JournalSection.extract(from:)` 仍保留各自兼容 API，不改变词数或小节语义。该优化减少编辑器头部、统计和列表行高频重算时的重复正文遍历，但云端测试不等同于真实 Instruments 分配或 Mac 输入延迟测量。
 - 支持日常、工作学习、灵感、旅行、健康分类，并可在列表中按分类筛选；分类筛选按钮至少为 `44pt` 高且可随 Dynamic Type 自然增高，使用稳定勾选槽表达选中状态，并向 VoiceOver 提供明确文案与 selected trait。
@@ -115,7 +115,7 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、`JournalEntrySelectionPolicy` 的可见保留/隐藏切首项/空结果 nil/筛选删除/新建匹配与隐藏规则、基于 `JournalEntryListSnapshot.filteredEntries` 的非循环较新/较早日记导航及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.75 云端最终结果为 `189 passed / 0 failed / 0 skipped`；v0.76 新增 6 项、最终文档 HEAD 云端结果为 `195 passed / 0 failed / 0 skipped`，完整 build/XCTest/app 只以 GitHub Actions 未加密 artifact 为准，本机未运行。纯 policy 测试、布局契约和预览策略测试不等价于真实 List selection/detail 时序、筛选输入时序、菜单 disabled 视觉、Dynamic Type、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
+当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`JournalEntryOverviewMetrics` 与旧词数/小节存在性 API 的换行、ASCII 空格/tab、非法 marker、空标题、EOF、连续 marker、emoji/组合字符和 fenced code 等价性、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、`JournalEntrySelectionPolicy` 的可见保留/隐藏切首项/空结果 nil/筛选删除/新建匹配与隐藏规则、基于 `JournalEntryListSnapshot.filteredEntries` 的非循环较新/较早日记导航及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器 `819/820pt × .large/.accessibility1/.accessibility5` 六格布局契约、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.75 云端最终结果为 `189 passed / 0 failed / 0 skipped`；v0.76 新增 6 项、最终文档 HEAD 云端结果为 `195 passed / 0 failed / 0 skipped`，完整 build/XCTest/app 只以 GitHub Actions 未加密 artifact 为准，本机未运行。纯 policy 测试、布局契约和预览策略测试不等价于真实 List selection/detail 时序、筛选输入时序、菜单 disabled 视觉、Dynamic Type、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
 
 ```sh
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -161,6 +161,7 @@ test -x script/build_and_run.sh
 ## 完成记录
 
 - 2026-08-23：v0.78 将 `JournalEntryBodyMetrics` 的词数和完整 `###` 小节派生收敛到模型层共享单次正文扫描；保留 v0.77 的换行、marker、trim、EOF、fenced code 和旧词数语义，新增精确 metrics characterization。实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 对应 run `32626526380` attempt `1` 的未加密 artifact `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`（ID `9489907904`，size `444220`，digest `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`）已由 Agent C PASS：`197 passed / 0 failed / 0 skipped`，新增 shared metrics 测试执行通过，465 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app。
+- 2026-08-23：v0.80 将列表概览的词数和 `###` 小节存在性收敛到模型层 `JournalEntryOverviewMetrics` 单次正文扫描；保留旧词数、Unicode newline、ASCII marker、空标题、EOF、连续 marker、fenced code 和 emoji/组合字符语义，不构造完整 sections/summary。新增 overview characterization，更新 CI 版本为 `v0.80`；本机只完成轻量检查，完整 build、XCTest 和结果包验收待 GitHub Actions 与 Agent C。
 - 2026-08-23：v0.79 为 Mac Catalyst 主窗口增加 `1120×720pt` 最小内容尺寸，为 sidebar 增加 `260/300/360pt` 最小/理想/最大宽度，并用 `MacWindowLayoutContract` 与 `EntryEditorLayoutContract.wideLayoutMinimumWidth` 共享纯值尺寸关系；iOS/iPadOS 路径不附加这些约束。新增尺寸契约测试并更新 CI 版本为 `v0.79`；本轮完整 build、XCTest、真实窗口拖拽/恢复、Dynamic Type、VoiceOver 和长文帧率仍待 GitHub Actions artifact 与人工验收。
 
 - 2026-08-09：v0.75 最终 HEAD `f8a2d934e670a8a969958a2806f04af4bb24451a` 的 run `31295125221` attempt `1` 对应未加密 artifact `mdjournal-ci-v0.75-main-f8a2d93-run31295125221-attempt1`（ID `9032726874`，size `425855`，digest `sha256:f40aa954660e4a86b19bfcc51ec140d9c200ece425c56e04c89705a782792efe`）；Agent C PASS，`189 passed / 0 failed / 0 skipped`，449 ZIP entries，CRC/manifest match。

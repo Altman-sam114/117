@@ -148,6 +148,38 @@ final class JournalEntryTests: XCTestCase {
         }
     }
 
+    func testOverviewMetricsMatchesLegacyWordAndSectionResultsAcrossBoundaries() {
+        let cases: [(name: String, body: String)] = [
+            ("empty", ""),
+            ("whitespace and newlines", "   \n\t\r\n\u{000B}\u{000C}"),
+            ("emoji and combining characters", "😀 e\u{301} 中文\u{00A0}word\n"),
+            ("mixed Foundation newlines", "正文\r\n### A\u{000B}内容\u{000C}### B\u{0085}尾部\u{2028}### C\u{2029}"),
+            ("marker at document start", "### 标题"),
+            ("marker at EOF", "正文\n### "),
+            ("consecutive and empty markers", "### \n###  \n### 有内容"),
+            ("ASCII indentation", " \t### 合法"),
+            ("invalid marker forms", "\u{00A0}### 非法\n###无效\n###\t非法\n#### 四级\n正文 ### 行内"),
+            ("fenced code marker", "```\n### 代码中的标题\n```"),
+            ("long body without section", String(repeating: "长正文 😀\n", count: 128)),
+            ("long body with final section", String(repeating: "长正文 e\u{301}\n", count: 128) + "### 末节")
+        ]
+
+        for testCase in cases {
+            let overview = JournalEntryOverviewMetrics(body: testCase.body)
+
+            XCTAssertEqual(
+                overview.wordCount,
+                JournalEntryBodyMetrics.wordCount(in: testCase.body),
+                "Unexpected word count for \(testCase.name)"
+            )
+            XCTAssertEqual(
+                overview.hasLevelThreeSection,
+                JournalSection.containsLevelThreeSection(in: testCase.body),
+                "Unexpected section presence for \(testCase.name)"
+            )
+        }
+    }
+
     func testBodySummaryCleansMarkdownMarkersWithoutKeepingBlankLines() {
         let body = [
             "# 标题",

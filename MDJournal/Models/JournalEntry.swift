@@ -214,6 +214,17 @@ struct JournalEntryBodyMetrics: Equatable {
     }
 }
 
+struct JournalEntryOverviewMetrics: Equatable {
+    let wordCount: Int
+    let hasLevelThreeSection: Bool
+
+    init(body: String) {
+        let overview = JournalBodyDerivation.scanOverview(body)
+        wordCount = overview.wordCount
+        hasLevelThreeSection = overview.hasLevelThreeSection
+    }
+}
+
 struct JournalEntryBodySummary: Equatable {
     let excerpt: String
     let metrics: JournalEntryBodyMetrics
@@ -298,6 +309,11 @@ private enum JournalBodyDerivation {
         var sections: [JournalSection]
     }
 
+    struct OverviewResult {
+        let wordCount: Int
+        let hasLevelThreeSection: Bool
+    }
+
     static func scan(
         _ body: String,
         derivesWordCount: Bool,
@@ -338,6 +354,67 @@ private enum JournalBodyDerivation {
         return Result(
             wordCount: wordCount,
             sections: derivesSections ? sectionAccumulator.sections : []
+        )
+    }
+
+    static func scanOverview(_ body: String) -> OverviewResult {
+        var wordCount = 0
+        var isInsideWord = false
+        var hasLevelThreeSection = false
+        var isAtLineStart = true
+        var markerProgress = 0
+
+        for character in body {
+            if character.isWhitespace || character.isNewline {
+                isInsideWord = false
+            } else if !isInsideWord {
+                wordCount += 1
+                isInsideWord = true
+            }
+
+            guard !hasLevelThreeSection else { continue }
+
+            for scalar in character.unicodeScalars {
+                if CharacterSet.newlines.contains(scalar) {
+                    isAtLineStart = true
+                    markerProgress = 0
+                    continue
+                }
+
+                guard isAtLineStart else { continue }
+
+                switch markerProgress {
+                case 0:
+                    if scalar.value == 0x20 || scalar.value == 0x09 {
+                        continue
+                    }
+
+                    if scalar.value == 0x23 {
+                        markerProgress = 1
+                    } else {
+                        isAtLineStart = false
+                    }
+                case 1, 2:
+                    if scalar.value == 0x23 {
+                        markerProgress += 1
+                    } else {
+                        isAtLineStart = false
+                    }
+                case 3:
+                    if scalar.value == 0x20 {
+                        hasLevelThreeSection = true
+                    } else {
+                        isAtLineStart = false
+                    }
+                default:
+                    isAtLineStart = false
+                }
+            }
+        }
+
+        return OverviewResult(
+            wordCount: wordCount,
+            hasLevelThreeSection: hasLevelThreeSection
         )
     }
 }

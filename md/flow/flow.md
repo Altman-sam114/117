@@ -31,8 +31,8 @@ JournalEntry.body
   -> EntryEditorView 头部和 JournalStatistics 轻量复用，不生成 excerpt；头部横向小节概览懒加载离屏卡片
 
 JournalEntry.body
-  -> JournalEntryBodyMetrics.wordCount(in:) + JournalSection.containsLevelThreeSection(in:)
-  -> JournalListOverviewSnapshot 只取得词数和小节存在性；存在性按 Unicode scalar 单向扫描并在首个合法 ### 标题处早退，不构造完整小节数组
+  -> JournalEntryOverviewMetrics 单次 Character/Unicode scalar 扫描同时取得词数和小节存在性
+  -> JournalListOverviewSnapshot 只消费两个轻量字段；marker 检测在首个合法 ### 标题处停止，不构造完整小节数组
 
 JournalEntry.body
   -> JournalEntryBodySummary
@@ -58,7 +58,8 @@ JournalEntry.body
   -> JournalEntryNavigation 只遍历当前 filteredEntries，Mac 菜单不跳转隐藏日记
 
 [JournalEntry]
-  -> JournalListOverviewSnapshot 通过 wordCount(in:) 和 containsLevelThreeSection(in:) 轻量派生总篇数、总词数、连续天数和概览洞察
+  -> JournalEntryOverviewMetrics 单次扫描派生 wordCount + hasLevelThreeSection
+  -> JournalListOverviewSnapshot 轻量派生总篇数、总词数、连续天数和概览洞察
   -> EntryListView 概览卡
 
 [JournalEntry]
@@ -335,7 +336,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 职责：把 `[JournalEntry]` 转成列表首页概览卡所需的轻量统计数据。
 
-实现边界：metrics 生产入口用同一条 Character/Index 单调扫描同时计算词数和完整 sections；词数独立 API 与 `JournalSection.extract(from:)` 仍通过同一内部扫描器按需启用对应派生。小节存在性快路径仍按 Unicode scalar 单向扫描、只跳过行首 ASCII 空格/tab、使用 `CharacterSet.newlines` 识别换行并在首个精确 `### ` 前缀处早退。列表概览继续只调用词数和存在性快路径，不构造完整小节数组。
+实现边界：列表概览每篇正文只构造一次非持久化 `JournalEntryOverviewMetrics`，在同一条 Character/Unicode scalar 线性扫描中同时计算旧口径词数和 `hasLevelThreeSection`；marker 只跳过行首 ASCII 空格/tab，使用 `CharacterSet.newlines` 识别换行，并在首个精确 `### ` 前缀处停止 marker 检测。该路径不构造完整 sections、markdown、excerpt 或 summary；`JournalEntryBodyMetrics.wordCount(in:)`、`JournalSection.containsLevelThreeSection(in:)` 和 `JournalSection.extract(from:)` 继续保留原调用契约和结果语义。
 
 输入：日记数组、日历、当前时间。
 
@@ -449,7 +450,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - 本地 JSON 保存不能静默失败，错误必须进入 `errorMessage`。
 - 编辑过程可以节流提交，但内存状态必须即时更新；所有保存快照由单写者 actor 按 revision 串行编码和原子写盘。应用离开活跃态时异步 flush 并追赶最新 revision，但无后台 lease 时不承诺强杀 durability；`JournalStore.update(_:)` 只在 `createdAt` 改变时重排列表。
 - Markdown 预览应由 update model 持有单次解析结果，正文变化经过 `150ms` trailing scheduler 合并并以 generation/entry ID latest-wins 发布；同一渲染周期不得重复解析正文，预览结果不进入 Store 或 JSON。
-- 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览只需要小节存在性时必须使用与完整提取等价的 `containsLevelThreeSection(in:)` 快路径，避免构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
+- 正文词数和完整 `###` 小节可用 `JournalEntryBodyMetrics` 轻量派生复用；编辑器头部和统计在不需要摘要时必须优先使用 metrics；列表概览必须使用 `JournalEntryOverviewMetrics` 在一次扫描中取得词数和小节存在性，避免重复遍历或构造完整小节数组；正文摘要可用 `JournalEntryBodySummary` 派生且必须复用 metrics；列表过滤和分类计数可用 `JournalEntryListSnapshot` 单次派生复用；这些都只能是非持久化快照，不能改变 JSON schema。
 - `ContentView` 必须集中持有搜索/分类筛选状态和 `JournalEntryListSnapshot`；`EntryListView` 只能消费父级 snapshot。列表 row、detail guard、初始/筛选/Store mutation repair、创建、删除和 focused navigation 必须使用同一份 `filteredEntries` 语义，生产和纯测试共同消费 `JournalEntrySelectionPolicy`；可见 selection 保留，隐藏 selection 切可见首项，空结果为 `nil`，Mac 较新/较早导航不能跳到隐藏日记。
 - Mac Catalyst 的核心创建、统计、写作聚焦、预览栏切换和 Markdown 片段插入动作应同时有可见 UI 与菜单入口；统计窗口必须复用同一个 `JournalStore`，重要快捷键不能重复注册；Markdown 片段插入规则必须可单元测试，不能依赖 UIKit delegate 隐式行为。
 - 旧数据缺失 `updatedAt`、`category`、`mood` 时必须能解码。

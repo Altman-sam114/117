@@ -35,6 +35,34 @@
 
 ## 历史记录
 
+### v0.80 / 列表概览双指标共享扫描
+
+日期：2026-08-23
+
+核心变更：
+
+- 新增非持久化 `JournalEntryOverviewMetrics`，在模型层一次 Character/Unicode scalar 线性扫描中同时派生旧口径 `wordCount` 和 `hasLevelThreeSection`。
+- `JournalListOverviewSnapshot` 每篇正文只消费一次 overview metrics，复用同一词数更新总计、本周词数和分类词数，并用同一小节存在性更新覆盖率；不构造完整 sections、markdown、excerpt 或 summary。
+- 保留 `JournalEntryBodyMetrics.wordCount(in:)`、`JournalSection.containsLevelThreeSection(in:)` 和 `JournalSection.extract(from:)` 的签名与结果语义，覆盖 newline、ASCII marker、空标题、EOF、连续 marker、fenced code 和 Unicode 字符边界。
+
+关键文件：
+
+- `MDJournal/Models/JournalEntry.swift`
+- `MDJournal/Utilities/JournalListOverviewSnapshot.swift`
+- `MDJournalTests/JournalEntryTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（性能优化）/v0.80（列表概览双指标共享扫描）.md`
+
+验证与交付状态：
+
+- 本轮本机仅执行 `git diff --check`、`git diff --cached --check`、Swift parse、`plutil -lint`、workflow YAML 解析和版本/符号搜索；未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
+- 本地 commit 和 `origin/main` push 后，GitHub Actions `MD Journal CI Results` 与 Agent C 结果包验收待本轮触发；不得用本地 parse 代替云端 build/XCTest/artifact 核对。
+
+遗留事项：
+
+- 云端结果包需要确认 overview characterization 实际执行、总 XCTest 数高于 v0.79 的 198 项、三份 xcresult 和未加密 ZIP 完整性；真实长文分配、帧率、Mac UI、VoiceOver 和输入交互仍需人工验收。
+
 ### v0.79 / Mac Catalyst 窗口与侧栏尺寸
 
 日期：2026-08-23
