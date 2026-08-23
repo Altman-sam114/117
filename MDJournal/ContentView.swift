@@ -24,6 +24,13 @@ struct ContentView: View {
                 onDelete: deleteEntry,
                 onShowStatistics: showStatistics
             )
+            #if targetEnvironment(macCatalyst)
+            .navigationSplitViewColumnWidth(
+                min: MacWindowLayoutContract.sidebarMinimumWidth,
+                ideal: MacWindowLayoutContract.sidebarIdealWidth,
+                max: MacWindowLayoutContract.sidebarMaximumWidth
+            )
+            #endif
         } detail: {
             if let entryBinding = selectedEntryBinding {
                 EntryEditorView(entry: entryBinding)

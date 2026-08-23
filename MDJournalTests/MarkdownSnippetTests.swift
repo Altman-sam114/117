@@ -140,6 +140,41 @@ final class MarkdownSnippetTests: XCTestCase {
         }
     }
 
+    func testMacWindowLayoutContractPreservesCatalystWideEditorCapacity() {
+        XCTAssertEqual(MacWindowLayoutContract.minimumWindowWidth, 1120)
+        XCTAssertEqual(MacWindowLayoutContract.minimumWindowHeight, 720)
+        XCTAssertEqual(MacWindowLayoutContract.sidebarMinimumWidth, 260)
+        XCTAssertEqual(MacWindowLayoutContract.sidebarIdealWidth, 300)
+        XCTAssertEqual(MacWindowLayoutContract.sidebarMaximumWidth, 360)
+
+        let dimensions = [
+            MacWindowLayoutContract.minimumWindowWidth,
+            MacWindowLayoutContract.minimumWindowHeight,
+            MacWindowLayoutContract.sidebarMinimumWidth,
+            MacWindowLayoutContract.sidebarIdealWidth,
+            MacWindowLayoutContract.sidebarMaximumWidth,
+            EntryEditorLayoutContract.wideLayoutMinimumWidth
+        ]
+
+        for dimension in dimensions {
+            XCTAssertGreaterThan(dimension, 0)
+            XCTAssertTrue(dimension.isFinite)
+        }
+
+        XCTAssertLessThanOrEqual(
+            MacWindowLayoutContract.sidebarMinimumWidth,
+            MacWindowLayoutContract.sidebarIdealWidth
+        )
+        XCTAssertLessThanOrEqual(
+            MacWindowLayoutContract.sidebarIdealWidth,
+            MacWindowLayoutContract.sidebarMaximumWidth
+        )
+        XCTAssertGreaterThanOrEqual(
+            MacWindowLayoutContract.minimumWindowWidth,
+            MacWindowLayoutContract.sidebarIdealWidth + EntryEditorLayoutContract.wideLayoutMinimumWidth
+        )
+    }
+
     func testEditorWritingCommandHelpTextCanUseStateSpecificTitle() {
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "隐藏预览"), "隐藏预览（⌘⌥P）")
         XCTAssertEqual(EditorWritingCommand.togglePreview.helpText(title: "显示预览"), "显示预览（⌘⌥P）")

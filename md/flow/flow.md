@@ -78,12 +78,14 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 1. `MDJournalApp` 通过 App 级 `@StateObject` 初始化共享 `JournalStore`。
 2. `MDJournalApp` 创建主 `WindowGroup` 并把 `JournalStore` 注入 `ContentView`。
 3. Mac Catalyst 下额外注册“统计”窗口 scene，读取同一个 `JournalStore.entries`。
-4. `JournalStore.init` 定位 Documents 目录下的 `md-journal-entries.json`。
-5. 若文件不存在，创建 `JournalEntry.starterEntry()`、递增 revision，并把完整值快照提交给 `JSONJournalPersistenceWriter` actor 保存。
-6. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
-7. 解码后按 `createdAt` 倒序排序。
-8. 若解码失败，保留读取错误并显示空内存集合；在没有后续有效 mutation 时，scene flush 不提交 revision 0，避免覆盖原始文件。
-9. `ContentView.onAppear` 选择第一篇日记。
+4. Mac Catalyst 主 `WindowGroup` 的 `ContentView` root 使用 `MacWindowLayoutContract` 约束最小内容尺寸 `1120×720pt`；iOS/iPadOS 路径不附加该 modifier。
+5. Mac Catalyst 的 `NavigationSplitView` sidebar 使用同一契约的 `260/300/360pt` 最小/理想/最大宽度；理想 sidebar 加上 `EntryEditorLayoutContract.wideLayoutMinimumWidth` 的 `820pt` 编辑器边界，满足主窗口最小宽度关系。该尺寸契约不参与 selection、Store、JSON 或正文状态。
+6. `JournalStore.init` 定位 Documents 目录下的 `md-journal-entries.json`。
+7. 若文件不存在，创建 `JournalEntry.starterEntry()`、递增 revision，并把完整值快照提交给 `JSONJournalPersistenceWriter` actor 保存。
+8. 若文件存在，使用 ISO8601 日期策略解码 `[JournalEntry]`。
+9. 解码后按 `createdAt` 倒序排序。
+10. 若解码失败，保留读取错误并显示空内存集合；在没有后续有效 mutation 时，scene flush 不提交 revision 0，避免覆盖原始文件。
+11. `ContentView.onAppear` 选择第一篇日记。
 
 ### 2.2 创建日记
 

@@ -7,6 +7,12 @@ struct MDJournalApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(store: store)
+                #if targetEnvironment(macCatalyst)
+                .frame(
+                    minWidth: MacWindowLayoutContract.minimumWindowWidth,
+                    minHeight: MacWindowLayoutContract.minimumWindowHeight
+                )
+                #endif
         }
         .commands {
             JournalCommands()
@@ -23,6 +29,14 @@ struct MDJournalApp: App {
 
 enum JournalSceneID {
     static let statistics = "journal-statistics"
+}
+
+internal enum MacWindowLayoutContract {
+    static let minimumWindowWidth: CGFloat = 1120
+    static let minimumWindowHeight: CGFloat = 720
+    static let sidebarMinimumWidth: CGFloat = 260
+    static let sidebarIdealWidth: CGFloat = 300
+    static let sidebarMaximumWidth: CGFloat = 360
 }
 
 private struct JournalCommands: Commands {

@@ -15,6 +15,7 @@
 - 当前已有 `MDJournalTests` XCTest target，覆盖核心模型、非持久化正文 summary / metrics 派生一致性、正文词数单次扫描边界、`JournalSection.containsLevelThreeSection(in:)` 明确期望及其与完整提取在 ASCII 缩进、非法标题、LF/CR/CRLF、Foundation Unicode newline、空标题和 fenced code 等边界上的等价性、摘要 Markdown 标记清理和空行处理、列表派生快照（含真实空集合与筛选空结果区分）、分类筛选 chip 最小交互高度与可访问文案纯契约、列表概览合法/非法 `###` 聚合及与统计结果一致性、`JournalEntryNavigation` 按输入数组顺序切换较新/较早日记的方向、首尾不循环、空/单篇/`nil`/失效 selection 边界、导航命令元数据以及导航/写作/Markdown/保留 `⌘N` 的快捷键全局唯一性、Markdown 解析（含水平空白行空行判断、行首空格/tab marker 识别、有序列表块识别、代码块空白/空行保留、代码块内 Markdown-like 行不解析、CR-only / CRLF 当前分行行为、尾随换行和 `###` 小节分组）、Markdown 预览纯文本内联快路径与 latest-wins 防抖策略、统计（含分布最大值、主导分类/心情、7 天趋势最大词数派生和乱序输入排序回退）、Markdown snippet（含有序列表片段）、Markdown 片段插入规则（含选区空白行跳过、CR/CRLF 保留、CR-only 空白行、尾随换行、有序编号跳过空白行和 UTF-16/emoji 边界）、Markdown 无序列表/待办/引用/有序列表回车续写规则（含空项退出水平空白边界、fenced code 内回退默认输入、闭合围栏后恢复续写、缩进围栏和非行首围栏边界）、Markdown 行缩进规则（含单空格反缩进、长多行选区、长后续正文、尾随空行、CRLF 结束边界、单次构造混合反缩进和 UTF-16/emoji 行边界）、Markdown 输入配置（含可重入恢复配置）、Markdown 正文字体按需配置、普通输入/回车续写/缩进对正文 Binding 的 `0 getter / 1 setter` 确定性计数、写作命令快捷键、写作工具栏和 Markdown 工具栏快捷键提示文案、写作工具栏辅助功能标签文案、预览切换状态标题、专注写作命令和缩进方向映射，以及 `JournalStore` 写入节流与按需排序；这些 Binding 计数测试只证明 bridge 调用契约，不冒充 Instruments 分配测量或真实键盘/IME 交互测试。focused scene navigation wiring 只由 Swift parse 与云端 Mac Catalyst build 间接覆盖，不冒充真实菜单 disabled 视觉、正文 first responder 持续性或键盘事件分发测试。分类筛选 chip 的纯契约测试不证明真实 frame、hit testing、Dynamic Type 渲染或 VoiceOver 朗读；modifier 顺序由 diff 审查，平台 API 接线由云端 generic iOS 与 Mac Catalyst build 间接覆盖，真实触控、辅助功能与 focus ring 仍需人工验收。Markdown 工具栏 `44×44pt` 矩形交互区、编辑器小节概览懒加载、Mac 专注写作正文输入区宽度约束、Mac 写作工具栏辅助功能标签和 Mac 预览切换按钮辅助功能标签仍由 Swift parse、generic iOS build 和 Mac Catalyst build 覆盖，不把现有单元测试伪装成按钮点击或命中几何验证。
 - `JournalEntryTests` v0.77 新增 extraction characterization，精确断言 `JournalSection.extract(from:)` 的 count、title、markdown、excerpt、order、id，覆盖 LF/CR/CRLF/混合 Unicode newline、ASCII 空格/tab 与非法 marker、非 ASCII 空白、空标题、连续 marker、空正文、尾随换行、标题前正文和 fenced code；不写耗时或分配断言。本轮明确不运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments，完整验证交给 GitHub Actions artifact。
 - `JournalEntryTests` v0.78 新增 shared metrics characterization，精确断言一次派生结果的 wordCount、section count、title、markdown、excerpt、order 和 id，覆盖混合 Foundation newline、emoji/组合字符、非法 marker、空标题、连续正文和 fenced code；生产入口必须消费共享扫描，测试不写耗时或分配断言。本轮本机仍只做 Swift parse、diff、plist、YAML 和版本检查，完整 build/XCTest 交给 GitHub Actions artifact。
+- `MarkdownSnippetTests` v0.79 新增 Mac Catalyst `MacWindowLayoutContract` 尺寸契约，锁定 `1120×720pt` 主窗口最小内容尺寸、`260/300/360pt` sidebar 范围、正有限值和 `300pt + EntryEditorLayoutContract.wideLayoutMinimumWidth` 宽屏关系；测试只验证纯值，不冒充真实窗口尺寸、拖拽、恢复、Dynamic Type、VoiceOver 或输入设备交互。本轮本机只做 Swift parse、diff、plist 和版本检查，完整 build/XCTest 交给 GitHub Actions artifact。
 - `MarkdownSnippetTests` 另覆盖 `EntryEditorAccessibilityContract.journalDateLabel` 精确等于“日记日期”且去空白后非空。该纯常量测试、Swift parse 和云端 build 不证明 `.labelsHidden()` 后的真实 accessibility tree、VoiceOver 日期值朗读、Mac Catalyst focus ring 或 compact picker 交互，这些仍需人工验收。
 - `MarkdownSnippetTests` 另覆盖 `EntryEditorLayoutContract`：`819/820pt × .large/.accessibility1/.accessibility5` 六格矩阵锁定工作区宽屏边界与头部布局彼此独立，普通 `820/.large` 是唯一横向紧凑头部和 `270pt` 统计宽度组合，Accessibility 下元数据、summary、统计 pill 堆叠且标题不限两行；测试同时锁定 `820/270/156pt` 正有限尺寸及小节行数策略。v0.73 artifact 基线为 182 项，v0.74 云端实际总数为 185 项。纯 contract 测试不证明真实 frame、Dynamic Type 像素渲染、`@ScaledMetric` 最终宽度、VoiceOver、focus ring、键盘、鼠标或触控板交互。
 - `MarkdownPreviewTests` 新增 4 项确定性策略测试：首次激活立即发布、正文连续变化的 150ms trailing scheduler、generation/entry ID latest-wins、切换日记或 deactivate 后失效，以及相同正文去重。测试使用手动 scheduler，并断言固定延迟，不使用真实 sleep、轮询、GCD、semaphore 或 detached task；它们只证明预览更新边界，不证明真实 Mac 输入延迟、Instruments 分配、像素排版或帧率。v0.75 最终云端结果为 `189 passed / 0 failed / 0 skipped`，以对应未加密 artifact 为完整验证依据。
@@ -289,6 +290,14 @@ artifact 命名规则：
 ```text
 mdjournal-ci-<version>-main-<short_sha>-run<run_id>-attempt<run_attempt>
 ```
+
+v0.79 Mac Catalyst 窗口与 sidebar 尺寸专项核对：
+
+- manifest 的 `version=v0.79`、`branch`、完整 `commitSha`、`runId` 和 `runAttempt` 必须与最新 `origin/main` 和对应 run 完全一致。
+- `MarkdownSnippetTests.testMacWindowLayoutContractPreservesCatalystWideEditorCapacity` 必须执行并通过；XCTest 总数应高于 v0.78 的 197 项。JUnit 的 `tests=4` 仍只表示 static / iOS build / Mac Catalyst build / XCTest 四个 workflow stage，不能替代 XCTest 用例总数。
+- static checks、generic iOS build、Mac Catalyst build 和 XCTest 必须 success；三个 `.xcresult` 应存在且分别为 succeeded、无失败或错误。
+- Agent C 必须下载未加密 artifact，核对 manifest、JUnit、static/build/Catalyst/test 日志、failure summary、GitHub digest、本地 SHA-256、ZIP CRC、fresh extract 和逐文件完整性。
+- 尺寸契约只证明常量与 `300pt + 820pt` 关系；真实 Mac 窗口最小尺寸、sidebar 拖拽、窗口恢复、焦点、Dynamic Type、VoiceOver 和长文帧率仍需人工验收。
 
 v0.75 预览策略专项核对：
 

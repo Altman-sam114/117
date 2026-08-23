@@ -35,6 +35,34 @@
 
 ## 历史记录
 
+### v0.79 / Mac Catalyst 窗口与侧栏尺寸
+
+日期：2026-08-23
+
+核心变更：
+
+- `MacWindowLayoutContract` 集中定义 Catalyst 主窗口 `1120×720pt` 最小内容尺寸和 sidebar `260/300/360pt` 最小/理想/最大宽度。
+- `MDJournalApp` 只在 `targetEnvironment(macCatalyst)` 路径给主 `ContentView` 附加最小窗口 frame；`ContentView` 只在 Catalyst sidebar 附加 `navigationSplitViewColumnWidth(min:ideal:max:)`，iOS/iPadOS 不增加这些约束。
+- `MarkdownSnippetTests` 新增纯值尺寸契约，锁定常量、正有限值、sidebar 顺序和理想 `300pt + EntryEditorLayoutContract.wideLayoutMinimumWidth` 的宽屏关系；不冒充真实窗口拖拽、恢复尺寸或像素交互。
+
+关键文件：
+
+- `MDJournal/MDJournalApp.swift`
+- `MDJournal/ContentView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`
+- `.github/workflows/ci-results.yml`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`
+- `md/prompt/v0（界面优化）/v0.79（Mac窗口与侧栏尺寸）.md`
+
+验证与交付状态：
+
+- Agent B 仅执行本轮允许的 `git diff --check`、`git diff --cached --check`、`plutil -lint`、应用与 `MarkdownSnippetTests` Swift parse、版本/符号搜索；本机未运行 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化、截图或 Instruments。
+- 本轮实现提交和 GitHub Actions 云端 run/artifact 待推送后由 Agent C 下载复判；不得用本地 parse 或此记录替代云端结果包。
+
+遗留事项：
+
+- 云端结果包需确认 Catalyst 13 API 编译、尺寸契约测试执行和 artifact 完整性；真实 Mac 主窗口最小尺寸、sidebar 拖拽、窗口恢复、焦点、Dynamic Type、VoiceOver 和长文帧率仍需人工验收。
+
 ### v0.78 / 正文 metrics 单次扫描
 
 日期：2026-08-23

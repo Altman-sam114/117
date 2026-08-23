@@ -95,6 +95,12 @@ flowchart TD
   App["MDJournalApp 启动"] --> InitStore["初始化 App 级 @StateObject JournalStore"]
   InitStore --> Scenes["创建主窗口；Mac Catalyst 额外注册统计窗口"]
   Scenes --> Content["创建 ContentView 并注入 JournalStore"]
+  Content --> WindowContract{"Mac Catalyst？"}
+  WindowContract -- "是" --> WindowSize["MacWindowLayoutContract：主窗口最小 1120×720pt"]
+  WindowContract -- "否" --> MobileWindow["iOS/iPadOS：不附加窗口尺寸约束"]
+  Content --> SidebarContract{"Mac Catalyst sidebar"}
+  SidebarContract --> SidebarSize["260/300/360pt：最小/理想/最大宽度"]
+  SidebarSize --> WideCapacity["理想 300pt + EntryEditorLayoutContract 820pt"]
   InitStore --> Locate["定位 Documents/md-journal-entries.json"]
   Locate --> Exists{"本地 JSON 是否存在？"}
   Exists -- "不存在" --> Starter["创建 starterEntry 默认日记"]
@@ -185,6 +191,7 @@ flowchart LR
   EditorTypeSize["DynamicTypeSize"] --> EditorLayout
   EditorLayout --> WorkspaceDecision{"width >= 820"}
   WorkspaceDecision --> EditorWorkspace["EntryEditorView 工作区：compact 切换或 wide 双栏"]
+  MacWindowLayout["MacWindowLayoutContract：主窗口 1120×720pt；sidebar 260/300/360pt"] --> WorkspaceDecision
   EditorLayout --> HeaderDecision["宽度 + 字号：普通宽屏横排；窄屏或 Accessibility 堆叠"]
   MetricsData --> EditorHeader["EntryEditorView 头部：词数和可缩放 ### 小节懒加载概览"]
   HeaderDecision --> EditorHeader
@@ -237,7 +244,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.78 跳过本机 build/XCTest/app，覆盖 shared metrics characterization 的 Swift parse"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.79 只做 diff/plist/Swift parse/版本搜索，跳过本机 build/XCTest/app"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
