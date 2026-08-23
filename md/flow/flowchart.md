@@ -60,7 +60,7 @@ flowchart TD
   Model --> MetricsNode["JournalEntryBodyMetrics：共享单次扫描同时派生词数、非持久化 ### 小节和 hasVisibleContent"]
   Model --> OverviewMetrics["JournalEntryOverviewMetrics：一次 Character/Unicode scalar 扫描派生词数 + ### 存在性，不构造 sections"]
   Model --> SectionExtract["JournalSection.extract：String.Index/Substring 逐行派生小节，保留 .newlines 与既有 marker 语义"]
-  Model --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，生成非持久化摘要并复用 metrics"]
+  Model --> Summary["JournalEntryBodySummary：同一次 JournalBodyDerivation 扫描生成 metrics + 完整正文 excerpt，保留 MarkdownSummaryText 语义"]
   Store --> FilterSnapshot["ContentView：store.entries + 筛选状态"]
   FilterState --> FilterSnapshot
   FilterSnapshot --> BodySnapshot["ContentView.body 局部 JournalEntryListSnapshot：同一次评估只构造一次"]
@@ -180,7 +180,7 @@ flowchart TD
 flowchart LR
   Body["JournalEntry.body 正文"] --> MetricsNode2["JournalEntryBodyMetrics：共享单次扫描派生非持久化词数、### 小节和 hasVisibleContent"]
   Body --> OverviewMetrics2["JournalEntryOverviewMetrics：一次扫描同时派生 wordCount + hasLevelThreeSection"]
-  Body --> Summary["JournalEntryBodySummary：单次扫描清理 Markdown 标记，摘要并复用 metrics"]
+  Body --> Summary["JournalEntryBodySummary：同一次 derivation 同时得到 metrics + 完整正文 excerpt；section excerpt 保留独立路径"]
   Body --> BodyText["MarkdownBodyTextView：正文编辑、字体/traits 按需配置；已确认输入直接单次写正文，外部同步差异检查，UTF-16 选区/焦点按需更新"]
   BodyText --> ContinueRule["MarkdownLineContinuation：无序列表/待办/引用/有序列表回车续写，空项非分配水平空白判断，fenced code 内回退默认输入"]
   ContinueRule --> Body
@@ -190,7 +190,7 @@ flowchart LR
   InsertRule --> Body
   MetricsNode2 --> MetricsData["单次扫描词数、### 小节、小节数、hasVisibleContent"]
   MetricsData --> EditorPlaceholder["EntryEditorView placeholder：只消费同一次 body 评估传入的可见性，不独立扫描正文"]
-  Summary --> Excerpt["摘要 + metrics"]
+  Summary --> Excerpt["同一次 derivation 的完整正文摘要 + metrics"]
   Excerpt --> RowEditor["列表卡片复用"]
   MetricsData --> Statistics["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics，单轮聚合"]
   EditorWidth["容器宽度"] --> EditorLayout["EntryEditorLayoutContract"]
@@ -249,7 +249,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.83 只做 diff/plist/Swift parse/YAML/版本搜索，跳过本机 build/XCTest/app/Instruments"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.84 只做 diff/plist/Swift parse/YAML/版本/边界搜索，跳过本机 build/XCTest/app/Instruments"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
@@ -276,7 +276,7 @@ flowchart TD
 
 读图说明：Agent C 不能只看文字汇报，必须下载最新 `origin/main` 对应 run 的 artifact，并核对结果包里的机器可读信息。
 
-当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 实现 HEAD `d923cd3` 的第一阶段 run 为 `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，Agent C 已核对 `203 passed / 0 failed / 0 skipped`、477 项未加密 ZIP 及其完整性；docs-only 最终 HEAD 仍须下载并核对自己的最新结果包。
+当前 v0.82 实现 HEAD `5f83de0` 的云端基线为 run `32636121799`、attempt `1`、artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`；Agent C 已核对 `202 passed / 0 failed / 0 skipped`、475 项未加密 ZIP 及其完整性。v0.83 实现 HEAD `d923cd3` 的第一阶段 run 为 `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`，Agent C 已核对 `203 passed / 0 failed / 0 skipped`、477 项未加密 ZIP 及其完整性；v0.84 实现 HEAD 的 run/artifact 尚未生成，不能预填旧结果，docs-close 最终 HEAD 仍须下载并核对自己的最新结果包。
 
 ```mermaid
 flowchart LR

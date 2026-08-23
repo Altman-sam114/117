@@ -2,7 +2,7 @@
 
 ## 0. 一句话总览
 
-MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`ContentView` 持有搜索/分类筛选状态，并在一次 `body` 评估中构造一份局部 `JournalEntryListSnapshot` 显式分发给列表、detail binding 和 focused navigation actions；创建、删除与 selection repair 事件按需生成最新快照，不做跨评估缓存。`JournalEntrySelectionPolicy` 统一修复可见 selection，列表、详情和 Mac 导航都消费同一份 `filteredEntries`，`JournalEntryNavigation` 按当前可见新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数、`###` 小节和 `hasVisibleContent` 的单次扫描派生，编辑器 placeholder 复用同一次 body 评估的 metrics 并保持 `body.contains { !$0.isWhitespace }` 语义，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 负责正文摘要并复用 metrics，摘要清理由单次扫描去除轻量 Markdown 标记，`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
+MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，用户在 SwiftUI 界面创建和编辑日记，`JournalEntry` 承载标题、正文、日期、分类和心情，`ContentView` 持有搜索/分类筛选状态，并在一次 `body` 评估中构造一份局部 `JournalEntryListSnapshot` 显式分发给列表、detail binding 和 focused navigation actions；创建、删除与 selection repair 事件按需生成最新快照，不做跨评估缓存。`JournalEntrySelectionPolicy` 统一修复可见 selection，列表、详情和 Mac 导航都消费同一份 `filteredEntries`，`JournalEntryNavigation` 按当前可见新到旧数组顺序解析非循环的较新/较早目标，`JournalEntryBodyMetrics` 负责非持久化正文词数、`###` 小节和 `hasVisibleContent` 的单次扫描派生，编辑器 placeholder 复用同一次 body 评估的 metrics 并保持 `body.contains { !$0.isWhitespace }` 语义，`JournalSection.containsLevelThreeSection(in:)` 为只需小节存在性的列表概览提供单向扫描早退路径，`JournalEntryBodySummary` 在同一次 `JournalBodyDerivation` 扫描中同时派生正文 metrics 和完整 excerpt，保留 `MarkdownSummaryText.plainText` 的 literal LF、轻量 Markdown 标记、空行折叠和 Unicode 语义，`JournalSection.excerpt` 仍保留独立的 task/list marker 清理路径；`JournalEntryListSnapshot` 负责非持久化列表搜索、筛选和分类计数派生，`JournalListOverviewSnapshot` 负责列表首页轻量概览统计，`MarkdownSnippetInsertion` 负责光标/选区 Markdown 片段插入规则，选区逐行转换按 LF 单次扫描并增量构造结果，包含选区空白行跳过、CR/CRLF 保留和有序列表非空行递增编号，`MarkdownLineContinuation` 负责 Markdown 无序列表、待办、引用和有序列表的回车续写规则，空项退出用非分配水平空白扫描，并用单次索引扫描判断光标前 fenced code 状态，`MarkdownLineIndentation` 负责 Tab / Shift-Tab 行缩进规则，单次扫描收集行首索引和 UTF-16 offset，扫描范围限制到选区有效结束行，反缩进会删除一个 tab 或最多两个行首空格，多行改写基于原正文单次构造结果，`MarkdownBlockParser` 负责标题、段落、引用、无序列表、有序列表、待办、代码、分割线和 `###` 小节分组解析，解析器逐行迭代正文而不先构造整篇行数组，空行判断直接扫描水平空白并在行首裁剪前短路，代码块内只做围栏识别所需裁剪，行首 marker 判断使用原行 `Substring` 切片而不创建临时 trimmed 字符串，解析临时缓冲 flush 后保留容量，`MarkdownPreviewView` 负责预览渲染并为无内联 Markdown 触发字符的文本片段走纯文本 `AttributedString` 快路径，`MarkdownBodyTextView` 负责正文 rounded body 字体和输入 traits 按需配置、键盘缩进入口和 UIKit bridge；普通输入、成功回车续写与成功缩进直接单次发布正文，外部正文同步仍按差异更新，选区和焦点继续按需写回，`JournalStore` 负责本地 JSON 加载、按需排序与保存，`JournalStatistics` 负责统计聚合、分布最大值、主导分类/心情和 7 天趋势最大词数派生，列表、编辑器、Markdown 预览和统计看板根据同一份日记状态实时渲染。应用当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建为 macOS app；“日记”菜单通过 focused scene actions 提供 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，边界方向禁用且不循环；宽屏隐藏预览或专注写作时正文输入区会居中并限制最大宽度，保持长文输入行长稳定；本地 Mac 运行由 `script/build_and_run.sh` 和 Codex `Run` action 统一入口承载。
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
@@ -35,9 +35,10 @@ JournalEntry.body
   -> JournalListOverviewSnapshot 只消费两个轻量字段；marker 检测在首个合法 ### 标题处停止，不构造完整小节数组
 
 JournalEntry.body
-  -> JournalEntryBodySummary
-  -> 单次扫描清理 Markdown 标记后的 excerpt + JournalEntryBodyMetrics
-  -> 列表卡片复用同一次正文展示派生结果
+  -> JournalBodyDerivation（同一次 Character/Index 扫描）
+  -> JournalEntryBodySummary：同时生成 JournalEntryBodyMetrics + 完整正文 excerpt
+  -> 保留 MarkdownSummaryText.plainText 的 literal LF、标记跳过、空行折叠和 Unicode 语义
+  -> 列表卡片复用同一次正文展示派生结果；JournalSection.excerpt 仍独立消费 section markdown
 
 JournalEntry.body
   -> MarkdownBlockParser.parseDocument
@@ -255,6 +256,8 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 8. v0.82 实现 HEAD `5f83de061ff4d573ff1b1bb9d3b6fcd8995be22a` 的 run `32636121799` attempt `1` 已由 Agent C PASS：artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249`，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`），`202 passed / 0 failed / 0 skipped`，475 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 通过；docs-only HEAD 必须重新验收自己的 artifact。
 9. v0.83 第一阶段已核对 `JournalEntryTests.testBodyMetricsReportsVisibleContentUsingCharacterWhitespaceSemantics` 实际执行并通过；实现 HEAD `d923cd3720da5c8739bcf216a404379c752618b7` 对应 run `32638983543`、attempt `1`，artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`（ID `9493173578`、size `453266` bytes、digest `sha256:abfca59c408c01d0e9fbf59fb64f62d6c84d3dbff86b048254a82d4f94812fd5`），XCTest 为 `203 passed / 0 failed / 0 skipped`，477 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。源码审查确认 `hasVisibleContent` 来自既有 `JournalBodyDerivation` 单次扫描，`EntryEditorView` 只消费同一次 body 评估的 metrics，且没有 JSON、Store、Markdown、focus 或窗口无关 diff；docs-only 最终 HEAD 必须重新下载并复核自己的 artifact。
 
+10. v0.84 实现阶段要求核对 `JournalEntryTests.testBodySummaryPreservesExcerptAndMetricsAcrossSharedScan`；XCTest 总数必须高于 v0.83 的 203 项，并审查 `JournalEntryBodySummary` 只消费一次带 excerpt 的 `JournalBodyDerivation`，`MarkdownSummaryText.plainText` 的 literal LF/标记/空行语义保持不变，`JournalSection.excerpt` 仍独立消费 section markdown。实现 HEAD push 后才生成本轮 run/artifact，docs-close HEAD 必须重新下载自己的未加密 artifact，不能预填或复用旧结果。
+
 ### 3.6 Agent C 结果包验收
 
 1. 确认 `origin/main` 最新 commit。
@@ -287,13 +290,13 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 ### 4.3 `JournalEntryBodySummary`
 
-职责：在内存中把正文单次派生为摘要，并复用 `JournalEntryBodyMetrics` 提供词数、`###` 小节和小节数。
+职责：在内存中通过同一次 `JournalBodyDerivation` 扫描同时派生完整正文摘要和 `JournalEntryBodyMetrics`，并提供词数、`###` 小节和小节数。
 
 输入：`JournalEntry.body`。
 
 输出：`excerpt`、`metrics`、`wordCount`、`sections`、`sectionCount`。
 
-禁止：作为 `JournalEntry` 的持久化字段写入 JSON；另写一套词数或小节识别规则；改变旧有摘要、词数或小节识别语义。
+禁止：作为 `JournalEntry` 的持久化字段写入 JSON；另写一套词数或小节识别规则；绕过既有 `MarkdownSummaryText.plainText` 语义；改变旧有摘要、词数或小节识别语义。
 
 ### 4.4 `JournalEntryListSnapshot`
 

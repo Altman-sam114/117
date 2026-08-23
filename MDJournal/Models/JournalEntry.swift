@@ -207,6 +207,12 @@ struct JournalEntryBodyMetrics: Equatable {
         hasVisibleContent = derivation.hasVisibleContent
     }
 
+    fileprivate init(wordCount: Int, sections: [JournalSection], hasVisibleContent: Bool) {
+        self.wordCount = wordCount
+        self.sections = sections
+        self.hasVisibleContent = hasVisibleContent
+    }
+
     static func wordCount(in body: String) -> Int {
         JournalBodyDerivation.scan(
             body,
@@ -244,9 +250,19 @@ struct JournalEntryBodySummary: Equatable {
     }
 
     init(body: String) {
-        metrics = JournalEntryBodyMetrics(body: body)
+        let derivation = JournalBodyDerivation.scan(
+            body,
+            derivesWordCount: true,
+            derivesSections: true,
+            derivesExcerpt: true
+        )
+        metrics = JournalEntryBodyMetrics(
+            wordCount: derivation.wordCount,
+            sections: derivation.sections,
+            hasVisibleContent: derivation.hasVisibleContent
+        )
 
-        let plainText = MarkdownSummaryText.plainText(from: body, removesListMarkers: false)
+        let plainText = derivation.excerpt ?? ""
 
         excerpt = plainText.isEmpty ? "还没有正文" : plainText
     }
@@ -310,6 +326,7 @@ private enum JournalBodyDerivation {
         var wordCount: Int
         var sections: [JournalSection]
         var hasVisibleContent: Bool
+        var excerpt: String?
     }
 
     struct OverviewResult {
@@ -320,11 +337,15 @@ private enum JournalBodyDerivation {
     static func scan(
         _ body: String,
         derivesWordCount: Bool,
-        derivesSections: Bool
+        derivesSections: Bool,
+        derivesExcerpt: Bool = false
     ) -> Result {
         var wordCount = 0
         var isInsideWord = false
         var sectionAccumulator = JournalSectionAccumulator()
+        var summaryAccumulator = derivesExcerpt
+            ? MarkdownSummaryAccumulator(removesListMarkers: false)
+            : nil
         var hasVisibleContent = false
         var lineStart = body.startIndex
         var index = body.startIndex
@@ -335,6 +356,10 @@ private enum JournalBodyDerivation {
 
             if !character.isWhitespace {
                 hasVisibleContent = true
+            }
+
+            if derivesExcerpt {
+                summaryAccumulator?.consumeSharedCharacter(character)
             }
 
             if derivesWordCount {
@@ -362,7 +387,8 @@ private enum JournalBodyDerivation {
         return Result(
             wordCount: wordCount,
             sections: derivesSections ? sectionAccumulator.sections : [],
-            hasVisibleContent: hasVisibleContent
+            hasVisibleContent: hasVisibleContent,
+            excerpt: summaryAccumulator?.finish()
         )
     }
 
@@ -484,17 +510,30 @@ private extension Character {
     }
 }
 
-private enum MarkdownSummaryText {
-    static func plainText(from markdown: String, removesListMarkers: Bool) -> String {
-        var result = String()
-        var line = String()
-        result.reserveCapacity(markdown.count)
-        line.reserveCapacity(markdown.count)
+fileprivate struct MarkdownSummaryAccumulator {
+    private let removesListMarkers: Bool
+    private var result = String()
+    private var line = String()
 
+    init(removesListMarkers: Bool) {
+        self.removesListMarkers = removesListMarkers
+    }
+
+    mutating func consumeSharedCharacter(_ character: Character) {
+        if character == "\n" {
+            appendCurrentLine()
+            line.removeAll(keepingCapacity: true)
+            return
+        }
+
+        appendContent(character)
+    }
+
+    mutating func consume(_ markdown: String) {
         var index = markdown.startIndex
         while index < markdown.endIndex {
             if markdown[index] == "\n" {
-                appendLine(line, to: &result)
+                appendCurrentLine()
                 line.removeAll(keepingCapacity: true)
                 markdown.formIndex(after: &index)
                 continue
@@ -512,21 +551,23 @@ private enum MarkdownSummaryText {
                 }
             }
 
-            let character = markdown[index]
-            if shouldSkip(character, removesListMarkers: removesListMarkers) {
-                markdown.formIndex(after: &index)
-                continue
-            }
-
-            line.append(character)
+            appendContent(markdown[index])
             markdown.formIndex(after: &index)
         }
+    }
 
-        appendLine(line, to: &result)
+    mutating func finish() -> String {
+        appendCurrentLine()
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func appendLine(_ line: String, to result: inout String) {
+    private mutating func appendContent(_ character: Character) {
+        guard !shouldSkip(character) else { return }
+
+        line.append(character)
+    }
+
+    private mutating func appendCurrentLine() {
         guard !line.isEmpty else { return }
 
         if !result.isEmpty {
@@ -536,7 +577,7 @@ private enum MarkdownSummaryText {
         result.append(line)
     }
 
-    private static func shouldSkip(_ character: Character, removesListMarkers: Bool) -> Bool {
+    private func shouldSkip(_ character: Character) -> Bool {
         switch character {
         case "#", "*", "`", ">":
             return true
@@ -545,5 +586,13 @@ private enum MarkdownSummaryText {
         default:
             return false
         }
+    }
+}
+
+private enum MarkdownSummaryText {
+    static func plainText(from markdown: String, removesListMarkers: Bool) -> String {
+        var accumulator = MarkdownSummaryAccumulator(removesListMarkers: removesListMarkers)
+        accumulator.consume(markdown)
+        return accumulator.finish()
     }
 }

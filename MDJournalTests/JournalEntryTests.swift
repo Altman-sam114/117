@@ -217,6 +217,53 @@ final class JournalEntryTests: XCTestCase {
         XCTAssertEqual(summary.excerpt, "标题 重点 代码  引用")
     }
 
+    func testBodySummaryPreservesExcerptAndMetricsAcrossSharedScan() {
+        let cases: [(name: String, body: String, excerpt: String)] = [
+            ("empty", "", "还没有正文"),
+            ("whitespace", " \t\n\r ", "还没有正文"),
+            ("multiline whitespace", " \n\t\n  ", "还没有正文"),
+            (
+                "markdown markers and task list",
+                "# 标题\n**重点**\n`代码`\n> 引用\n- 普通项目\n- [ ] 任务",
+                "标题 重点 代码  引用 - 普通项目 - [ ] 任务"
+            ),
+            ("level three section", "前言\n### Plan\n内容", "前言  Plan 内容"),
+            ("empty section title", "### \n### ", "还没有正文"),
+            ("invalid marker", "###无效\n正文", "无效 正文"),
+            ("consecutive sections", "### A\n### B", "A  B"),
+            ("end of file marker", "正文\n###", "正文"),
+            ("LF", "alpha\nbeta", "alpha beta"),
+            ("CRLF", "alpha\r\nbeta", "alpha\r\nbeta"),
+            (
+                "Foundation newlines",
+                "alpha\u{000B}beta\u{2028}gamma",
+                "alpha\u{000B}beta\u{2028}gamma"
+            ),
+            ("Unicode and composed characters", "中文 English 😀 e\u{301}", "中文 English 😀 e\u{301}"),
+            ("fenced code", "```\n### 代码\n```", "代码"),
+            (
+                "long body",
+                String(repeating: "长正文 e\u{301}\n", count: 64),
+                String(repeating: "长正文 e\u{301} ", count: 63) + "长正文 e\u{301}"
+            )
+        ]
+
+        for testCase in cases {
+            let summary = JournalEntryBodySummary(body: testCase.body)
+            let metrics = JournalEntryBodyMetrics(body: testCase.body)
+            let extractedSections = JournalSection.extract(from: testCase.body)
+
+            XCTAssertEqual(summary.excerpt, testCase.excerpt, "Unexpected excerpt for \(testCase.name)")
+            XCTAssertEqual(summary.metrics, metrics, "Summary metrics diverged for \(testCase.name)")
+            XCTAssertEqual(summary.sections, extractedSections, "Summary sections diverged for \(testCase.name)")
+            XCTAssertEqual(
+                summary.sections.map(\.excerpt),
+                extractedSections.map(\.excerpt),
+                "Section excerpts changed for \(testCase.name)"
+            )
+        }
+    }
+
     func testEntryDerivedPropertiesDelegateToBodySummary() throws {
         let createdAt = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-04-05T12:00:00Z"))
         let entryID = try XCTUnwrap(UUID(uuidString: "66666666-6666-6666-6666-666666666666"))
