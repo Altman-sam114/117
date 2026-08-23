@@ -57,11 +57,13 @@
 验证与交付状态：
 
 - 本轮本机仅执行 `git diff --check`、`git diff --cached --check`、Swift parse、`plutil -lint`、workflow YAML 解析和版本/符号搜索；未运行本机 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本或 Instruments。
-- 本地 commit 和 `origin/main` push 后，GitHub Actions `MD Journal CI Results` 与 Agent C 结果包验收待本轮触发；不得用本地 parse 代替云端 build/XCTest/artifact 核对。
+- 实现 commit `38c04d4f7d5ab6a19cd54e90b36cb8ef9102c80c` 已推送到 `origin/main`；对应 GitHub Actions `MD Journal CI Results` run `32630508182`、attempt `1` 成功。
+- 对应未加密 artifact ID `9490952804`，名称 `mdjournal-ci-v0.80-main-38c04d4-run32630508182-attempt1`，size `443686` bytes，GitHub digest 与本地 SHA-256 均为 `sha256:7d7b2615a5c0b2f9fb7c9511d2dac6f93a1fad3d449e23f30e3950035f8fb626`。
+- Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-32630508182/`：manifest 的 version、branch、commitSha、runId、runAttempt、workflow 和结果路径完全匹配；static checks、generic iOS build、Mac Catalyst build、XCTest 均 success；JUnit 为 `4 tests / 0 failures / 0 errors / 0 skipped`，XCTest 为 `199 passed / 0 failed / 0 skipped`，新增 overview characterization 实际执行并通过。三份 xcresult 均存在且 Info.plist 可解析；ZIP 共 469 项、未加密，CRC、fresh extract 文件清单和 469 项逐文件 SHA-256 均 PASS。
 
 遗留事项：
 
-- 云端结果包需要确认 overview characterization 实际执行、总 XCTest 数高于 v0.79 的 198 项、三份 xcresult 和未加密 ZIP 完整性；真实长文分配、帧率、Mac UI、VoiceOver 和输入交互仍需人工验收。
+- 云端 build、XCTest 和结果包完整性已通过；真实长文分配、帧率、Mac UI、VoiceOver 和输入交互仍需人工验收。
 
 ### v0.79 / Mac Catalyst 窗口与侧栏尺寸
 
@@ -85,7 +87,8 @@
 验证与交付状态：
 
 - Agent B 仅执行本轮允许的 `git diff --check`、`git diff --cached --check`、`plutil -lint`、应用与 `MarkdownSnippetTests` Swift parse、版本/符号搜索；本机未运行 build、XCTest、xcodebuild、Simulator/CoreSimulator、Mac Catalyst app、脚本、UI 自动化、截图或 Instruments。
-- 本轮实现提交和 GitHub Actions 云端 run/artifact 待推送后由 Agent C 下载复判；不得用本地 parse 或此记录替代云端结果包。
+- 实现 commit `0509ad4d24b775d930e566ec696b41bf2339f2bc` 已推送到 `origin/main`；对应 GitHub Actions `MD Journal CI Results` run `32628877854`、attempt `1` 成功。
+- 对应未加密 artifact ID `9490536945`，名称 `mdjournal-ci-v0.79-main-0509ad4-run32628877854-attempt1`，size `442139` bytes，GitHub digest 与本地 SHA-256 均为 `sha256:0a2802216736540ea44e4e48f24993fb73a77190ba5686d8ecd00b04875beaf1`。Agent C 已下载并核对 `/private/tmp/mdjournal-c-review-32628877854/`：manifest/outcomes、JUnit、iOS/Mac Catalyst/XCTest 日志和三份 xcresult 均匹配并通过，XCTest 为 `198 passed / 0 failed / 0 skipped`，尺寸契约测试实际执行；ZIP 共 467 项、未加密，CRC、fresh extract 和 467 项逐文件 SHA-256 均 PASS。
 
 遗留事项：
 
