@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import MDJournal
 
 final class JournalEntryListSnapshotTests: XCTestCase {
