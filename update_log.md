@@ -11,6 +11,8 @@
 
 ## 当前状态
 
+- v0.87 当前为写作布局与预览缓存实现待云端验证；本机只跑轻量检查。v0.86 最终基线为 `79e68b2d4da4371d81bf5213b4d68415e973bc35`、run `32652837616`、attempt `1`，212 项通过，不证明本轮。
+
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
@@ -19,9 +21,39 @@
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
-- v0.86 当前行为：`MarkdownBodyTextView.Coordinator` 仅在普通输入、成功回车续写、成功缩进或 `textViewDidChange` 实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区均匹配时才减少重复 bridge 同步并跳过实际选区 clamp；正文不同即使 `NSRange` 相同也保持外部同步，状态不匹配、已消费或 marked text 时继续保护组合输入。实现验证 HEAD 为 `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745`，对应 run `32650916069`、attempt `1` 的 artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`（ID `9496324008`、size `466015` bytes、digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32650916069/` 下载并核对：static checks、generic iOS build、Mac Catalyst build、XCTest 四阶段均为 `success`，JUnit `4/0/0/0`，XCTest `212/212 passed`，7 项新增测试均通过，495/495 ZIP entries 未加密且 CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。该 HEAD 是实现验证 HEAD/docs-close source baseline，不是本轮 docs-only commit 的最终 HEAD；本轮 docs-only commit 将由 Agent C 针对新 `origin/main` HEAD 独立复核，不预填未来 run/artifact。真实 Mac Catalyst 输入延迟、IME、VoiceOver、帧率和 Instruments 分配仍需人工或专门工具验收。
+- v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.86 / Markdown 正文 bridge 同步快速路径（实现验证通过，docs-close 独立复核）
+### v0.87 / 写作布局与预览缓存（实现待云端验证）
+
+日期：2026-09-08
+
+核心变更：
+
+- 编辑器保留 `820pt` 头部档位；实际 detail `>=1120pt` 且非 Accessibility 才允许双栏，扣除 Divider 后近似等分，窗口/sidebar 尺寸不变。
+- `EntryEditorWorkspaceState` 统一生产布局、Picker、菜单/工具栏命令和标题；跨阈值按焦点与预览可见性归一 mode，保留专注写作的隐藏偏好及 UTF-16 选区。可见正文保持固定结构位置，专注宽度只改 frame，不建隐藏编辑器，不改 bridge。
+- 预览接受有效请求后解析一次并构建按原文去重的 inline cache，单一 render snapshot 原子发布 document/cache；body 与 lazy 子闭包只读匹配快照。plain 不调用 renderer，失败缓存原文，新文档整体替换缓存，隐藏/重新激活仍沿既有 latest-wins 生命周期。
+- 新增 9 项布局/状态与 6 项缓存测试；保留既有 212 项，预期共 227 项，执行数及结果待云端确认。CI 仅改 `VERSION: v0.87`，四阶段及 artifact 契约原样保留。
+
+关键文件：
+
+- `MDJournal/Views/EntryEditorView.swift`、`MDJournal/Views/MarkdownPreviewView.swift`
+- `MDJournalTests/MarkdownSnippetTests.swift`、`MDJournalTests/MarkdownPreviewTests.swift`
+- `README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`update_log.md`
+- `.github/workflows/ci-results.yml`、Agent A 的 `md/prompt/v0（Mac体验）/v0.87（写作布局与预览缓存）.md`
+
+验证与交付状态：
+
+- Agent B 在 main 以单次 `http.curloptResolve=github.com:443:20.27.177.113` 参数 fetch/pull，起点为上述 v0.86 最终 SHA；未修改 Git、DNS 或认证配置。
+- `git diff --check`、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)`、`xcrun swiftc -parse MDJournalTests/MarkdownSnippetTests.swift MDJournalTests/MarkdownPreviewTests.swift`、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow Ruby YAML 解析均退出 0。Ruby 输出既有 PATH 中 `/opt/homebrew/bin` 可写权限警告，不影响 YAML 解析，未改环境。
+- 布局独立 reviewer 与主控缓存 diff 审查未发现阻断；Swift parse 不进行类型检查，不能替代云端构建和 XCTest。
+- 本条为提交前实现记录；集成 SHA、push、新 run/attempt/artifact 由交付回报及 Agent C 后续记录，不预填未来证据。Agent C 尚未下载或核对本轮结果包，当前不标记通过。
+
+遗留事项：
+
+- 遵人工限制未运行本机 build、XCTest、xcodebuild、simctl、App、UI 自动化或性能脚本；真实 UITextView 身份/first responder、IME、低高度/Dynamic Type 排版、VoiceOver、帧率及内存分配仍未验收。缓存构建保留 MainActor CPU 与当前文档内存成本，计数测试不代表性能测量。
+- Store、JSON、parser、bridge、window/sidebar、deployment target 和版本化 prompt 均无本代理修改。
+
+### v0.86 / Markdown 正文 bridge 同步快速路径（历史实现验证记录）
 
 日期：2026-08-24
 
@@ -53,7 +85,7 @@
 - `JournalStore` 作为唯一日记集合修改和保存入口。
 - Markdown 预览采用轻量自研解析器，不承诺完整 CommonMark 支持。
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
-- iPhone 支持竖屏、横屏左、横屏右；宽屏阈值当前为 `820` pt。
+- iPhone 支持竖屏、横屏左、横屏右；编辑器双栏资格为实际 detail `>=1120pt` 且非 Accessibility，`820pt` 保留为头部档位与统计宽屏边界。
 - Mac 版本当前采用 Mac Catalyst 路径，不新增独立 native macOS target。
 - 后续迭代采用“人工 -> Agent A -> Agent B main 直推 -> GitHub Actions 结果包 -> Agent C 下载复判 -> 人工复核”的文档化流程。
 - 未来可使用 `agentx`、`x:` 或 `X:` 召唤 Agent X 主控循环；Agent X 只调度 A/B/C 多轮迭代，不替代 Agent A 提示词、Agent B 实现 push 或 Agent C artifact 验收。

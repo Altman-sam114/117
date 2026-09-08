@@ -2,6 +2,26 @@
 
 本文指导 Agent A、Agent B、Agent C 和未来 Agent X 主控循环选择测试层级、记录命令和判断当前基线。
 
+## v0.87 当前验收
+
+- 当前为实现待云端验证。历史起点为 v0.86 最终 `79e68b2`、run `32652837616`、attempt `1`，212 项通过；旧包不证明本轮。
+- `MarkdownSnippetTests` 新增 9 项生产布局/状态测试：819/820/1119/1120/1440、large/xxxLarge 与全部 Accessibility；默认最小窗口减 sidebar 为单栏；实际 layout 驱动命令标题/列切换；Picker 与命令返回焦点差异；宽度与字号往返、隐藏列偏好、旧 preview 归一化、重复布局幂等；非空 emoji UTF-16 选区在转移后仍用于真实片段插入和缩进。
+- `MarkdownPreviewTests` 新增 6 项 production cache/model 测试：显示路径唯一文本计数、plain 不调用 renderer、默认 inline 等价、throwing fallback 不重试、快照替换及旧快照查询、同正文不同日记与重新激活、手动 scheduler 下取消/替代/切日记/deactivate 的迟到请求不调用 parser/renderer。旧测试保留，预计总数 `227`，以云端实际执行为准。
+- 集成 diff 审查：正文可见期间保留固定结构位置，宽度限制只改 frame；单栏预览不创建隐藏编辑器；纯布局不改正文或重置选区；预览隐藏触发 deactivate，重新出现读取当前正文。body 和延迟子闭包显式消费同一 document/cache 快照。
+- 本机只允许下列检查及必要 `rg`；Swift parse 不做类型检查，不替代 iOS/Catalyst build 或 XCTest。禁止本机完整 build、XCTest、xcodebuild、simctl、App、UI、性能运行和运行脚本。
+
+```sh
+git diff --check
+xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)
+xcrun swiftc -parse MDJournalTests/MarkdownSnippetTests.swift MDJournalTests/MarkdownPreviewTests.swift
+plutil -lint MDJournal.xcodeproj/project.pbxproj
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
+git diff --cached --check
+```
+
+- CI 只更新 `VERSION: v0.87`，保留 static/iOS/Catalyst/XCTest 四阶段与三份 xcresult。Agent C 必须下载最新 origin/main 同 SHA、run/attempt 的未加密 artifact，核对 manifest、JUnit `4/0/0/0`、日志、失败摘要、三份结果、新旧测试执行明细与完整性；未下载核对前不写通过。
+- 遗留：真实 UITextView 身份/first responder、跨阈值有选区输入、IME、低高度与 Accessibility 排版、VoiceOver、帧率/分配尚未验收。发布时仍有 MainActor 解析/缓存构建及当前文档内存成本；计数测试不等于性能测量。
+
 ## 固定前缀 / 环境要求
 
 - 工作目录：`/Users/a114514/Desktop/codex/md`。
@@ -22,13 +42,13 @@
 - v0.83 在 `JournalEntryTests` 增加 `hasVisibleContent` 纯值 characterization：以 `JournalEntryBodyMetrics(body:)` 为生产入口，逐项对照旧的 `body.contains { !$0.isWhitespace }`，覆盖空正文、ASCII/Unicode 空白、LF/CR/Unicode newline、标点、Markdown marker、emoji、单独及组合字符和长正文。字段必须来自既有 shared Character/Index 扫描，不进入 Codable/JSON；本机只做 diff、Swift parse、plist、YAML 和版本检查，未运行本机 build/XCTest/App/UI/Instruments，完整验证待 v0.83 最新 origin/main artifact。v0.82 云端基线为 `202 passed / 0 failed / 0 skipped`，本轮预期至少 `203 passed / 0 failed / 0 skipped`，实际数量和新增测试执行情况由 Agent C 核对后补记。
 - v0.84 在 `JournalEntryTests` 增加 `testBodySummaryPreservesExcerptAndMetricsAcrossSharedScan`：以 `JournalEntryBodySummary(body:)` 为生产入口，覆盖空白、Markdown marker、列表/引用/任务、`###`/空标题/EOF、LF/CRLF/Foundation newline、中文/英文、emoji/组合字符、fenced code 和长正文；逐项断言摘要期望值、`summary.metrics == JournalEntryBodyMetrics(body:)` 以及 `JournalSection`/section excerpt 不变。生产摘要必须在一次 `JournalBodyDerivation` 扫描中同时消费 metrics 与完整正文 excerpt，不能再先构造 metrics 再独立扫描 `MarkdownSummaryText.plainText`；本机严格只做 diff、Swift parse、YAML、版本和边界检查，不运行 build/XCTest/App/UI/Instruments。实现 HEAD `38885bb078f945ebeac65a5d9c17902ec088c678` 的 run `32641923529`、attempt `1` 已通过云端复核，XCTest 为 `204 passed / 0 failed / 0 skipped`，新增测试实际执行并通过；最终 docs HEAD `8d12e641b0c188bbd839ae7902b06979897fa311` 对应 run `32642592068`、attempt `1` 的 artifact `mdjournal-ci-v0.84-main-8d12e64-run32642592068-attempt1`（ID `9494058101`，size `453752` bytes，digest `sha256:c2bd17d5cbce074f24ff745020aeb59703ed5d64cf35e642d303a308dd3617c`）已 PASS，204 项测试、479 项未加密 ZIP、CRC、fresh extract、逐文件 SHA-256 均核对通过，下载目录为 `/private/tmp/mdjournal-c-review-32642592068/`。
 - `MarkdownSnippetTests` 另覆盖 `EntryEditorAccessibilityContract.journalDateLabel` 精确等于“日记日期”且去空白后非空。该纯常量测试、Swift parse 和云端 build 不证明 `.labelsHidden()` 后的真实 accessibility tree、VoiceOver 日期值朗读、Mac Catalyst focus ring 或 compact picker 交互，这些仍需人工验收。
-- `MarkdownSnippetTests` 另覆盖 `EntryEditorLayoutContract`：`819/820pt × .large/.accessibility1/.accessibility5` 六格矩阵锁定工作区宽屏边界与头部布局彼此独立，普通 `820/.large` 是唯一横向紧凑头部和 `270pt` 统计宽度组合，Accessibility 下元数据、summary、统计 pill 堆叠且标题不限两行；测试同时锁定 `820/270/156pt` 正有限尺寸及小节行数策略。v0.73 artifact 基线为 182 项，v0.74 云端实际总数为 185 项。纯 contract 测试不证明真实 frame、Dynamic Type 像素渲染、`@ScaledMetric` 最终宽度、VoiceOver、focus ring、键盘、鼠标或触控板交互。
+- `MarkdownSnippetTests` 另覆盖 `EntryEditorLayoutContract`：`819/820pt × .large/.accessibility1/.accessibility5` 六格矩阵锁定旧 `820pt` 头部宽度档位及字号布局，双栏资格由 v0.87 新矩阵独立覆盖，普通 `820/.large` 是唯一横向紧凑头部和 `270pt` 统计宽度组合，Accessibility 下元数据、summary、统计 pill 堆叠且标题不限两行；测试同时锁定 `820/270/156pt` 正有限尺寸及小节行数策略。v0.73 artifact 基线为 182 项，v0.74 云端实际总数为 185 项。纯 contract 测试不证明真实 frame、Dynamic Type 像素渲染、`@ScaledMetric` 最终宽度、VoiceOver、focus ring、键盘、鼠标或触控板交互。
 - `MarkdownPreviewTests` 新增 4 项确定性策略测试：首次激活立即发布、正文连续变化的 150ms trailing scheduler、generation/entry ID latest-wins、切换日记或 deactivate 后失效，以及相同正文去重。测试使用手动 scheduler，并断言固定延迟，不使用真实 sleep、轮询、GCD、semaphore 或 detached task；它们只证明预览更新边界，不证明真实 Mac 输入延迟、Instruments 分配、像素排版或帧率。v0.75 最终云端结果为 `189 passed / 0 failed / 0 skipped`，以对应未加密 artifact 为完整验证依据。
 - v0.76 新增 6 项纯 selection/navigation 测试：`JournalEntrySelectionPolicy` 覆盖 visible retain、hidden -> first visible、empty -> nil、筛选删除后的修复、新建日记匹配/隐藏后的修复，以及把 `JournalEntryListSnapshot.filteredEntries` 传入 `JournalEntryNavigation` 的 filtered navigation。测试直接消费 production policy 和真实列表快照，不使用 SwiftUI host、系统 confirmation dialog、真实菜单、模拟器、截图或 snapshot test；它们不能证明真实筛选输入时序、NavigationSplitView selection/detail 瞬态、菜单 disabled 视觉、焦点、VoiceOver、Dynamic Type 或鼠标/触控板/键盘交互。v0.75 最终云端基线为 189 项，v0.76 最终结果为 `195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次，完整 build/XCTest/app 只以对应未加密 artifact 为准，本机未运行。
 - `JournalStatisticsTests` 另覆盖 `SevenDayBarChartLayoutContract`：普通 `.large` / `.xxxLarge` 不滚动，`.accessibility1` / `.accessibility5` 使用水平滚动，并锁定 92pt 柱图区、14pt 词数最小高度、134pt 图表最小高度和 56pt Accessibility 列宽。纯契约测试不证明真实文字无裁切、滚动手感、普通字号像素级视觉或 Mac Catalyst 输入设备交互；v0.71 云端预期基线为 164 项 XCTest，最终数量以最新 artifact 为准。
 - `JournalEntryListSnapshotTests` 另覆盖 `JournalDeletionConfirmationState`：请求后稳定持有完整日记与准确标题、dismiss 幂等清理且不产生确认目标、确认目标只能消费一次，以及新请求替换旧请求且不依赖筛选结果回查。v0.72 新增 4 项纯状态测试，云端预期基线为 `168 passed / 0 failed / 0 skipped`；这些测试不证明真实系统对话框视觉、焦点、Esc、点击外部、右键菜单事件或滑动手势，生产接线和平台 API 由 diff 审查及云端 iOS / Mac Catalyst build 间接覆盖，最终数量以最新 artifact 为准。
 - `JournalStoreTests` 在 v0.73 从 5 项重构为 19 项：production writer JSON 字节策略、乱序拒绝、同 revision 幂等、失败重试；starter actor 路径；gate writer 等待期间 MainActor 可运行；手动 scheduler debounce；flush 取消/等待/追赶及无 mutation 不覆写；create/delete 内存即时、在途旧写入与 flush 后磁盘结果；Store 释放不取消已提交 writer 请求；无效删除；旧失败与同 revision 迟到失败仲裁、当前失败重试、读取错误保留和既有排序。gate 在 teardown 中幂等恢复未完成 continuation，测试不使用固定 sleep、轮询、GCD、semaphore、detached task 或真实大文件猜测时序。预期云端总数为 `182 passed / 0 failed / 0 skipped`，最终以最新 artifact 为准；这些测试不替代 Instruments、真实后台挂起、强杀或断电验证。
-- 当前默认策略：本机先跑轻量检查；新增或修改测试 target 时尝试本机 XCTest；修改 Mac Catalyst 支持时尝试本机 Catalyst build；最终重验证交给 GitHub Actions。
+- 当前默认策略：本机只跑轻量检查；完整 iOS/Catalyst build 与 XCTest 交给 GitHub Actions。只有人工另行明确授权时才在本机运行，本轮 v0.87 明确禁止。
 - 若仓库没有 `origin` 远端、GitHub Actions 权限或 artifact 下载权限，必须记录阻塞，不能伪装云端验证完成。
 - Agent X 只负责主控调度；每一小轮仍以 Agent B 本地轻量检查、GitHub Actions artifact 和 Agent C 下载复判作为验证链路。
 

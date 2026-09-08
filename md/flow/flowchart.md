@@ -29,7 +29,10 @@ flowchart TD
   SnippetCommand --> Editor
   Menu --> WritingCommand["写作命令：聚焦正文、专注写作、增加/减少缩进、显示/隐藏预览；工具栏提示显示快捷键，辅助功能标签与命令标题对齐，并按状态表达预览切换动作"]
   WritingCommand --> Editor
-  Editor --> CompactFocus["compact 模式：Picker / ⌘⌥P / editorFocused"]
+  Editor --> WorkspaceState["EntryEditorWorkspaceState：mode / 列偏好 / focus / UTF-16 选区；实际 detail + 字号决定 split"]
+  WorkspaceState --> CompactFocus["单栏 Picker / ⌘⌥P；命令与显示共享 resolved 状态"]
+  WorkspaceState --> CrossThreshold["进入双栏：编辑保留偏好，预览强制显示右栏且不抢焦点；退出：焦点优先，否则按预览可见性选 mode"]
+  CrossThreshold --> StableEditor["固定 HStack 中的正文位置；仅改 frame，不重置选区，不建隐藏输入框"]
   CompactFocus --> FocusPolicy["EntryEditorFocusPolicy：进入预览 resign；⌘⌥P 返回编辑 focus；Picker 选回编辑 preserve"]
   FocusPolicy --> BodyTextView
   Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
@@ -80,7 +83,9 @@ flowchart TD
   Model --> PreviewRequestCore["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
   PreviewRequestCore --> PreviewSchedulerCore["150ms trailing scheduler：取消旧 request，等待期间保留旧结果"]
   PreviewSchedulerCore --> Parser["MarkdownBlockParser.parseDocument：只解析最新有效正文；逐行迭代、空白行短路、行首切片 marker、有序列表和 ### 小节"]
-  Parser --> Preview["MarkdownPreviewView：latest-wins 发布后消费解析结果，纯文本内联快路径，索引迭代渲染普通预览、列表项或小节分组预览"]
+  Parser --> InlineCacheCore["按当前显示路径收集原文并去重；每个唯一标记文本转换一次，plain 不调用 renderer"]
+  InlineCacheCore --> SnapshotCore["单一 Published render snapshot：document + inline cache"]
+  SnapshotCore --> Preview["MarkdownPreviewView：body 与 lazy 子闭包捕获同一快照，只读查询，不解析或填充"]
   Store --> Stats["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics 派生，单轮聚合统计、分布最大值、主导项和趋势最大词数"]
   CV --> StatsSurface["统计展示：iOS/iPadOS sheet，Mac Catalyst 独立窗口"]
   StatsSurface --> Dashboard["StatisticsDashboardView：统计看板，宽屏两列/窄屏单列"]
@@ -115,7 +120,7 @@ flowchart TD
   WindowContract -- "否" --> MobileWindow["iOS/iPadOS：不附加窗口尺寸约束"]
   Content --> SidebarContract{"Mac Catalyst sidebar"}
   SidebarContract --> SidebarSize["260/300/360pt：最小/理想/最大宽度"]
-  SidebarSize --> WideCapacity["理想 300pt + EntryEditorLayoutContract 820pt"]
+  SidebarSize --> WideCapacity["最小窗口减理想 sidebar：detail 约 820pt，头部紧凑但工作区单栏"]
   InitStore --> Locate["定位 Documents/md-journal-entries.json"]
   Locate --> Exists{"本地 JSON 是否存在？"}
   Exists -- "不存在" --> Starter["创建 starterEntry 默认日记"]
@@ -204,19 +209,24 @@ flowchart LR
   MetricsData --> Statistics["JournalStatistics：已倒序输入跳过重复排序，每篇一次 metrics，单轮聚合"]
   EditorWidth["容器宽度"] --> EditorLayout["EntryEditorLayoutContract"]
   EditorTypeSize["DynamicTypeSize"] --> EditorLayout
-  EditorLayout --> WorkspaceDecision{"width >= 820"}
-  WorkspaceDecision --> EditorWorkspace["EntryEditorView 工作区：compact 切换或 wide 双栏"]
+  EditorLayout --> WorkspaceDecision{"实际 detail >= 1120 且非 Accessibility？"}
+  WorkspaceDecision --> EditorWorkspace["工作区状态策略：单栏切换或双栏资格；隐藏右栏不改变资格"]
   MacWindowLayout["MacWindowLayoutContract：主窗口 1120×720pt；sidebar 260/300/360pt"] --> WorkspaceDecision
-  EditorLayout --> HeaderDecision["宽度 + 字号：普通宽屏横排；窄屏或 Accessibility 堆叠"]
+  EditorLayout --> HeaderDecision["头部独立档位：width >= 820 且普通字号横排；否则堆叠"]
   MetricsData --> EditorHeader["EntryEditorView 头部：词数和可缩放 ### 小节懒加载概览"]
   HeaderDecision --> EditorHeader
   Body --> PreviewRequest["MarkdownPreviewUpdateModel：正文快照 + entry ID + generation"]
   PreviewRequest --> PreviewScheduler["150ms trailing scheduler：取消旧 request，保留上一份结果"]
-  PreviewScheduler --> Parse["MarkdownBlockParser.parseDocument：只解析最新有效 request"]
+  PreviewScheduler --> RequestGate{"active + entry ID + 正文 + generation 匹配？"}
+  RequestGate -- "是" --> Parse["MarkdownBlockParser.parseDocument：只解析最新有效 request"]
+  RequestGate -- "否" --> Rejected["不调用 parser/renderer，不改 snapshot"]
   Parse --> Result["MarkdownParseResult：blocks + sectionGroups"]
-  Result --> LatestWins["latest-wins publish：active + entry ID + 正文 + generation 校验"]
+  Result --> InlineCache["MarkdownPreviewInlineCache：显示路径原文精确去重，失败缓存原文，plain 不调用 renderer"]
+  InlineCache --> LatestWins["单一 snapshot 发布 document + cache；新文档整体替换"]
   Result --> Blocks["MarkdownBlock：标题、段落、引用、无序列表、有序列表、待办、代码、分割线"]
-  LatestWins --> Preview["MarkdownPreviewView：只消费已解析结果；纯文本内联快路径 + 索引迭代渲染"]
+  LatestWins --> Preview["MarkdownPreviewView：body/ForEach/LazyVStack 只读捕获的匹配 document/cache；查询不解析、不填充"]
+  EditorWorkspace --> Visibility["预览隐藏：onDisappear deactivate；再显示：当前正文 activate"]
+  Visibility --> PreviewScheduler
   Result --> Sections["MarkdownSectionGroup：### 小节分组"]
   Sections --> SectionPreview["小节卡片预览"]
   Entries["[JournalEntry] 日记数组"] --> Statistics
@@ -258,7 +268,7 @@ flowchart TD
   MainOK -- "否" --> Blocked["记录阻塞：缺少远端、权限或工作区冲突"]
   Blocked --> Pause
   MainOK -- "是" --> AgentBWork["Agent B：小步实现并跑本地轻量检查"]
-  AgentBWork --> LocalTests["本地轻量检查；v0.84 只做 diff/plist/Swift parse/YAML/版本/边界搜索，跳过本机 build/XCTest/app/Instruments"]
+  AgentBWork --> LocalTests["本地轻量检查；v0.87 只做 diff/plist/Swift parse/YAML/版本/边界搜索，跳过本机 build/XCTest/App/UI/性能运行"]
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
@@ -289,7 +299,7 @@ flowchart TD
 
 v0.85 阶段一实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 对应 run `32645093679`、attempt `1`，artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`、size `456026` bytes、digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。早期 `e9674cd5c1fd4f82bd7fc93f488315f1bdbc5d01` / run `32644620613` / attempt `1` 仅因缺少 `import SwiftUI` 失败。docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。
 
-v0.86 实现验证 HEAD `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745` 对应 run `32650916069`、attempt `1`，artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`（ID `9496324008`、size `466015` bytes、digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32650916069/` 下载并 PASS。四阶段均为 `success`；JUnit 为 `4/0/0/0`，XCTest `212/212 passed`，7 项新增测试均实际执行并通过；495/495 ZIP entries 未加密且 CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。该 HEAD 是实现验证/docs-close source baseline；本轮 docs-only commit 将由 Agent C 针对新 `origin/main` HEAD 独立复核，不预填未来 run 或 artifact。
+v0.87 待最新 origin/main 对应云端结果包验收。CI VERSION 为 v0.87，四阶段与三份 xcresult/未加密 artifact 契约原样保留；新增 9 项布局/状态和 6 项缓存测试，预计总数 227，实际数及执行明细由 Agent C 核对。纯测试不证明真实低高度排版、UITextView 身份、IME、VoiceOver、帧率或分配。
 
 ```mermaid
 flowchart LR

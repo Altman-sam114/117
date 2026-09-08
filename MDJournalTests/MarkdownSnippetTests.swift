@@ -200,6 +200,198 @@ final class MarkdownSnippetTests: XCTestCase {
         XCTAssertEqual(EditorWritingCommand.focusBody.helpText, "聚焦正文（⌘⌥E）")
     }
 
+    func testSplitPreviewRequiresDetailWidthAndRegularDynamicType() {
+        let widths: [CGFloat] = [819, 820, 1119, 1120, 1440]
+        let sizes: [DynamicTypeSize] = [
+            .large, .xxxLarge, .accessibility1, .accessibility2,
+            .accessibility3, .accessibility4, .accessibility5
+        ]
+        for width in widths {
+            for size in sizes {
+                let layout = EntryEditorLayoutContract(width: width, dynamicTypeSize: size)
+                XCTAssertEqual(layout.usesSplitPreview, width >= 1120 && !size.isAccessibilitySize)
+                XCTAssertEqual(layout.usesCompactHeaderLayout, width >= 820 && !size.isAccessibilitySize)
+                let workspace = EntryEditorWorkspaceState().resolved(for: layout)
+                XCTAssertEqual(workspace.usesSplitPreview, layout.usesSplitPreview)
+                XCTAssertTrue(workspace.showsEditor)
+                XCTAssertEqual(workspace.showsPreview, layout.usesSplitPreview)
+                XCTAssertFalse(workspace.editorFocused)
+            }
+        }
+
+        let defaultDetail = EntryEditorLayoutContract(
+            width: MacWindowLayoutContract.minimumWindowWidth - MacWindowLayoutContract.sidebarIdealWidth,
+            dynamicTypeSize: .large
+        )
+        XCTAssertTrue(defaultDetail.usesCompactHeaderLayout)
+        XCTAssertFalse(defaultDetail.usesSplitPreview)
+    }
+
+    func testPreviewCommandsConsumeActualLayoutAndPreserveSplitFocus() {
+        for width in [CGFloat(820), 1119, 1120, 1440] {
+            for size in [DynamicTypeSize.large, .accessibility5] {
+                let layout = EntryEditorLayoutContract(width: width, dynamicTypeSize: size)
+                var workspace = EntryEditorWorkspaceState()
+                workspace.perform(.focusBody, layout: layout)
+                XCTAssertEqual(workspace.previewToggleTitle, layout.usesSplitPreview ? "隐藏预览" : "显示预览")
+
+                workspace.perform(.togglePreview, layout: layout)
+                XCTAssertEqual(workspace.usesSplitPreview, layout.usesSplitPreview)
+                XCTAssertEqual(workspace.showsPreview, !layout.usesSplitPreview)
+                XCTAssertEqual(workspace.editorFocused, layout.usesSplitPreview)
+                XCTAssertEqual(workspace.mode, layout.usesSplitPreview ? .edit : .preview)
+                XCTAssertEqual(workspace.previewToggleTitle, layout.usesSplitPreview ? "显示预览" : "回到编辑")
+                XCTAssertEqual(
+                    EditorWritingCommand.togglePreview.helpText(title: workspace.previewToggleTitle),
+                    layout.usesSplitPreview ? "显示预览（⌘⌥P）" : "回到编辑（⌘⌥P）"
+                )
+
+                workspace.perform(.togglePreview, layout: layout)
+                XCTAssertEqual(workspace.mode, .edit)
+                XCTAssertTrue(workspace.editorFocused)
+                XCTAssertEqual(workspace.showsPreview, layout.usesSplitPreview)
+            }
+        }
+    }
+
+    func testCompactPickerAndPreviewCommandHaveDifferentReturnFocus() {
+        let layout = EntryEditorLayoutContract(width: 1119, dynamicTypeSize: .large)
+        var workspace = EntryEditorWorkspaceState()
+        workspace.perform(.focusBody, layout: layout)
+        workspace.perform(.selectMode(.preview), layout: layout)
+        XCTAssertFalse(workspace.editorFocused)
+        XCTAssertFalse(workspace.showsEditor)
+        workspace.perform(.selectMode(.edit), layout: layout)
+        XCTAssertFalse(workspace.editorFocused)
+        XCTAssertTrue(workspace.showsEditor)
+        workspace.perform(.selectMode(.preview), layout: layout)
+        workspace.perform(.togglePreview, layout: layout)
+        XCTAssertEqual(workspace.mode, .edit)
+        XCTAssertTrue(workspace.editorFocused)
+    }
+
+    func testWidthRoundTripPreservesFocusedSelectionAndColumnPreference() {
+        let compact = EntryEditorLayoutContract(width: 1119, dynamicTypeSize: .large)
+        let split = EntryEditorLayoutContract(width: 1120, dynamicTypeSize: .large)
+        let selection = NSRange(location: 2, length: 4)
+        var workspace = EntryEditorWorkspaceState()
+        workspace.bodySelectedRange = selection
+        workspace.perform(.focusBody, layout: compact)
+        for layout in [split, compact, split, compact] {
+            workspace.updateLayout(layout)
+            XCTAssertEqual(workspace.mode, .edit)
+            XCTAssertTrue(workspace.editorFocused)
+            XCTAssertTrue(workspace.isPreviewColumnVisible)
+            XCTAssertEqual(workspace.bodySelectedRange, selection)
+        }
+        workspace.perform(.focusWriting, layout: split)
+        for layout in [compact, split, compact] {
+            workspace.updateLayout(layout)
+            XCTAssertEqual(workspace.mode, .edit)
+            XCTAssertFalse(workspace.showsPreview)
+            XCTAssertFalse(workspace.isPreviewColumnVisible)
+            XCTAssertTrue(workspace.editorFocused)
+            XCTAssertEqual(workspace.bodySelectedRange, selection)
+        }
+    }
+
+    func testCompactPreviewOverridesHiddenColumnWithoutRequestingFocus() {
+        let compact = EntryEditorLayoutContract(width: 1119, dynamicTypeSize: .large)
+        let split = EntryEditorLayoutContract(width: 1120, dynamicTypeSize: .large)
+        var workspace = EntryEditorWorkspaceState()
+        workspace.perform(.focusWriting, layout: split)
+        workspace.updateLayout(compact)
+        workspace.perform(.selectMode(.preview), layout: compact)
+        XCTAssertFalse(workspace.isPreviewColumnVisible)
+
+        let resolved = workspace.resolved(for: split)
+        XCTAssertEqual(workspace.mode, .preview, "Resolving display state must not mutate stored state.")
+        XCTAssertEqual(resolved.mode, .edit)
+        XCTAssertTrue(resolved.showsPreview)
+        XCTAssertFalse(resolved.editorFocused)
+        workspace.updateLayout(split)
+        XCTAssertEqual(workspace, resolved)
+        workspace.updateLayout(compact)
+        XCTAssertEqual(workspace.mode, .preview)
+        XCTAssertFalse(workspace.editorFocused)
+    }
+
+    func testAccessibilityRoundTripsUseFocusAndPreviewVisibility() {
+        let regular = EntryEditorLayoutContract(width: 1440, dynamicTypeSize: .xxxLarge)
+        for size in [DynamicTypeSize.accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5] {
+            let accessible = EntryEditorLayoutContract(width: 1440, dynamicTypeSize: size)
+            for focused in [false, true] {
+                var workspace = EntryEditorWorkspaceState()
+                workspace.updateLayout(regular)
+                workspace.editorFocused = focused
+                workspace.updateLayout(accessible)
+                XCTAssertEqual(workspace.mode, focused ? .edit : .preview)
+                XCTAssertEqual(workspace.editorFocused, focused)
+                workspace.updateLayout(regular)
+                XCTAssertEqual(workspace.mode, .edit)
+                XCTAssertTrue(workspace.showsPreview)
+                XCTAssertEqual(workspace.editorFocused, focused)
+            }
+        }
+    }
+
+    func testHidingOrFocusingSplitEditorDoesNotRestoreStaleCompactPreview() {
+        let compact = EntryEditorLayoutContract(width: 1119, dynamicTypeSize: .large)
+        let split = EntryEditorLayoutContract(width: 1120, dynamicTypeSize: .large)
+        let actions: [EntryEditorWorkspaceState.Action] = [.togglePreview, .focusBody, .focusWriting]
+        for action in actions {
+            var workspace = EntryEditorWorkspaceState()
+            workspace.perform(.selectMode(.preview), layout: compact)
+            workspace.updateLayout(split)
+            workspace.perform(action, layout: split)
+            workspace.updateLayout(compact)
+            XCTAssertEqual(workspace.mode, .edit)
+            XCTAssertFalse(workspace.showsPreview)
+        }
+    }
+
+    func testRepeatedLayoutResolutionIsIdempotentAndDoesNotRestoreFocus() {
+        let split = EntryEditorLayoutContract(width: 1120, dynamicTypeSize: .large)
+        var workspace = EntryEditorWorkspaceState()
+        workspace.perform(.focusWriting, layout: split)
+        workspace.editorFocused = false
+        let expected = workspace
+        for _ in 0..<3 {
+            workspace.updateLayout(split)
+            XCTAssertEqual(workspace.resolved(for: split), expected)
+            workspace.perform(.selectMode(.preview), layout: split)
+            XCTAssertEqual(workspace, expected, "A stale compact Picker cannot change a split workspace.")
+        }
+    }
+
+    func testLayoutTransitionsKeepUTF16SelectionForSubsequentWritingCommands() {
+        let body = "早安😀今天\n第二行"
+        let selectedRange = (body as NSString).range(of: "😀今天")
+        let compact = EntryEditorLayoutContract(width: 1119, dynamicTypeSize: .large)
+        let split = EntryEditorLayoutContract(width: 1120, dynamicTypeSize: .large)
+        let accessible = EntryEditorLayoutContract(width: 1440, dynamicTypeSize: .accessibility5)
+        var workspace = EntryEditorWorkspaceState()
+        workspace.bodySelectedRange = selectedRange
+        workspace.perform(.selectMode(.preview), layout: compact)
+        for layout in [split, accessible, split, compact] {
+            workspace.updateLayout(layout)
+            XCTAssertEqual(workspace.bodySelectedRange, selectedRange)
+        }
+
+        // This is the same focus policy followed by insertion and indentation in the view.
+        workspace.perform(.focusBody, layout: split)
+        let insertion = MarkdownSnippetInsertion.apply(snippet: .bold, to: body, selectedRange: workspace.bodySelectedRange)
+        XCTAssertEqual(insertion.body, "早安**😀今天**\n第二行")
+        XCTAssertEqual(insertion.selectedRange, NSRange(location: 4, length: 4))
+        let indentation = MarkdownLineIndentation.apply(to: body, selectedRange: workspace.bodySelectedRange, direction: .indent)
+        XCTAssertEqual(indentation?.body, "  早安😀今天\n第二行")
+        XCTAssertEqual(indentation?.selectedRange, NSRange(location: 4, length: 4))
+        workspace.updateLayout(compact)
+        XCTAssertEqual(workspace.mode, .edit)
+        XCTAssertTrue(workspace.editorFocused)
+        XCTAssertEqual(workspace.bodySelectedRange, selectedRange)
+    }
+
     func testEditorWritingCommandPreviewToggleTitleReflectsLayoutState() {
         XCTAssertEqual(
             EditorWritingCommand.previewToggleTitle(

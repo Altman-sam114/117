@@ -11,10 +11,12 @@ internal enum EntryEditorLayoutAxis: Equatable {
 
 internal struct EntryEditorLayoutContract: Equatable {
     static let wideLayoutMinimumWidth: CGFloat = 820
+    static let splitPreviewMinimumWidth: CGFloat = 1120
     static let regularWideStatisticsWidth: CGFloat = 270
     static let sectionCardBaseWidth: CGFloat = 156
 
     let isWideEditorLayout: Bool
+    let usesSplitPreview: Bool
     let usesCompactHeaderLayout: Bool
     let metadataAxis: EntryEditorLayoutAxis
     let summaryAxis: EntryEditorLayoutAxis
@@ -30,6 +32,7 @@ internal struct EntryEditorLayoutContract: Equatable {
         let usesCompactHeaderLayout = isWideEditorLayout && !isAccessibilitySize
 
         self.isWideEditorLayout = isWideEditorLayout
+        usesSplitPreview = width >= Self.splitPreviewMinimumWidth && !isAccessibilitySize
         self.usesCompactHeaderLayout = usesCompactHeaderLayout
         metadataAxis = usesCompactHeaderLayout ? .horizontal : .vertical
         summaryAxis = usesCompactHeaderLayout ? .horizontal : .vertical
@@ -66,7 +69,7 @@ internal enum EntryEditorFocusPolicy {
     }
 }
 
-struct EntryEditorView: View {
+internal struct EntryEditorWorkspaceState: Equatable {
     enum Mode: String, CaseIterable, Identifiable {
         case edit = "编辑"
         case preview = "预览"
@@ -74,12 +77,95 @@ struct EntryEditorView: View {
         var id: String { rawValue }
     }
 
+    enum Action {
+        case selectMode(Mode)
+        case togglePreview
+        case focusBody
+        case focusWriting
+    }
+
+    private(set) var mode: Mode = .edit
+    private(set) var isPreviewColumnVisible = true
+    private(set) var usesSplitPreview = false
+    var editorFocused = false
+    var bodySelectedRange = NSRange(location: NSNotFound, length: 0)
+
+    var showsEditor: Bool { usesSplitPreview || mode == .edit }
+    var showsPreview: Bool { usesSplitPreview ? isPreviewColumnVisible : mode == .preview }
+
+    var previewToggleTitle: String {
+        EditorWritingCommand.previewToggleTitle(
+            isWideLayoutActive: usesSplitPreview,
+            isPreviewColumnVisible: isPreviewColumnVisible,
+            isPreviewModeActive: mode == .preview
+        )
+    }
+
+    func resolved(for layout: EntryEditorLayoutContract) -> Self {
+        var result = self
+        result.updateLayout(layout)
+        return result
+    }
+
+    mutating func updateLayout(_ layout: EntryEditorLayoutContract) {
+        guard usesSplitPreview != layout.usesSplitPreview else { return }
+
+        if layout.usesSplitPreview {
+            if mode == .preview {
+                isPreviewColumnVisible = true
+            }
+            mode = .edit
+        } else {
+            mode = !editorFocused && isPreviewColumnVisible ? .preview : .edit
+        }
+        usesSplitPreview = layout.usesSplitPreview
+    }
+
+    mutating func perform(_ action: Action, layout: EntryEditorLayoutContract) {
+        updateLayout(layout)
+        switch action {
+        case let .selectMode(newMode):
+            guard !usesSplitPreview, newMode != mode else { return }
+            mode = newMode
+            applyFocusPolicy(newMode == .preview ? .enterPreview : .selectEditModeFromPicker)
+        case .togglePreview:
+            if usesSplitPreview {
+                mode = .edit
+                isPreviewColumnVisible.toggle()
+            } else if mode == .preview {
+                mode = .edit
+                applyFocusPolicy(.returnToEditFromPreviewCommand)
+            } else {
+                mode = .preview
+                applyFocusPolicy(.enterPreview)
+            }
+        case .focusBody:
+            mode = .edit
+            editorFocused = true
+        case .focusWriting:
+            mode = .edit
+            isPreviewColumnVisible = false
+            editorFocused = true
+        }
+    }
+
+    private mutating func applyFocusPolicy(_ transition: EntryEditorFocusPolicy.Transition) {
+        switch EntryEditorFocusPolicy.action(for: transition) {
+        case .resign:
+            editorFocused = false
+        case .focus:
+            editorFocused = true
+        case .preserve:
+            break
+        }
+    }
+}
+
+struct EntryEditorView: View {
+    typealias Mode = EntryEditorWorkspaceState.Mode
+
     @Binding var entry: JournalEntry
-    @State private var mode: Mode = .edit
-    @State private var isPreviewColumnVisible = true
-    @State private var isWideLayoutActive = false
-    @State private var editorFocused = false
-    @State private var bodySelectedRange = NSRange(location: NSNotFound, length: 0)
+    @State private var workspaceState = EntryEditorWorkspaceState()
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private let focusedWritingMaxWidth: CGFloat = 920
@@ -91,110 +177,123 @@ struct EntryEditorView: View {
                 dynamicTypeSize: dynamicTypeSize
             )
             let bodyMetrics = entry.bodyMetrics
+            let workspace = workspaceState.resolved(for: layout)
 
             VStack(spacing: 0) {
                 header(layout: layout, bodyMetrics: bodyMetrics)
-
-                if layout.isWideEditorLayout {
-                    wideEditor(bodyMetrics: bodyMetrics)
-                } else {
-                    compactEditor(bodyMetrics: bodyMetrics)
-                }
+                editorWorkspace(
+                    layout: layout,
+                    workspace: workspace,
+                    width: proxy.size.width,
+                    bodyMetrics: bodyMetrics
+                )
             }
             .onAppear {
-                isWideLayoutActive = layout.isWideEditorLayout
+                workspaceState.updateLayout(layout)
             }
-            .onChange(of: layout.isWideEditorLayout) { isWideLayoutActive in
-                self.isWideLayoutActive = isWideLayoutActive
+            .onChange(of: layout.usesSplitPreview) { _ in
+                workspaceState.updateLayout(layout)
             }
+            .toolbar { editorToolbar(layout: layout, workspace: workspace) }
+            .focusedSceneValue(\.insertMarkdownSnippetAction, { insertSnippet($0, layout: layout) })
+            .focusedSceneValue(\.focusEditorBodyAction, { perform(.focusBody, layout: layout) })
+            .focusedSceneValue(\.focusEditorWritingAction, { perform(.focusWriting, layout: layout) })
+            .focusedSceneValue(\.toggleEditorPreviewAction, { perform(.togglePreview, layout: layout) })
+            .focusedSceneValue(\.applyEditorIndentationAction, { applyIndentation($0, layout: layout) })
         }
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            #if targetEnvironment(macCatalyst)
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button(action: focusBody) {
-                    Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
-                }
-                .help(EditorWritingCommand.focusBody.helpText)
-                .accessibilityLabel(EditorWritingCommand.focusBody.title)
-
-                Button(action: focusWriting) {
-                    Label(
-                        EditorWritingCommand.focusWriting.title,
-                        systemImage: EditorWritingCommand.focusWriting.systemImage
-                    )
-                }
-                .help(EditorWritingCommand.focusWriting.helpText)
-                .accessibilityLabel(EditorWritingCommand.focusWriting.title)
-
-                Button {
-                    applyIndentation(.outdent)
-                } label: {
-                    Label(
-                        EditorWritingCommand.outdentLines.title,
-                        systemImage: EditorWritingCommand.outdentLines.systemImage
-                    )
-                }
-                .help(EditorWritingCommand.outdentLines.helpText)
-                .accessibilityLabel(EditorWritingCommand.outdentLines.title)
-
-                Button {
-                    applyIndentation(.indent)
-                } label: {
-                    Label(
-                        EditorWritingCommand.indentLines.title,
-                        systemImage: EditorWritingCommand.indentLines.systemImage
-                    )
-                }
-                .help(EditorWritingCommand.indentLines.helpText)
-                .accessibilityLabel(EditorWritingCommand.indentLines.title)
-
-                Menu {
-                    ForEach(MarkdownSnippet.allCases) { snippet in
-                        Button {
-                            insertSnippet(snippet)
-                        } label: {
-                            Label(snippet.title, systemImage: snippet.systemImage)
-                        }
-                    }
-                } label: {
-                    Label("插入", systemImage: "plus.rectangle.on.rectangle")
-                }
-                .help(EditorWritingCommand.insertMarkdownAccessibilityLabel)
-                .accessibilityLabel(EditorWritingCommand.insertMarkdownAccessibilityLabel)
-
-                Button(action: togglePreviewVisibility) {
-                    Label(
-                        previewToggleTitle,
-                        systemImage: EditorWritingCommand.togglePreview.systemImage
-                    )
-                }
-                .help(EditorWritingCommand.togglePreview.helpText(title: previewToggleTitle))
-                .accessibilityLabel(previewToggleTitle)
-            }
-            #endif
-
-            ToolbarItem(placement: .primaryAction) {
-                ShareLink(item: entry.markdownDocument, subject: Text(entry.displayTitle)) {
-                    Label("分享", systemImage: "square.and.arrow.up")
-                }
-            }
-
-            ToolbarItemGroup(placement: .keyboard) {
-                Button("完成") {
-                    editorFocused = false
-                }
-            }
-        }
         .background(Color(.systemBackground))
-        .focusedSceneValue(\.insertMarkdownSnippetAction, insertSnippet)
-        .focusedSceneValue(\.focusEditorBodyAction, focusBody)
-        .focusedSceneValue(\.focusEditorWritingAction, focusWriting)
-        .focusedSceneValue(\.toggleEditorPreviewAction, togglePreviewVisibility)
-        .focusedSceneValue(\.applyEditorIndentationAction, applyIndentation)
         .onChange(of: entry.id) { _ in
             resetBodySelectionToEnd()
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func editorToolbar(
+        layout: EntryEditorLayoutContract,
+        workspace: EntryEditorWorkspaceState
+    ) -> some ToolbarContent {
+        #if targetEnvironment(macCatalyst)
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                perform(.focusBody, layout: layout)
+            } label: {
+                Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
+            }
+            .help(EditorWritingCommand.focusBody.helpText)
+            .accessibilityLabel(EditorWritingCommand.focusBody.title)
+
+            Button {
+                perform(.focusWriting, layout: layout)
+            } label: {
+                Label(
+                    EditorWritingCommand.focusWriting.title,
+                    systemImage: EditorWritingCommand.focusWriting.systemImage
+                )
+            }
+            .help(EditorWritingCommand.focusWriting.helpText)
+            .accessibilityLabel(EditorWritingCommand.focusWriting.title)
+
+            Button {
+                applyIndentation(.outdent, layout: layout)
+            } label: {
+                Label(
+                    EditorWritingCommand.outdentLines.title,
+                    systemImage: EditorWritingCommand.outdentLines.systemImage
+                )
+            }
+            .help(EditorWritingCommand.outdentLines.helpText)
+            .accessibilityLabel(EditorWritingCommand.outdentLines.title)
+
+            Button {
+                applyIndentation(.indent, layout: layout)
+            } label: {
+                Label(
+                    EditorWritingCommand.indentLines.title,
+                    systemImage: EditorWritingCommand.indentLines.systemImage
+                )
+            }
+            .help(EditorWritingCommand.indentLines.helpText)
+            .accessibilityLabel(EditorWritingCommand.indentLines.title)
+
+            Menu {
+                ForEach(MarkdownSnippet.allCases) { snippet in
+                    Button {
+                        insertSnippet(snippet, layout: layout)
+                    } label: {
+                        Label(snippet.title, systemImage: snippet.systemImage)
+                    }
+                }
+            } label: {
+                Label("插入", systemImage: "plus.rectangle.on.rectangle")
+            }
+            .help(EditorWritingCommand.insertMarkdownAccessibilityLabel)
+            .accessibilityLabel(EditorWritingCommand.insertMarkdownAccessibilityLabel)
+
+            Button {
+                perform(.togglePreview, layout: layout)
+            } label: {
+                Label(
+                    workspace.previewToggleTitle,
+                    systemImage: EditorWritingCommand.togglePreview.systemImage
+                )
+            }
+            .help(EditorWritingCommand.togglePreview.helpText(title: workspace.previewToggleTitle))
+            .accessibilityLabel(workspace.previewToggleTitle)
+        }
+        #endif
+
+        ToolbarItem(placement: .primaryAction) {
+            ShareLink(item: entry.markdownDocument, subject: Text(entry.displayTitle)) {
+                Label("分享", systemImage: "square.and.arrow.up")
+            }
+        }
+
+        ToolbarItemGroup(placement: .keyboard) {
+            Button("完成") {
+                workspaceState.editorFocused = false
+            }
         }
     }
 
@@ -319,25 +418,19 @@ struct EntryEditorView: View {
     }
 
     private func editor(
+        layout: EntryEditorLayoutContract,
         bodyMetrics: JournalEntryBodyMetrics,
         limitsWritingWidth: Bool = false
     ) -> some View {
         VStack(spacing: 0) {
-            MarkdownToolbar(accent: entry.category.tint, onInsert: insertSnippet)
+            MarkdownToolbar(accent: entry.category.tint) { insertSnippet($0, layout: layout) }
             Divider()
 
-            Group {
-                if limitsWritingWidth {
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        bodyEditorArea(bodyMetrics: bodyMetrics)
-                            .frame(maxWidth: focusedWritingMaxWidth)
-                        Spacer(minLength: 0)
-                    }
-                } else {
-                    bodyEditorArea(bodyMetrics: bodyMetrics)
-                        .frame(maxWidth: .infinity)
-                }
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                bodyEditorArea(bodyMetrics: bodyMetrics)
+                    .frame(maxWidth: limitsWritingWidth ? focusedWritingMaxWidth : .infinity)
+                Spacer(minLength: 0)
             }
             .background(Color(.systemBackground))
         }
@@ -354,160 +447,115 @@ struct EntryEditorView: View {
 
             MarkdownBodyTextView(
                 text: $entry.body,
-                selectedRange: $bodySelectedRange,
-                isFocused: $editorFocused
+                selectedRange: $workspaceState.bodySelectedRange,
+                isFocused: $workspaceState.editorFocused
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private func compactEditor(bodyMetrics: JournalEntryBodyMetrics) -> some View {
-        VStack(spacing: 0) {
-            Picker("模式", selection: compactModeSelection) {
-                ForEach(Mode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            if mode == .edit {
-                editor(bodyMetrics: bodyMetrics)
-            } else {
-                MarkdownPreviewView(entryID: entry.id, markdown: entry.body, accent: entry.category.tint)
-            }
-        }
-    }
-
-    private func wideEditor(bodyMetrics: JournalEntryBodyMetrics) -> some View {
-        HStack(spacing: 0) {
-            editorColumn(
-                bodyMetrics: bodyMetrics,
-                limitsWritingWidth: !isPreviewColumnVisible
-            )
-                .frame(maxWidth: .infinity)
-
-            if isPreviewColumnVisible {
-                Divider()
-
-                VStack(spacing: 0) {
-                    WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
-                    MarkdownPreviewView(
-                        entryID: entry.id,
-                        markdown: entry.body,
-                        accent: entry.category.tint,
-                        maxContentWidth: 560
-                    )
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .background(Color(.secondarySystemGroupedBackground))
-    }
-
-    private func editorColumn(
-        bodyMetrics: JournalEntryBodyMetrics,
-        limitsWritingWidth: Bool
+    private func editorWorkspace(
+        layout: EntryEditorLayoutContract,
+        workspace: EntryEditorWorkspaceState,
+        width: CGFloat,
+        bodyMetrics: JournalEntryBodyMetrics
     ) -> some View {
-        VStack(spacing: 0) {
-            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
-            editor(bodyMetrics: bodyMetrics, limitsWritingWidth: limitsWritingWidth)
-        }
-    }
+        let showsBoth = workspace.showsEditor && workspace.showsPreview
+        let columnWidth: CGFloat? = showsBoth ? max(0, (width - 1) / 2) : nil
 
-    private var previewToggleTitle: String {
-        EditorWritingCommand.previewToggleTitle(
-            isWideLayoutActive: isWideLayoutActive,
-            isPreviewColumnVisible: isPreviewColumnVisible,
-            isPreviewModeActive: mode == .preview
-        )
-    }
+        return VStack(spacing: 0) {
+            if !workspace.usesSplitPreview {
+                Picker("模式", selection: compactModeSelection(layout: layout)) {
+                    ForEach(Mode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
 
-    private func focusBody() {
-        mode = .edit
-        editorFocused = true
-    }
+            // Keep the editor at one structural position across split and width changes.
+            HStack(spacing: 0) {
+                if workspace.showsEditor {
+                    VStack(spacing: 0) {
+                        if workspace.usesSplitPreview {
+                            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
+                        }
+                        editor(
+                            layout: layout,
+                            bodyMetrics: bodyMetrics,
+                            limitsWritingWidth: workspace.usesSplitPreview && !workspace.showsPreview
+                        )
+                    }
+                    .frame(width: columnWidth)
+                    .frame(maxWidth: .infinity)
+                }
 
-    private func focusWriting() {
-        mode = .edit
+                if showsBoth {
+                    Divider().frame(width: 1)
+                }
 
-        if isWideLayoutActive {
-            isPreviewColumnVisible = false
-        }
-
-        editorFocused = true
-    }
-
-    private var compactModeSelection: Binding<Mode> {
-        Binding(
-            get: { mode },
-            set: { newMode in
-                guard newMode != mode else { return }
-
-                mode = newMode
-                if newMode == .preview {
-                    applyCompactFocusPolicy(for: .enterPreview)
-                } else {
-                    applyCompactFocusPolicy(for: .selectEditModeFromPicker)
+                if workspace.showsPreview {
+                    VStack(spacing: 0) {
+                        if workspace.usesSplitPreview {
+                            WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
+                        }
+                        MarkdownPreviewView(
+                            entryID: entry.id,
+                            markdown: entry.body,
+                            accent: entry.category.tint,
+                            maxContentWidth: workspace.usesSplitPreview ? 560 : 720
+                        )
+                    }
+                    .frame(width: columnWidth)
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .background(Color(.secondarySystemGroupedBackground))
+        }
+    }
+
+    private func compactModeSelection(layout: EntryEditorLayoutContract) -> Binding<Mode> {
+        Binding(
+            get: { workspaceState.resolved(for: layout).mode },
+            set: { perform(.selectMode($0), layout: layout) }
         )
     }
 
-    private func applyCompactFocusPolicy(for transition: EntryEditorFocusPolicy.Transition) {
-        switch EntryEditorFocusPolicy.action(for: transition) {
-        case .resign:
-            editorFocused = false
-        case .focus:
-            focusBody()
-        case .preserve:
-            break
-        }
+    private func perform(_ action: EntryEditorWorkspaceState.Action, layout: EntryEditorLayoutContract) {
+        workspaceState.perform(action, layout: layout)
     }
 
     private func resetBodySelectionToEnd() {
-        bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
+        workspaceState.bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
     }
 
-    private func togglePreviewVisibility() {
-        if isWideLayoutActive {
-            isPreviewColumnVisible.toggle()
-        } else {
-            if mode == .preview {
-                applyCompactFocusPolicy(for: .returnToEditFromPreviewCommand)
-            } else {
-                mode = .preview
-                applyCompactFocusPolicy(for: .enterPreview)
-            }
-        }
-    }
-
-    private func applyIndentation(_ direction: MarkdownLineIndentation.Direction) {
-        focusBody()
+    private func applyIndentation(_ direction: MarkdownLineIndentation.Direction, layout: EntryEditorLayoutContract) {
+        perform(.focusBody, layout: layout)
 
         guard let result = MarkdownLineIndentation.apply(
             to: entry.body,
-            selectedRange: bodySelectedRange,
+            selectedRange: workspaceState.bodySelectedRange,
             direction: direction
         ) else {
             return
         }
 
         entry.body = result.body
-        bodySelectedRange = result.selectedRange
+        workspaceState.bodySelectedRange = result.selectedRange
     }
 
-    private func insertSnippet(_ snippet: MarkdownSnippet) {
-        focusBody()
+    private func insertSnippet(_ snippet: MarkdownSnippet, layout: EntryEditorLayoutContract) {
+        perform(.focusBody, layout: layout)
         let result = MarkdownSnippetInsertion.apply(
             snippet: snippet,
             to: entry.body,
-            selectedRange: bodySelectedRange
+            selectedRange: workspaceState.bodySelectedRange
         )
 
         entry.body = result.body
-        bodySelectedRange = result.selectedRange
+        workspaceState.bodySelectedRange = result.selectedRange
     }
 
 }

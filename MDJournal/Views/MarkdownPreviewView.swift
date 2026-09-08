@@ -51,13 +51,82 @@ struct MarkdownPreviewUpdateRequest: Equatable, Sendable {
     let generation: UInt64
 }
 
+struct MarkdownPreviewInlineCache: Equatable {
+    typealias Renderer = (String) throws -> AttributedString
+
+    private let values: [String: AttributedString]
+
+    @MainActor
+    init(
+        document: MarkdownParseResult,
+        renderer: Renderer = { try AttributedString(markdown: $0) }
+    ) {
+        var values: [String: AttributedString] = [:]
+
+        func insert(_ text: String) {
+            guard values[text] == nil else { return }
+            if MarkdownPreviewView.shouldParseInlineMarkdown(text) {
+                values[text] = (try? renderer(text)) ?? AttributedString(text)
+            } else {
+                values[text] = AttributedString(text)
+            }
+        }
+
+        func collect(_ blocks: [MarkdownBlock]) {
+            for block in blocks {
+                switch block {
+                case let .heading(_, text), let .paragraph(text), let .quote(text):
+                    insert(text)
+                case let .unorderedList(items):
+                    for item in items { insert(item) }
+                case let .orderedList(items):
+                    for item in items { insert(item.text) }
+                case let .checklist(items):
+                    for item in items { insert(item.text) }
+                case .code, .divider:
+                    break
+                }
+            }
+        }
+
+        // Collect the displayed path; grouped level-three titles stay literal text.
+        if document.shouldUseSectionGroups {
+            for group in document.sectionGroups { collect(group.blocks) }
+        } else {
+            collect(document.blocks)
+        }
+        self.values = values
+    }
+
+    subscript(_ text: String) -> AttributedString? {
+        values[text]
+    }
+}
+
+struct MarkdownPreviewRenderSnapshot: Equatable {
+    let document: MarkdownParseResult
+    let inlineCache: MarkdownPreviewInlineCache
+
+    @MainActor
+    init(
+        document: MarkdownParseResult = MarkdownParseResult(blocks: [], sectionGroups: []),
+        inlineRenderer: MarkdownPreviewInlineCache.Renderer = { try AttributedString(markdown: $0) }
+    ) {
+        self.document = document
+        inlineCache = MarkdownPreviewInlineCache(document: document, renderer: inlineRenderer)
+    }
+}
+
 @MainActor
 final class MarkdownPreviewUpdateModel: ObservableObject {
     static let trailingDelay: Duration = .milliseconds(150)
 
-    @Published private(set) var document: MarkdownParseResult
+    @Published private(set) var snapshot: MarkdownPreviewRenderSnapshot
+
+    var document: MarkdownParseResult { snapshot.document }
 
     private let scheduler: any MarkdownPreviewScheduling
+    private let inlineRenderer: MarkdownPreviewInlineCache.Renderer
     private let parseDocument: (String) -> MarkdownParseResult
     private var scheduledUpdate: MarkdownPreviewScheduledUpdate?
     private var activeEntryID: UUID?
@@ -67,11 +136,13 @@ final class MarkdownPreviewUpdateModel: ObservableObject {
 
     init(
         scheduler: any MarkdownPreviewScheduling = TaskMarkdownPreviewScheduler(),
+        inlineRenderer: @escaping MarkdownPreviewInlineCache.Renderer = { try AttributedString(markdown: $0) },
         parseDocument: @escaping (String) -> MarkdownParseResult = MarkdownBlockParser.parseDocument
     ) {
         self.scheduler = scheduler
+        self.inlineRenderer = inlineRenderer
         self.parseDocument = parseDocument
-        document = MarkdownParseResult(blocks: [], sectionGroups: [])
+        snapshot = MarkdownPreviewRenderSnapshot()
     }
 
     func activate(entryID: UUID, markdown: String) {
@@ -130,13 +201,19 @@ final class MarkdownPreviewUpdateModel: ObservableObject {
 
     private func publishImmediately(_ request: MarkdownPreviewUpdateRequest) {
         guard accepts(request) else { return }
-        document = parseDocument(request.markdown)
+        snapshot = MarkdownPreviewRenderSnapshot(
+            document: parseDocument(request.markdown),
+            inlineRenderer: inlineRenderer
+        )
     }
 
     private func publish(_ request: MarkdownPreviewUpdateRequest) {
         guard accepts(request) else { return }
         scheduledUpdate = nil
-        document = parseDocument(request.markdown)
+        snapshot = MarkdownPreviewRenderSnapshot(
+            document: parseDocument(request.markdown),
+            inlineRenderer: inlineRenderer
+        )
     }
 
     private func accepts(_ request: MarkdownPreviewUpdateRequest) -> Bool {
@@ -176,7 +253,9 @@ struct MarkdownPreviewView: View {
     }
 
     var body: some View {
-        let document = updateModel.document
+        let snapshot = updateModel.snapshot
+        let document = snapshot.document
+        let inlineCache = snapshot.inlineCache
         let shouldUseSectionGroups = document.shouldUseSectionGroups
 
         ScrollView {
@@ -188,11 +267,11 @@ struct MarkdownPreviewView: View {
                         .padding(.top, 60)
                 } else if shouldUseSectionGroups {
                     ForEach(document.sectionGroups) { group in
-                        sectionGroupView(group)
+                        sectionGroupView(group, inlineCache: inlineCache)
                     }
                 } else {
                     ForEach(document.blocks.indices, id: \.self) { index in
-                        blockView(document.blocks[index])
+                        blockView(document.blocks[index], inlineCache: inlineCache)
                     }
                 }
             }
@@ -229,11 +308,14 @@ struct MarkdownPreviewView: View {
     }
 
     @ViewBuilder
-    private func sectionGroupView(_ group: MarkdownSectionGroup) -> some View {
+    private func sectionGroupView(
+        _ group: MarkdownSectionGroup,
+        inlineCache: MarkdownPreviewInlineCache
+    ) -> some View {
         if group.isIntro {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(group.blocks.indices, id: \.self) { index in
-                    blockView(group.blocks[index])
+                    blockView(group.blocks[index], inlineCache: inlineCache)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,7 +338,7 @@ struct MarkdownPreviewView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(group.blocks.indices, id: \.self) { index in
-                        blockView(group.blocks[index])
+                        blockView(group.blocks[index], inlineCache: inlineCache)
                     }
                 }
             }
@@ -271,17 +353,20 @@ struct MarkdownPreviewView: View {
     }
 
     @ViewBuilder
-    private func blockView(_ block: MarkdownBlock) -> some View {
+    private func blockView(
+        _ block: MarkdownBlock,
+        inlineCache: MarkdownPreviewInlineCache
+    ) -> some View {
         switch block {
         case let .heading(level, text):
-            Text(Self.inlineMarkdown(text))
+            Text(inlineCache[text] ?? AttributedString(text))
                 .font(font(for: level))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, level == 1 ? 2 : 8)
 
         case let .paragraph(text):
-            Text(Self.inlineMarkdown(text))
+            Text(inlineCache[text] ?? AttributedString(text))
                 .font(.body)
                 .lineSpacing(5)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -292,7 +377,7 @@ struct MarkdownPreviewView: View {
                     .fill(accent)
                     .frame(width: 4)
 
-                Text(Self.inlineMarkdown(text))
+                Text(inlineCache[text] ?? AttributedString(text))
                     .font(.body.italic())
                     .foregroundStyle(.secondary)
                     .lineSpacing(4)
@@ -310,7 +395,7 @@ struct MarkdownPreviewView: View {
                         Text("•")
                             .font(.body.weight(.bold))
                             .foregroundStyle(accent)
-                        Text(Self.inlineMarkdown(item))
+                        Text(inlineCache[item] ?? AttributedString(item))
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -329,7 +414,7 @@ struct MarkdownPreviewView: View {
                             .foregroundStyle(accent)
                             .frame(minWidth: 28, alignment: .trailing)
 
-                        Text(Self.inlineMarkdown(item.text))
+                        Text(inlineCache[item.text] ?? AttributedString(item.text))
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -344,7 +429,7 @@ struct MarkdownPreviewView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(item.isChecked ? accent : .secondary)
-                        Text(Self.inlineMarkdown(item.text))
+                        Text(inlineCache[item.text] ?? AttributedString(item.text))
                             .font(.body)
                             .strikethrough(item.isChecked)
                             .foregroundStyle(item.isChecked ? .secondary : .primary)
