@@ -6,7 +6,7 @@ MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
-v0.87 当前为实现待云端验证：布局状态与 inline render snapshot 已接线，CI 四阶段及 artifact 契约不变，仅 VERSION 更新；需 Agent C 验收本轮最新 origin/main 对应结果包。v0.86 bridge token 行为保持不变。
+v0.88 当前为界面重构实现待云端验证。JournalTheme 与 Assets 统一配色；列表采用紧凑行和系统分类菜单。编辑器详情折叠、头部独立滚动且高度最多占 38%，单栏正文限宽 760pt，状态栏展示词数、小节与更新时间。预览为连续纸面；统计以完整总览和自适应网格展示，辅助字号单列。状态、bridge、Store、JSON 和 parser 边界不变。本轮用户要求禁用子智能体，三个阶段由当前线程串行执行，不标记为独立 Agent C 验收。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -44,7 +44,7 @@ JournalEntry.body
 
 EntryRowView + DynamicTypeSize
   -> EntryRowLayoutContract：只按 isAccessibilitySize 派生非持久化布局策略
-  -> 普通字号：metadata/footer 横排、标题/小节标题单行、保留水平小节条
+  -> 普通字号：metadata/footer 横排、标题/小节标题单行、保留紧凑单行小节文本
   -> Accessibility 字号：metadata/footer 垂直堆叠、标题不限单行、小节在有限宽度垂直栈中至少允许两行
   -> 不进入 JournalStore、JSON、JournalEntryListSnapshot、正文 metrics、selection、Markdown 或焦点状态
 
@@ -110,7 +110,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 1. `ContentView.selectedEntryBinding` 为当前日记生成 `Binding<JournalEntry>`。
 2. `EntryEditorView` 通过 binding 编辑标题、日期、分类、心情和正文；头部系统 `DatePicker` 以隐藏但可访问的“日记日期” label 编辑 `createdAt`，保留 compact 视觉，日期值与调整语义由系统控件提供。
 3. `EntryEditorLayoutContract` 按实际 detail 宽度和字号派生布局：`width >= 820` 为头部档位，`usesSplitPreview = width >= 1120 && !isAccessibilitySize` 为独立双栏资格。Accessibility 头部堆叠、标题自然增高且工作区单栏；该契约不参与 entry binding、Markdown 或持久化。
-4. `EntryEditorView` 头部直接使用 `JournalEntryBodyMetrics` 展示词数和 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片，卡片宽度按 `.caption` Dynamic Type 缩放且 excerpt 使用 `.caption`。
+4. `EntryEditorView` 工作台直接使用 `JournalEntryBodyMetrics` 展示状态栏词数和展开详情中的 `###` 小节概览，不为头部生成未展示的正文 excerpt；小节概览在横向滚动中懒加载离屏卡片，卡片宽度按 `.caption` Dynamic Type 缩放且 excerpt 使用 `.caption`。
 5. 正文编辑控件由 `MarkdownBodyTextView` 包装 `UITextView` 提供，SwiftUI 仍通过 binding 持有正文文本，同时同步当前光标/选区；rounded body 字体只在当前字体不匹配时写入，UIKit 普通输入、成功回车续写和成功缩进实际发布正文时由 Coordinator 记录非持久化正文/选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新只有在正文和选区都匹配时才保留已发布正文/选区并减少重复 bridge 同步，正文不同即使 `NSRange` 相同也按外部正文同步；状态不匹配或已消费时仍按差异同步外部正文，marked text 延迟同步，选区和焦点继续按需写回。`EntryEditorView.body` 把同一次得到的 `JournalEntryBodyMetrics` 显式传到编辑区域，正文 placeholder 只消费 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 语义且不再独立扫描正文。`EntryEditorView` 通过 `EntryEditorFocusPolicy` 管理 compact 的 mode/editorFocused 边界：进入预览 resign，⌘⌥P 返回编辑 focus，Picker 选回编辑 preserve。
 6. `MarkdownBodyTextView` 会按需配置正文输入 traits，禁用智能引号、智能破折号和智能插入删除；若这些 traits 已是目标值则不重复写入，避免系统自动改写 Markdown 标记。
 7. 用户在 Markdown 无序列表、待办、引用或有序列表中按回车时，`MarkdownBodyTextView` 调用 `MarkdownLineContinuation`；非空项续写同缩进前缀，有序列表会递增编号，空项用 `.whitespaces` 水平空白扫描判断并退出当前结构，不为判断创建临时 trimmed 字符串，代码围栏内通过单次索引扫描识别并回退系统默认输入，IME marked text 或普通输入继续走系统默认行为。
@@ -132,7 +132,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 
 1. `ContentView` 持有搜索文本、选中分类；`body` 开头通过 `makeListSnapshot()` 只生成本次评估的一份局部 `JournalEntryListSnapshot`，同时生成不参与筛选的 `JournalListOverviewSnapshot`。
 2. 同一份局部 snapshot 显式传给 `EntryListView`、`selectedEntryBinding(using:)` 和 `journalEntryNavigationActions(using:)`；因此列表顺序、detail guard 和 focused navigation actions 在本次评估中共享同一 `filteredEntries`，不在 helper 内重复构造快照。
-3. 搜索文本先 trim，非空时匹配标题、正文、分类、心情；分类 chip 数量仍基于完整 entries 的分类分布，点击只更新父级 `selectedCategory`。
+3. 搜索文本先 trim，非空时匹配标题、正文、分类、心情；系统分类菜单各选项数量仍基于完整 entries 的分类分布，选择只更新父级 selectedCategory；入口显示当前可见数。
 4. `JournalEntrySelectionPolicy.repairedSelection` 是生产和测试共用的纯值规则：当前 ID 在 `filteredEntries` 中则保留，不可见则返回首个可见 ID，可见结果为空则返回 `nil`。
 5. `ContentView` 在初始显示、搜索变化、分类变化和 Store entries 变化时用 policy repair；创建先沿既有 `JournalStore.createEntry()` 修改 Store，再用新 snapshot 让匹配的新 ID 可见，不匹配时回到可见首项或 `nil`。
 6. `selectedEntryBinding(using:)` 只用局部 snapshot 做当前 selection 的 detail guard，不把快照捕获进 Binding getter/setter；隐藏 selection 不生成编辑器 binding。普通编辑仍通过原有 binding 回到 `JournalStore.update(_:)`。
@@ -147,7 +147,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 ### 2.5 Markdown 预览
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览；`EntryEditorFocusPolicy` 只处理 compact 焦点动作，进入预览清除正文焦点，现有 ⌘⌥P 从预览回编辑时请求焦点，Picker 直接选回编辑保持未聚焦；宽屏预览列不经过该 policy。
-2. `EntryEditorLayoutContract.usesSplitPreview` 精确要求实际 detail `>=1120pt` 且非 Accessibility，`820pt` 只决定头部宽度档位。双栏扣除 `1pt` Divider 后等分，净正文还需扣 padding；预览行宽上限保持 `560pt`，双栏隐藏右栏时正文居中且上限 `920pt`。
+2. `EntryEditorLayoutContract.usesSplitPreview` 精确要求实际 detail `>=1120pt` 且非 Accessibility，`820pt` 只决定头部宽度档位。双栏扣除 `1pt` Divider 后等分，净正文还需扣 padding；预览行宽上限保持 `560pt`，双栏隐藏右栏时正文居中且上限 `760pt`。
 3. `MarkdownPreviewUpdateModel` 使用单一 `@Published snapshot` 同时持有 document 与 `MarkdownPreviewInlineCache`。body 捕获同一快照，将对应 cache 显式传给 block、section、ForEach/LazyVStack 子闭包；旧闭包不读取 model 的新缓存。
 4. 初始化为空快照；首次激活立即解析当前正文并构建匹配缓存。正文连续变化递增 generation，并通过固定 `150ms` trailing debounce 合并，等待期间保留上一份 document/cache。
 5. 接受请求前校验 active、entry ID、正文和 generation；被拒绝的迟到请求不调用 parser/renderer，不改变快照。隐藏预览时视图移除并 deactivate；重新显示、切日记或重新 activate 时使用当前正文构建新快照。
@@ -167,7 +167,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 6. `JournalStatistics` 先检查输入是否已按 `createdAt` 倒序；常见的 `JournalStore.entries` 主路径直接复用输入数组，只有乱序输入才回退排序。
 7. `JournalStatistics` 对每篇日记只构造一次 `JournalEntryBodyMetrics`，单轮聚合总篇数、总词数、平均词数、小节覆盖率、连续天数、本周数据、分类分布、心情分布、分布最大 entry count、主导分类/心情、最近 7 天趋势和趋势最大词数，不为统计路径生成正文摘要。
 8. `SevenDayBarChart` 继续直接消费 `lastSevenDays` 和 `maxDailyWordCount`；纯布局契约只根据 `DynamicTypeSize` 选择展示容器，普通字号保留七列等分，Accessibility 字号使用 56pt 稳定列宽的水平滚动，词数标签和图表容器使用最小高度自然增高，92pt 柱图区与柱高比例保持不变。
-9. 宽度大于等于 `820` pt 时使用两列布局，否则使用单列滚动布局。
+9. 总览位于完整宽度；其他统计分区由 JournalDashboardLayout 按实际宽度与字号选择网格：>=820pt 且非 Accessibility 时两列，否则单列。指标在辅助字号下垂直布局。
 10. 独立统计窗口复用 App 级 `JournalStore`，只读展示当前日记数组，不新增第二套加载或保存路径。
 
 ### 2.7 Mac Catalyst 菜单命令
@@ -269,7 +269,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 11. v0.85 实现与 docs-close 均已完成：实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的 run `32645093679`、attempt `1` 对应 artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`、size `456026` bytes、digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`），Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。docs-close HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，对应 run `32646077288`、attempt `1` 的 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`），Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。
 
-12. v0.87 待云端验证；新增布局/状态及 inline cache/snapshot 测试需在最新 main commit 的四阶段 CI 中实际执行，Agent C 下载并核对其独立 artifact 后才可通过。
+12. v0.88 待最新 main commit 的四阶段 CI；本线程核对布局、资源、渲染附件与既有测试。v0.87 的 run 34175692697 attempt 1、227 项基线已下载核对，仅证明起点。
 
 ### 3.6 Agent C 结果包验收
 

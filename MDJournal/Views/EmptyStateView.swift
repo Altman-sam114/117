@@ -4,27 +4,38 @@ struct EmptyStateView: View {
     let onCreate: () -> Void
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "text.book.closed")
-                .font(.system(size: 48, weight: .semibold))
-                .foregroundStyle(.teal)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 24) {
+                    Image(systemName: "book.closed")
+                        .font(.largeTitle)
+                        .foregroundStyle(JournalTheme.accent)
+                        .padding(24)
+                        .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 24))
+                        .accessibilityHidden(true)
 
-            VStack(spacing: 6) {
-                Text("选择或新建一篇日记")
-                    .font(.title3.weight(.semibold))
-
-                Text("用 Markdown 写下当天的记录，然后切到预览查看排版。")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                    VStack(spacing: 12) {
+                        Text("给今天，留一页。")
+                            .font(.system(.title, design: .serif).weight(.medium))
+                        Text("选择一篇日记继续写，或从一个新的念头开始。")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
                     .multilineTextAlignment(.center)
-            }
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Button(action: onCreate) {
-                Label("新建日记", systemImage: "square.and.pencil")
+                    Button(action: onCreate) {
+                        Label("新建日记", systemImage: "square.and.pencil")
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(JournalTheme.accent)
+                }
+                .padding(32)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
             }
-            .buttonStyle(.borderedProminent)
+            .background(JournalTheme.canvas)
         }
-        .padding(28)
-        .frame(maxWidth: 380)
     }
 }

@@ -2,25 +2,13 @@
 
 本文指导 Agent A、Agent B、Agent C 和未来 Agent X 主控循环选择测试层级、记录命令和判断当前基线。
 
-## v0.87 当前验收
+## v0.88 当前验收
 
-- 当前为实现待云端验证。历史起点为 v0.86 最终 `79e68b2`、run `32652837616`、attempt `1`，212 项通过；旧包不证明本轮。
-- `MarkdownSnippetTests` 新增 9 项生产布局/状态测试：819/820/1119/1120/1440、large/xxxLarge 与全部 Accessibility；默认最小窗口减 sidebar 为单栏；实际 layout 驱动命令标题/列切换；Picker 与命令返回焦点差异；宽度与字号往返、隐藏列偏好、旧 preview 归一化、重复布局幂等；非空 emoji UTF-16 选区在转移后仍用于真实片段插入和缩进。
-- `MarkdownPreviewTests` 新增 6 项 production cache/model 测试：显示路径唯一文本计数、plain 不调用 renderer、默认 inline 等价、throwing fallback 不重试、快照替换及旧快照查询、同正文不同日记与重新激活、手动 scheduler 下取消/替代/切日记/deactivate 的迟到请求不调用 parser/renderer。旧测试保留，预计总数 `227`，以云端实际执行为准。
-- 集成 diff 审查：正文可见期间保留固定结构位置，宽度限制只改 frame；单栏预览不创建隐藏编辑器；纯布局不改正文或重置选区；预览隐藏触发 deactivate，重新出现读取当前正文。body 和延迟子闭包显式消费同一 document/cache 快照。
-- 本机只允许下列检查及必要 `rg`；Swift parse 不做类型检查，不替代 iOS/Catalyst build 或 XCTest。禁止本机完整 build、XCTest、xcodebuild、simctl、App、UI、性能运行和运行脚本。
-
-```sh
-git diff --check
-xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)
-xcrun swiftc -parse MDJournalTests/MarkdownSnippetTests.swift MDJournalTests/MarkdownPreviewTests.swift
-plutil -lint MDJournal.xcodeproj/project.pbxproj
-ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
-git diff --cached --check
-```
-
-- CI 只更新 `VERSION: v0.87`，保留 static/iOS/Catalyst/XCTest 四阶段与三份 xcresult。Agent C 必须下载最新 origin/main 同 SHA、run/attempt 的未加密 artifact，核对 manifest、JUnit `4/0/0/0`、日志、失败摘要、三份结果、新旧测试执行明细与完整性；未下载核对前不写通过。
-- 遗留：真实 UITextView 身份/first responder、跨阈值有选区输入、IME、低高度与 Accessibility 排版、VoiceOver、帧率/分配尚未验收。发布时仍有 MainActor 解析/缓存构建及当前文档内存成本；计数测试不等于性能测量。
+- v0.87 起点已由本线程下载核对：763abe32eca3bafd52adaa34b33fe0b2d61a961a，run 34175692697 attempt 1，四阶段 success，227 项 passed，JUnit 4/0/0/0；525 ZIP entries 无加密、CRC 与逐文件哈希通过。
+- v0.88 新增 JournalInterfaceTests：头部预算在低高度/辅助字号不超过 38%，统计在窄屏/辅助字号单列，颜色资源覆盖浅/深/高对比，以及六张真实云端 SwiftUI 渲染附件。预计 231 项，以云端实际执行为准。
+- 渲染附件覆盖 1440×900 工作台、390×720 深色、844×320 横屏、辅助字号、320pt 列表、1100pt 统计。它们不替代真实 Mac Catalyst 窗口、键盘/IME、触控和 VoiceOver 验收。
+- 本机仅运行 diff、Swift parse、project plist、workflow YAML、资源 JSON 检查；不运行本机 build/XCTest/xcodebuild/simctl/App/UI/性能测试。任何本机 iOS 运行仍只能使用 UDID 以 FAC4325D 开头的既有唯一模拟器，本轮不调用。
+- push main 后核对最新同 SHA/run/attempt 的未加密 artifact、manifest、JUnit、主日志、三份 xcresult 与新增附件。用户要求不调用子智能体，本轮由同一线程核对，明确没有独立 Agent C。
 
 ## 固定前缀 / 环境要求
 

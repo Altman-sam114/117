@@ -166,9 +166,10 @@ struct EntryEditorView: View {
 
     @Binding var entry: JournalEntry
     @State private var workspaceState = EntryEditorWorkspaceState()
+    @State private var showsDetails = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    private let focusedWritingMaxWidth: CGFloat = 920
+    private let focusedWritingMaxWidth = JournalTheme.readableWidth
 
     var body: some View {
         GeometryReader { proxy in
@@ -180,13 +181,23 @@ struct EntryEditorView: View {
             let workspace = workspaceState.resolved(for: layout)
 
             VStack(spacing: 0) {
-                header(layout: layout, bodyMetrics: bodyMetrics)
+                ScrollView(.vertical) {
+                    header(layout: layout, bodyMetrics: bodyMetrics)
+                }
+                .frame(height: EntryEditorChromeLayout.headerHeight(
+                    availableHeight: proxy.size.height,
+                    showsDetails: showsDetails,
+                    dynamicTypeSize: dynamicTypeSize
+                ))
+                .background(JournalTheme.paper)
+                Divider()
                 editorWorkspace(
                     layout: layout,
                     workspace: workspace,
                     width: proxy.size.width,
                     bodyMetrics: bodyMetrics
                 )
+                writingStatus(bodyMetrics)
             }
             .onAppear {
                 workspaceState.updateLayout(layout)
@@ -203,7 +214,7 @@ struct EntryEditorView: View {
         }
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemBackground))
+        .background(JournalTheme.paper)
         .onChange(of: entry.id) { _ in
             resetBodySelectionToEnd()
         }
@@ -217,70 +228,37 @@ struct EntryEditorView: View {
         #if targetEnvironment(macCatalyst)
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                perform(.focusBody, layout: layout)
-            } label: {
-                Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
-            }
-            .help(EditorWritingCommand.focusBody.helpText)
-            .accessibilityLabel(EditorWritingCommand.focusBody.title)
-
-            Button {
                 perform(.focusWriting, layout: layout)
             } label: {
-                Label(
-                    EditorWritingCommand.focusWriting.title,
-                    systemImage: EditorWritingCommand.focusWriting.systemImage
-                )
+                Label(EditorWritingCommand.focusWriting.title, systemImage: EditorWritingCommand.focusWriting.systemImage)
             }
             .help(EditorWritingCommand.focusWriting.helpText)
-            .accessibilityLabel(EditorWritingCommand.focusWriting.title)
-
-            Button {
-                applyIndentation(.outdent, layout: layout)
-            } label: {
-                Label(
-                    EditorWritingCommand.outdentLines.title,
-                    systemImage: EditorWritingCommand.outdentLines.systemImage
-                )
-            }
-            .help(EditorWritingCommand.outdentLines.helpText)
-            .accessibilityLabel(EditorWritingCommand.outdentLines.title)
-
-            Button {
-                applyIndentation(.indent, layout: layout)
-            } label: {
-                Label(
-                    EditorWritingCommand.indentLines.title,
-                    systemImage: EditorWritingCommand.indentLines.systemImage
-                )
-            }
-            .help(EditorWritingCommand.indentLines.helpText)
-            .accessibilityLabel(EditorWritingCommand.indentLines.title)
 
             Menu {
+                Button { perform(.focusBody, layout: layout) } label: {
+                    Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
+                }
+                Button { applyIndentation(.indent, layout: layout) } label: {
+                    Label(EditorWritingCommand.indentLines.title, systemImage: EditorWritingCommand.indentLines.systemImage)
+                }
+                Button { applyIndentation(.outdent, layout: layout) } label: {
+                    Label(EditorWritingCommand.outdentLines.title, systemImage: EditorWritingCommand.outdentLines.systemImage)
+                }
+                Divider()
                 ForEach(MarkdownSnippet.allCases) { snippet in
-                    Button {
-                        insertSnippet(snippet, layout: layout)
-                    } label: {
+                    Button { insertSnippet(snippet, layout: layout) } label: {
                         Label(snippet.title, systemImage: snippet.systemImage)
                     }
                 }
             } label: {
-                Label("插入", systemImage: "plus.rectangle.on.rectangle")
+                Label("写作工具", systemImage: "textformat")
             }
-            .help(EditorWritingCommand.insertMarkdownAccessibilityLabel)
-            .accessibilityLabel(EditorWritingCommand.insertMarkdownAccessibilityLabel)
+            .help("Markdown、缩进与正文焦点")
 
-            Button {
-                perform(.togglePreview, layout: layout)
-            } label: {
-                Label(
-                    workspace.previewToggleTitle,
-                    systemImage: EditorWritingCommand.togglePreview.systemImage
-                )
+            Button { perform(.togglePreview, layout: layout) } label: {
+                Label(workspace.previewToggleTitle, systemImage: EditorWritingCommand.togglePreview.systemImage)
             }
             .help(EditorWritingCommand.togglePreview.helpText(title: workspace.previewToggleTitle))
-            .accessibilityLabel(workspace.previewToggleTitle)
         }
         #endif
 
@@ -298,34 +276,66 @@ struct EntryEditorView: View {
     }
 
     private func header(layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics) -> some View {
-        let summaryLayout = layout.summaryAxis == .horizontal
-            ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(entry.createdAt.journalTitleText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button {
+                    showsDetails.toggle()
+                } label: {
+                    Label(showsDetails ? "收起详情" : "日记详情",
+                          systemImage: showsDetails ? "chevron.up" : "slider.horizontal.3")
+                        .font(.subheadline)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(JournalTheme.accent)
+                .accessibilityValue(showsDetails ? "已展开" : "已收起")
+            }
 
-        return VStack(alignment: .leading, spacing: 14) {
-            metadata(layout: layout)
-
-            TextField("今天的标题", text: $entry.title, axis: .vertical)
-                .font(.title2.weight(.semibold))
+            TextField("今天，想记下什么？", text: $entry.title, axis: .vertical)
+                .font(.system(.title, design: .serif).weight(.medium))
                 .textFieldStyle(.plain)
                 .lineLimit(layout.titleLineLimit)
+                .accessibilityLabel("日记标题")
 
-            summaryLayout {
-                statPills(bodyMetrics, axis: layout.statisticsPillAxis)
-                    .frame(width: layout.statisticsWidth, alignment: .leading)
-
+            if showsDetails {
+                Divider().padding(.vertical, 4)
+                metadata(layout: layout)
                 JournalSectionOverview(
                     sections: bodyMetrics.sections,
-                    accent: entry.category.tint,
+                    accent: JournalTheme.accent,
                     titleLineLimit: layout.sectionTitleLineLimit,
                     excerptLineLimit: layout.sectionExcerptLineLimit
                 )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 14)
-        .background(headerBackground)
+        .padding(.horizontal, JournalTheme.pageInset)
+        .padding(.vertical, 12)
+        .frame(maxWidth: JournalTheme.readableWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func writingStatus(_ metrics: JournalEntryBodyMetrics) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
+                Spacer(minLength: 12)
+                Text("更新于 \(entry.updatedAt.journalRelativeUpdateText)")
+            }
+            Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
+        }
+        .font(.caption)
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, JournalTheme.pageInset)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(JournalTheme.canvas)
     }
 
     private func metadata(layout: EntryEditorLayoutContract) -> some View {
@@ -351,32 +361,6 @@ struct EntryEditorView: View {
         }
     }
 
-    private var headerBackground: some View {
-        LinearGradient(
-            colors: [
-                entry.category.tint.opacity(0.16),
-                Color(.systemBackground)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    private func statPills(
-        _ bodyMetrics: JournalEntryBodyMetrics,
-        axis: EntryEditorLayoutAxis
-    ) -> some View {
-        let pillLayout = axis == .horizontal
-            ? AnyLayout(HStackLayout(spacing: 8))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-
-        return pillLayout {
-            EditorStatPill(value: "\(bodyMetrics.wordCount)", title: "词", systemImage: "text.word.spacing")
-            EditorStatPill(value: "\(bodyMetrics.sectionCount)", title: "小节", systemImage: "list.bullet.rectangle")
-            EditorStatPill(value: entry.updatedAt.journalRelativeUpdateText, title: "更新", systemImage: "clock")
-        }
-    }
-
     private var categoryPicker: some View {
         Menu {
             ForEach(JournalEntry.Category.allCases) { category in
@@ -392,6 +376,7 @@ struct EntryEditorView: View {
                 .labelStyle(.titleAndIcon)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
+                .frame(minHeight: 44)
                 .foregroundStyle(entry.category.tint)
                 .background(entry.category.tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
         }
@@ -412,8 +397,9 @@ struct EntryEditorView: View {
                 .labelStyle(.titleAndIcon)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
+                .frame(minHeight: 44)
                 .foregroundStyle(.secondary)
-                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+                .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -423,7 +409,7 @@ struct EntryEditorView: View {
         limitsWritingWidth: Bool = false
     ) -> some View {
         VStack(spacing: 0) {
-            MarkdownToolbar(accent: entry.category.tint) { insertSnippet($0, layout: layout) }
+            MarkdownToolbar(accent: JournalTheme.accent) { insertSnippet($0, layout: layout) }
             Divider()
 
             HStack(spacing: 0) {
@@ -432,7 +418,7 @@ struct EntryEditorView: View {
                     .frame(maxWidth: limitsWritingWidth ? focusedWritingMaxWidth : .infinity)
                 Spacer(minLength: 0)
             }
-            .background(Color(.systemBackground))
+            .background(JournalTheme.paper)
         }
     }
 
@@ -480,12 +466,12 @@ struct EntryEditorView: View {
                 if workspace.showsEditor {
                     VStack(spacing: 0) {
                         if workspace.usesSplitPreview {
-                            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: entry.category.tint)
+                            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: JournalTheme.accent)
                         }
                         editor(
                             layout: layout,
                             bodyMetrics: bodyMetrics,
-                            limitsWritingWidth: workspace.usesSplitPreview && !workspace.showsPreview
+                            limitsWritingWidth: !workspace.showsPreview
                         )
                     }
                     .frame(width: columnWidth)
@@ -499,12 +485,12 @@ struct EntryEditorView: View {
                 if workspace.showsPreview {
                     VStack(spacing: 0) {
                         if workspace.usesSplitPreview {
-                            WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: entry.category.tint)
+                            WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: JournalTheme.accent)
                         }
                         MarkdownPreviewView(
                             entryID: entry.id,
                             markdown: entry.body,
-                            accent: entry.category.tint,
+                            accent: JournalTheme.accent,
                             maxContentWidth: workspace.usesSplitPreview ? 560 : 720
                         )
                     }
@@ -512,7 +498,7 @@ struct EntryEditorView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .background(Color(.secondarySystemGroupedBackground))
+            .background(JournalTheme.canvas)
         }
     }
 
@@ -524,6 +510,7 @@ struct EntryEditorView: View {
     }
 
     private func perform(_ action: EntryEditorWorkspaceState.Action, layout: EntryEditorLayoutContract) {
+        if case .focusWriting = action { showsDetails = false }
         workspaceState.perform(action, layout: layout)
     }
 
@@ -575,30 +562,7 @@ private struct WorkspacePaneHeader: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(Color(.systemBackground))
-    }
-}
-
-private struct EditorStatPill: View {
-    let value: String
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        Label {
-            HStack(spacing: 3) {
-                Text(value)
-                    .fontWeight(.semibold)
-                Text(title)
-                    .foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .font(.caption)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+        .background(JournalTheme.paper)
     }
 }
 
@@ -631,7 +595,7 @@ private struct JournalSectionOverview: View {
                     .foregroundStyle(.secondary)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+                    .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 8))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 8) {
@@ -649,7 +613,7 @@ private struct JournalSectionOverview: View {
                             }
                             .padding(10)
                             .frame(width: sectionCardWidth, alignment: .leading)
-                            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+                            .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 8))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(accent.opacity(0.18), lineWidth: 1)

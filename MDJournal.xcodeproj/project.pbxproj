@@ -44,6 +44,11 @@
 		B1000000000000000000000A /* JournalListOverviewSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000A /* JournalListOverviewSnapshotTests.swift */; };
 		B1000000000000000000000B /* JournalEntryNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000B /* JournalEntryNavigationTests.swift */; };
 		B1000000000000000000000C /* MarkdownPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000C /* MarkdownPreviewTests.swift */; };
+		C10000000000000000000001 /* JournalTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* JournalTheme.swift */; };
+		C10000000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000002 /* Assets.xcassets */; };
+		C10000000000000000000003 /* EntryEditorChromeLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000003 /* EntryEditorChromeLayout.swift */; };
+		C10000000000000000000004 /* JournalDashboardLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000004 /* JournalDashboardLayout.swift */; };
+		C10000000000000000000005 /* JournalInterfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000005 /* JournalInterfaceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +101,11 @@
 		B2000000000000000000000B /* JournalEntryNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryNavigationTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000C /* MarkdownPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownPreviewTests.swift; sourceTree = "<group>"; };
 		B2000000000000000000000F /* MDJournalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDJournalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C20000000000000000000001 /* JournalTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTheme.swift; sourceTree = "<group>"; };
+		C20000000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C20000000000000000000003 /* EntryEditorChromeLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryEditorChromeLayout.swift; sourceTree = "<group>"; };
+		C20000000000000000000004 /* JournalDashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalDashboardLayout.swift; sourceTree = "<group>"; };
+		C20000000000000000000005 /* JournalInterfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInterfaceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +138,7 @@
 		A40000000000000000000002 /* MDJournal */ = {
 			isa = PBXGroup;
 			children = (
+				C20000000000000000000002 /* Assets.xcassets */,
 				A20000000000000000000001 /* MDJournalApp.swift */,
 				A20000000000000000000002 /* ContentView.swift */,
 				A40000000000000000000003 /* Models */,
@@ -158,6 +169,9 @@
 		A40000000000000000000005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C20000000000000000000003 /* EntryEditorChromeLayout.swift */,
+				C20000000000000000000004 /* JournalDashboardLayout.swift */,
+				C20000000000000000000001 /* JournalTheme.swift */,
 				A20000000000000000000008 /* EntryEditorView.swift */,
 				A20000000000000000000009 /* EntryListView.swift */,
 				A2000000000000000000000A /* EntryRowView.swift */,
@@ -202,6 +216,7 @@
 			isa = PBXGroup;
 			children = (
 				B2000000000000000000000B /* JournalEntryNavigationTests.swift */,
+				C20000000000000000000005 /* JournalInterfaceTests.swift */,
 				B20000000000000000000001 /* JournalEntryTests.swift */,
 				B20000000000000000000002 /* MarkdownBlockParserTests.swift */,
 				B20000000000000000000003 /* JournalStatisticsTests.swift */,
@@ -299,6 +314,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C10000000000000000000002 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -318,6 +334,9 @@
 			files = (
 				A10000000000000000000018 /* JournalEntryNavigation.swift in Sources */,
 				A10000000000000000000019 /* JournalPersistenceWriter.swift in Sources */,
+				C10000000000000000000003 /* EntryEditorChromeLayout.swift in Sources */,
+				C10000000000000000000004 /* JournalDashboardLayout.swift in Sources */,
+				C10000000000000000000001 /* JournalTheme.swift in Sources */,
 				A10000000000000000000001 /* MDJournalApp.swift in Sources */,
 				A10000000000000000000002 /* ContentView.swift in Sources */,
 				A10000000000000000000003 /* JournalEntry.swift in Sources */,
@@ -349,6 +368,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1000000000000000000000B /* JournalEntryNavigationTests.swift in Sources */,
+				C10000000000000000000005 /* JournalInterfaceTests.swift in Sources */,
 				B10000000000000000000001 /* JournalEntryTests.swift in Sources */,
 				B10000000000000000000002 /* MarkdownBlockParserTests.swift in Sources */,
 				B10000000000000000000003 /* JournalStatisticsTests.swift in Sources */,

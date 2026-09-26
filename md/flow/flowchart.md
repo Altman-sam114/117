@@ -2,6 +2,19 @@
 
 本文用 Mermaid 图描述 MD Journal 当前真实核心数据流、执行流和多 Agent 云端迭代流。每张图前都有通俗读图说明，方便人工快速判断系统怎么运转。
 
+## v0.88 界面组织
+
+```mermaid
+flowchart LR
+  Theme["JournalTheme + 语义颜色资源"] --> Library["紧凑概览 / 分类菜单 / 轻量列表行"]
+  Theme --> Workspace["标题 / 可展开详情 / 固定正文节点 / 状态栏"]
+  Workspace --> Header["独立滚动头部：最多占可用高度 38%"]
+  Workspace --> Preview["连续阅读纸面 / 原有 latest-wins 快照"]
+  Theme --> Stats["完整宽度总览 / 响应式网格 / 辅助字号单列"]
+  Workspace --> Binding["既有 binding → JournalStore → 本地 JSON"]
+  User["本轮用户：不启用子智能体"] --> Serial["同线程方案 → 实现与 push → 云端 artifact 核对"]
+```
+
 ## 核心逻辑图
 
 读图说明：从左到右看，用户在 SwiftUI 界面操作日记；状态变化进入 `JournalStore`；数据保存到本地 JSON；同一份日记数据再派生出列表、编辑器、预览和统计。`ContentView.body` 同一次评估只构造一份列表快照并显式分发给列表、detail guard 和导航 actions，事件路径再按需生成最新快照；列表卡片另由 `EntryRowLayoutContract` 按 Dynamic Type 选择普通横排或 Accessibility 有限宽度垂直布局。图中每个节点都对应当前项目里的真实模块。
@@ -35,7 +48,7 @@ flowchart TD
   CrossThreshold --> StableEditor["固定 HStack 中的正文位置；仅改 frame，不重置选区，不建隐藏输入框"]
   CompactFocus --> FocusPolicy["EntryEditorFocusPolicy：进入预览 resign；⌘⌥P 返回编辑 focus；Picker 选回编辑 preserve"]
   FocusPolicy --> BodyTextView
-  Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、16pt 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
+  Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、语义 body 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
   MarkdownToolbarNode --> SnippetInsertion
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；正文发布时由 Coordinator 建立一次性 token，外部正文或状态不匹配时按差异同步，marked text 延迟覆盖，最新 binding/请求代数门控异步焦点，承载 Tab / Shift-Tab"]
   BodyTextView --> BodySyncState["Coordinator sync state：正文发布时记录 body + selection token；选区变化只更新选区，不建 token"]

@@ -232,14 +232,14 @@ final class MarkdownPreviewUpdateModel: ObservableObject {
 struct MarkdownPreviewView: View {
     let entryID: UUID
     let markdown: String
-    var accent: Color = .teal
+    var accent: Color = JournalTheme.accent
     var maxContentWidth: CGFloat = 720
     @StateObject private var updateModel: MarkdownPreviewUpdateModel
 
     init(
         entryID: UUID,
         markdown: String,
-        accent: Color = .teal,
+        accent: Color = JournalTheme.accent,
         maxContentWidth: CGFloat = 720,
         scheduler: any MarkdownPreviewScheduling = TaskMarkdownPreviewScheduler()
     ) {
@@ -259,7 +259,7 @@ struct MarkdownPreviewView: View {
         let shouldUseSectionGroups = document.shouldUseSectionGroups
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: shouldUseSectionGroups ? 14 : 12) {
+            LazyVStack(alignment: .leading, spacing: shouldUseSectionGroups ? 28 : 16) {
                 if document.blocks.isEmpty {
                     Text("暂无内容")
                         .foregroundStyle(.secondary)
@@ -275,10 +275,11 @@ struct MarkdownPreviewView: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(JournalTheme.pageInset)
             .frame(maxWidth: maxContentWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        .textSelection(.enabled)
         .background(previewBackground)
         .onAppear {
             updateModel.activate(entryID: entryID, markdown: markdown)
@@ -295,16 +296,7 @@ struct MarkdownPreviewView: View {
     }
 
     private var previewBackground: some View {
-        LinearGradient(
-            colors: [
-                accent.opacity(0.08),
-                Color(.secondarySystemGroupedBackground),
-                Color(.secondarySystemGroupedBackground)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        JournalTheme.paper.ignoresSafeArea()
     }
 
     @ViewBuilder
@@ -342,13 +334,11 @@ struct MarkdownPreviewView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(.top, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(accent.opacity(0.18), lineWidth: 1)
-            )
+            .overlay(alignment: .top) {
+                Rectangle().fill(JournalTheme.separator).frame(height: 1)
+            }
         }
     }
 

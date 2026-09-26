@@ -1,24 +1,25 @@
 import SwiftUI
 
 struct MarkdownToolbar: View {
-    var accent: Color = .teal
+    var accent: Color = JournalTheme.accent
     let onInsert: (MarkdownSnippet) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 ForEach(MarkdownSnippet.allCases) { snippet in
                     Button {
                         onInsert(snippet)
                     } label: {
-                        Image(systemName: snippet.systemImage)
-                            .font(.system(size: 16, weight: .semibold))
+                        Label(snippet.title, systemImage: snippet.systemImage)
+                            .labelStyle(.iconOnly)
+                            .font(.body)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(accent)
-                    .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                    .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 8))
                     .accessibilityLabel(snippet.title)
                     .help(snippet.helpText)
                 }
@@ -26,6 +27,6 @@ struct MarkdownToolbar: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .background(Color(.systemBackground))
+        .background(JournalTheme.paper)
     }
 }

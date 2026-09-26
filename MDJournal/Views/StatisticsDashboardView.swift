@@ -4,6 +4,7 @@ struct StatisticsDashboardView: View {
     let entries: [JournalEntry]
     let showsCloseButton: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(entries: [JournalEntry], showsCloseButton: Bool = true) {
         self.entries = entries
@@ -15,41 +16,27 @@ struct StatisticsDashboardView: View {
 
         NavigationStack {
             GeometryReader { proxy in
-                let isWideLayout = proxy.size.width >= 820
-
+                let columns = JournalDashboardLayout.columnCount(
+                    width: proxy.size.width, dynamicTypeSize: dynamicTypeSize
+                )
                 ScrollView {
-                    if isWideLayout {
-                        HStack(alignment: .top, spacing: 14) {
-                            VStack(alignment: .leading, spacing: 14) {
-                                hero(isWideLayout: true, stats: stats)
-                                sevenDayTrend(stats)
-                                sectionHealth(stats)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-
-                            VStack(alignment: .leading, spacing: 14) {
-                                categoryBreakdown(stats)
-                                moodBreakdown(stats)
-                                writingRhythm(stats)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-                        }
-                        .padding(16)
-                        .frame(maxWidth: 1120, alignment: .top)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        LazyVStack(alignment: .leading, spacing: 14) {
-                            hero(isWideLayout: false, stats: stats)
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        hero(isWideLayout: columns == 2, stats: stats)
+                        LazyVGrid(
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: columns),
+                            alignment: .leading,
+                            spacing: 20
+                        ) {
                             sevenDayTrend(stats)
                             sectionHealth(stats)
                             categoryBreakdown(stats)
                             moodBreakdown(stats)
                             writingRhythm(stats)
                         }
-                        .padding(16)
-                        .frame(maxWidth: 760, alignment: .leading)
-                        .frame(maxWidth: .infinity)
                     }
+                    .padding(JournalTheme.pageInset)
+                    .frame(maxWidth: 1120, alignment: .top)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .background(dashboardBackground)
@@ -67,28 +54,19 @@ struct StatisticsDashboardView: View {
                 }
             }
         }
-        .tint(.teal)
+        .tint(JournalTheme.accent)
     }
 
     private var dashboardBackground: some View {
-        LinearGradient(
-            colors: [
-                Color.teal.opacity(0.10),
-                Color(.systemGroupedBackground),
-                Color(.systemGroupedBackground)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        JournalTheme.canvas.ignoresSafeArea()
     }
 
     private func hero(isWideLayout: Bool, stats: JournalStatistics) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("写作总览")
-                        .font(.title2.weight(.bold))
+                    Text("回看，也是一种记录。")
+                        .font(.system(.title2, design: .serif).weight(.medium))
 
                     Text(stats.insightText)
                         .font(.subheadline)
@@ -99,34 +77,31 @@ struct StatisticsDashboardView: View {
                 Spacer(minLength: 8)
 
                 Image(systemName: "chart.xyaxis.line")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.teal)
+                    .font(.title)
+                    .foregroundStyle(JournalTheme.accent)
+                    .accessibilityHidden(true)
             }
 
             LazyVGrid(columns: metricColumns(isWideLayout: isWideLayout), spacing: 10) {
-                MetricTile(title: "日记", value: "\(stats.totalEntries)", systemImage: "doc.text", tint: .teal)
-                MetricTile(title: "总词数", value: "\(stats.totalWords)", systemImage: "text.word.spacing", tint: .indigo)
-                MetricTile(title: "最近连续", value: "\(stats.recentStreak) 天", systemImage: "flame", tint: .orange)
-                MetricTile(title: "最长连续", value: "\(stats.longestStreak) 天", systemImage: "trophy", tint: .pink)
+                MetricTile(title: "日记", value: "\(stats.totalEntries)", systemImage: "doc.text", tint: JournalTheme.accent)
+                MetricTile(title: "总词数", value: "\(stats.totalWords)", systemImage: "text.word.spacing", tint: JournalTheme.accent)
+                MetricTile(title: "最近连续", value: "\(stats.recentStreak) 天", systemImage: "flame", tint: JournalTheme.accent)
+                MetricTile(title: "最长连续", value: "\(stats.longestStreak) 天", systemImage: "trophy", tint: JournalTheme.accent)
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(cardStroke)
+        .journalSurface()
     }
 
     private func metricColumns(isWideLayout: Bool) -> [GridItem] {
-        if isWideLayout {
-            return Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
-        }
-
-        return Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : (isWideLayout ? 4 : 2)
+        return Array(repeating: GridItem(.flexible(), spacing: 12), count: count)
     }
 
     private func sevenDayTrend(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "最近 7 天", systemImage: "calendar") {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
+                metricRowLayout {
                     CompactNumber(title: "本周日记", value: "\(stats.entriesThisWeek)")
                     CompactNumber(title: "本周词数", value: "\(stats.wordsThisWeek)")
                     CompactNumber(title: "篇均词数", value: "\(stats.averageWords)")
@@ -140,10 +115,10 @@ struct StatisticsDashboardView: View {
     private func sectionHealth(_ stats: JournalStatistics) -> some View {
         StatsSection(title: "小节结构", systemImage: "number") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline) {
+                metricRowLayout {
                     Text(stats.formattedSectionCoverage)
                         .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(JournalTheme.accent)
 
                     Text("日记已使用 ### 小节")
                         .font(.subheadline)
@@ -151,9 +126,9 @@ struct StatisticsDashboardView: View {
                 }
 
                 ProgressView(value: stats.sectionCoverage)
-                    .tint(.teal)
+                    .tint(JournalTheme.accent)
 
-                HStack(spacing: 12) {
+                metricRowLayout {
                     Label("\(stats.entriesWithSections) 篇有小节", systemImage: "checkmark.circle")
                     Label(String(format: "%.1f 小节/篇", stats.averageSections), systemImage: "list.bullet.rectangle")
                 }
@@ -190,7 +165,7 @@ struct StatisticsDashboardView: View {
                         systemImage: item.mood.systemImage,
                         value: item.entryCount,
                         maxValue: stats.maxMoodEntryCount,
-                        tint: .teal
+                        tint: JournalTheme.accent
                     )
                 }
             }
@@ -221,9 +196,10 @@ struct StatisticsDashboardView: View {
         }
     }
 
-    private var cardStroke: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .stroke(Color.white.opacity(0.55), lineWidth: 1)
+    private var metricRowLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
     }
 
 }
@@ -248,11 +224,7 @@ private struct StatsSection<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.55), lineWidth: 1)
-        )
+        .journalSurface()
     }
 }
 
@@ -270,8 +242,8 @@ private struct MetricTile: View {
 
             Text(value)
                 .font(.title3.weight(.bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
+                .monospacedDigit()
 
             Text(title)
                 .font(.caption)
@@ -279,7 +251,7 @@ private struct MetricTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
+        .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -344,22 +316,22 @@ private struct SevenDayBarChart: View {
     private func dayColumn(_ day: JournalStatistics.DailyWriting) -> some View {
         VStack(spacing: 7) {
             Text(day.wordCount == 0 ? "" : "\(day.wordCount)")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(minHeight: SevenDayBarChartLayoutContract.minimumValueLabelHeight)
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(Color(.systemBackground))
+                    .fill(JournalTheme.inset)
                     .frame(height: SevenDayBarChartLayoutContract.plotHeight)
 
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(day.wordCount > 0 ? Color.teal : Color.secondary.opacity(0.15))
+                    .fill(day.wordCount > 0 ? JournalTheme.accent : Color.secondary.opacity(0.15))
                     .frame(height: barHeight(for: day.wordCount))
             }
 
             Text(day.date.journalWeekdayText)
-                .font(.caption2.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -375,6 +347,7 @@ private struct SevenDayBarChart: View {
 }
 
 private struct DistributionRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let detail: String
     let systemImage: String
@@ -384,12 +357,12 @@ private struct DistributionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
+            rowLayout {
                 Label(title, systemImage: systemImage)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(value > 0 ? tint : .secondary)
 
-                Spacer(minLength: 8)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
 
                 Text(detail)
                     .font(.caption)
@@ -399,7 +372,7 @@ private struct DistributionRow: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color(.systemBackground))
+                        .fill(JournalTheme.inset)
 
                     Capsule()
                         .fill(value > 0 ? tint : Color.secondary.opacity(0.14))
@@ -410,6 +383,12 @@ private struct DistributionRow: View {
         }
     }
 
+    private var rowLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+
     private var ratio: CGFloat {
         guard maxValue > 0 else { return 0 }
         return max(value == 0 ? 0 : 0.08, CGFloat(value) / CGFloat(maxValue))
@@ -417,27 +396,32 @@ private struct DistributionRow: View {
 }
 
 private struct InsightRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let value: String
     let systemImage: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 10))
+
+        layout {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.teal)
+                .foregroundStyle(JournalTheme.accent)
                 .frame(width: 28, height: 28)
-                .background(Color.teal.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                .background(JournalTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
 
             Text(title)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 8)
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
 
             Text(value)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

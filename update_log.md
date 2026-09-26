@@ -11,7 +11,7 @@
 
 ## 当前状态
 
-- v0.87 当前为写作布局与预览缓存实现待云端验证；本机只跑轻量检查。v0.86 最终基线为 `79e68b2d4da4371d81bf5213b4d68415e973bc35`、run `32652837616`、attempt `1`，212 项通过，不证明本轮。
+- v0.88 界面重构已实现，待本轮云端结果包。v0.87 起点由当前线程核对为 227 项通过，run 34175692697 attempt 1；不将旧结果冒充本轮。用户要求不调用子智能体，本轮串行执行并明确无独立 Agent C。
 
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
@@ -22,6 +22,19 @@
 - 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
+
+### v0.88 / 写作工作台与统一界面（实现待云端验证）
+
+日期：2026-09-26。
+
+- 统一暖白纸面、墨绿强调、浅深色及高对比颜色资源；列表概览、分类入口与行信息重排，选中同时具有勾选与边框。
+- 编辑器以标题和正文为中心，元数据/小节目录按需展开；头部独立滚动且最多占实际可用高度 38%，专注写作收起详情，单栏正文上限 760pt。原 WorkspaceState、UITextView bridge、选区、IME、保存与 Markdown 语义保留。
+- 预览改为连续阅读纸面；统计总览完整宽度、分区自适应网格、Accessibility 单列；工具栏与空态同步重整。
+- 关键文件：JournalTheme/Assets、EntryListView、EntryRowView、EntryEditorView/ChromeLayout、MarkdownPreviewView、MarkdownToolbar、StatisticsDashboardView/DashboardLayout、EmptyStateView、JournalInterfaceTests、Xcode project 和 CI VERSION。
+- 新增 4 项 XCTest（其中 1 项产出六张云端界面渲染附件），保留 227 项起点。预期 231 项，以最新 CI 实际结果为准。
+- 本机 app/test Swift parse、project plist 和 diff 检查退出 0；commit 前还核对 YAML/JSON。未运行本机 build/XCTest/模拟器/App/性能脚本，重验证交云端。界面渲染附件不等价于 Mac 实际窗口、VoiceOver/IME 或性能实测。
+- 起点核对：763abe32eca3bafd52adaa34b33fe0b2d61a961a，run 34175692697 attempt 1，artifact mdjournal-ci-v0.87-main-763abe3-run34175692697-attempt1，ID 10037310563，496131 bytes；四阶段 success、JUnit 4/0/0/0、227 passed；525 ZIP entries 无加密，CRC、文件清单及逐文件 SHA-256 一致，digest d588643f5c39b52e31ba413a59a51cb7caa304680a1fe0a89d17619dfb8b8889。下载路径 /private/tmp/mdjournal-c-review-34175692697/。
+- 本轮用户明确禁用子智能体：方案、实现、结果包核对串行完成；不宣称独立 Agent C 验收。未预填本轮 SHA/run/artifact。通过后推进 v0.89 派生计算与视觉复核。
 
 ### v0.87 / 写作布局与预览缓存（实现待云端验证）
 

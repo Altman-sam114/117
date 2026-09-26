@@ -30,193 +30,93 @@ struct EntryRowView: View {
 
     var body: some View {
         let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
-        let bodySummary = entry.bodySummary
+        let summary = entry.bodySummary
 
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 10) {
             metadata(layout: layout)
 
             Text(entry.displayTitle)
-                .font(.headline.weight(.semibold))
+                .font(.headline)
                 .foregroundStyle(.primary)
                 .lineLimit(layout.titleLineLimit)
 
-            Text(bodySummary.excerpt)
+            Text(summary.excerpt)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            sectionStrip(bodySummary, layout: layout)
-            footer(bodySummary, layout: layout)
+            if !summary.sections.isEmpty {
+                if layout.usesVerticalSectionLayout {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(summary.sections.prefix(3)) { section in
+                            Text(section.title).lineLimit(layout.sectionTitleLineLimit)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Text(summary.sections.prefix(3).map(\.title).joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(layout.sectionTitleLineLimit)
+                }
+            }
+
+            footer(summary, layout: layout)
         }
         .padding(14)
-        .background(
-            isSelected ? entry.category.tint.opacity(0.16) : Color(.secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: 8)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(isSelected ? entry.category.tint.opacity(0.60) : Color.white.opacity(0.48), lineWidth: 1)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isSelected ? JournalTheme.inset : JournalTheme.paper,
+                    in: RoundedRectangle(cornerRadius: JournalTheme.cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: JournalTheme.cornerRadius)
+                .strokeBorder(isSelected ? JournalTheme.accent : JournalTheme.separator,
+                              lineWidth: isSelected ? 1.5 : 0.5)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: JournalTheme.cornerRadius))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func metadata(layout: EntryRowLayoutContract) -> some View {
-        let metadataLayout = layout.metadataAxis == .horizontal
+        let axis = layout.metadataAxis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
 
-        return metadataLayout {
-            categoryLabel
-            moodLabel
-
-            if layout.metadataAxis == .horizontal {
-                Spacer(minLength: 8)
+        return axis {
+            Text(entry.createdAt.journalListText)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            if layout.metadataAxis == .horizontal { Spacer(minLength: 4) }
+            HStack(spacing: 8) {
+                Label(entry.mood.rawValue, systemImage: entry.mood.systemImage)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(JournalTheme.accent)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
             }
-
-            dateLabel
+            .font(.caption)
         }
-        .frame(
-            maxWidth: layout.metadataAxis == .vertical ? .infinity : nil,
-            alignment: .leading
-        )
     }
 
-    private var categoryLabel: some View {
-        Label(entry.category.rawValue, systemImage: entry.category.systemImage)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(entry.category.tint)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(entry.category.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var moodLabel: some View {
-        Label(entry.mood.rawValue, systemImage: entry.mood.systemImage)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .labelStyle(.iconOnly)
-            .frame(width: 28, height: 28)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var dateLabel: some View {
-        Text(entry.createdAt.journalListText)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
-    }
-
-    private func footer(
-        _ bodySummary: JournalEntryBodySummary,
-        layout: EntryRowLayoutContract
-    ) -> some View {
-        let footerLayout = layout.footerAxis == .horizontal
+    private func footer(_ summary: JournalEntryBodySummary, layout: EntryRowLayoutContract) -> some View {
+        let axis = layout.footerAxis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
 
-        return footerLayout {
-            Label("\(bodySummary.wordCount) 词", systemImage: "text.word.spacing")
-
-            if layout.footerAxis == .horizontal {
-                Text("·")
-            }
-
-            Label("\(bodySummary.sectionCount) 小节", systemImage: "list.bullet.rectangle")
-
-            if layout.footerAxis == .horizontal {
-                Text("·")
-            }
-
-            Text("更新于 \(entry.updatedAt.journalRelativeUpdateText)")
+        return axis {
+            Label(entry.category.rawValue, systemImage: entry.category.systemImage)
+                .foregroundStyle(entry.category.tint)
+            if layout.footerAxis == .horizontal { Spacer(minLength: 4) }
+            Text("\(summary.wordCount) 词 · \(summary.sectionCount) 小节")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
-        .font(.caption2)
-        .foregroundStyle(.tertiary)
-        .lineLimit(layout.footerAxis == .horizontal ? 1 : nil)
-        .frame(
-            maxWidth: layout.footerAxis == .vertical ? .infinity : nil,
-            alignment: .leading
-        )
-    }
-
-    @ViewBuilder
-    private func sectionStrip(
-        _ bodySummary: JournalEntryBodySummary,
-        layout: EntryRowLayoutContract
-    ) -> some View {
-        if layout.usesVerticalSectionLayout {
-            accessibilitySectionStack(bodySummary, layout: layout)
-        } else {
-            regularSectionStrip(bodySummary, layout: layout)
-        }
-    }
-
-    private func regularSectionStrip(
-        _ bodySummary: JournalEntryBodySummary,
-        layout: EntryRowLayoutContract
-    ) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                if bodySummary.sections.isEmpty {
-                    Label("未添加 ### 小节", systemImage: "number")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
-                } else {
-                    ForEach(bodySummary.sections.prefix(3)) { section in
-                        Text(section.title)
-                            .font(.caption2.weight(.semibold))
-                            .lineLimit(layout.sectionTitleLineLimit)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .foregroundStyle(entry.category.tint)
-                            .background(entry.category.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                    }
-
-                    if bodySummary.sectionCount > 3 {
-                        Text("+\(bodySummary.sectionCount - 3)")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    private func accessibilitySectionStack(
-        _ bodySummary: JournalEntryBodySummary,
-        layout: EntryRowLayoutContract
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if bodySummary.sections.isEmpty {
-                Label("未添加 ### 小节", systemImage: "number")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
-            } else {
-                ForEach(bodySummary.sections.prefix(3)) { section in
-                    Text(section.title)
-                        .font(.caption2.weight(.semibold))
-                        .lineLimit(layout.sectionTitleLineLimit)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .foregroundStyle(entry.category.tint)
-                        .background(entry.category.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                }
-
-                if bodySummary.sectionCount > 3 {
-                    Text("+\(bodySummary.sectionCount - 3)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(.caption)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

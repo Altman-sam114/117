@@ -40,7 +40,7 @@ struct ContentView: View {
                 EmptyStateView(onCreate: createEntry)
             }
         }
-        .tint(.teal)
+        .tint(JournalTheme.accent)
         .onAppear(perform: selectInitialEntry)
         .onChange(of: store.entries) { _ in
             repairSelection()

@@ -4,43 +4,17 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 ## 功能
 
-- 按日期创建、编辑、删除日记；滑动删除和 Mac Catalyst 右键删除会先显示包含准确日记标题的系统确认对话框，取消或关闭不会删除，确认后才进入既有本地删除链路。
-- 本地 JSON 自动保存，不依赖服务器。
-- 编辑时先在 MainActor 即时更新界面状态并生成单调 revision 快照，再短延迟合并提交给单写者 actor；JSON 编码和原子写盘不再占用 MainActor。正文等非日期更新不会触发无效列表重排，减少长文本输入时的磁盘写入和主线程工作。
-- 新建和删除会同步改变内存状态并绕过编辑 debounce 立即安排 actor 写入，但同步 API 返回时磁盘可能尚未开始或仍在写；`await flushPendingSave()` 会取消等待中的 debounce、等待当前写入并追赶期间产生的最新 revision。生命周期异步 flush 没有系统后台执行 lease，快速挂起、崩溃或强杀仍可能使尚未 durable 的更新丢失。
-- 列表筛选、分类计数、编辑器头部和统计看板复用非持久化派生结果；统计使用轻量正文 metrics，metrics 在同一条正文扫描中同时派生词数、完整 `###` 小节和编辑器 placeholder 所需的 `hasVisibleContent`，列表概览通过 `JournalEntryOverviewMetrics` 在同一条正文扫描中派生词数与小节存在性，不生成完整小节数组、excerpt 或 summary，避免重复遍历；正文和小节摘要使用单次扫描清理 Markdown 标记，减少中间字符串分配；统计看板预计算分布条最大值、主导分类/心情和最近 7 天趋势最大词数，并在输入已倒序时跳过重复排序。
-- 编辑器头部直接使用轻量正文 metrics 展示词数和 `###` 小节，横向小节概览采用懒加载，避免正文输入时为未展示的摘要或离屏小节卡片做额外构建。
-- 编辑器头部的系统日期选择器保留 compact 视觉，并以隐藏但可访问的“日记日期”标签提供稳定字段名称；日期值、语言和调整语义继续由系统控件处理，真实 VoiceOver 朗读仍需人工验收。
-- 编辑器正文 placeholder 直接消费同一次 `JournalEntryBodyMetrics` shared scan 产出的 `hasVisibleContent`，保持 `body.contains { !$0.isWhitespace }` 的 Character 空白语义；长文输入重渲染时不再为 placeholder 单独全文扫描。该派生字段只存在于内存，不进入 JSON。
-- 列表行的 `JournalEntryBodySummary` 在同一次 `JournalBodyDerivation` 正文扫描中同时生成 `JournalEntryBodyMetrics` 和完整正文 excerpt，不再先构造 metrics 再独立扫描 `MarkdownSummaryText.plainText`；保留 literal LF、Markdown 标记、空行折叠、Unicode、组合字符和 `JournalSection.excerpt` 的既有语义。该优化只影响非持久化派生，不改变 Store、JSON 或 Markdown 预览。
-- 列表首页概览使用轻量统计快照，只计算总篇数、连续天数、总词数和概览洞察；其中 `JournalEntryOverviewMetrics` 在一次线性扫描中同时得到旧口径词数和 `###` 存在性，并在首个合法标题处停止 marker 检测，避免编辑正文时重复扫描或构造完整统计看板、正文摘要或每篇日记的完整小节数组。
-- `JournalSection.extract(from:)` 使用单调 `String.Index` 和 `Substring` 逐行扫描正文，不先物化 `.newlines` 行数组；保留 LF、CR、CRLF 与 Foundation Unicode newline、ASCII 空格/tab marker、空标题、section flush/order/id/markdown/excerpt 及 fenced code 语义。该路径仍在需要时构造 section 标题和最终 markdown，不承诺零分配。
-- `JournalEntryBodyMetrics` 使用模型层共享的单调扫描，同时派生 `wordCount`、`sections` 和非持久化 `hasVisibleContent`；独立的 `wordCount(in:)` 和 `JournalSection.extract(from:)` 仍保留各自兼容 API，不改变词数或小节语义。该优化减少编辑器头部、placeholder、统计和列表行高频重算时的重复正文遍历，但云端测试不等同于真实 Instruments 分配或 Mac 输入延迟测量。
-- 支持日常、工作学习、灵感、旅行、健康分类，并可在列表中按分类筛选；分类筛选按钮至少为 `44pt` 高且可随 Dynamic Type 自然增高，使用稳定勾选槽表达选中状态，并向 VoiceOver 提供明确文案与 selected trait。
-- Markdown 编辑器，带 `###` 小节、加粗、引用、无序列表、有序列表、待办、代码块和分割线快捷按钮；每个图标按钮使用 `44×44pt` 稳定矩形交互区，同时保留快捷键 hover help 和辅助功能标签；片段会按当前光标或选区插入，引用、列表、待办和有序列表转换选区时用 LF 单次扫描增量构造结果，跳过空白行并保留 CR/CRLF 和尾随换行语义，Mac Catalyst 下也可从“插入 Markdown”菜单、写作工具栏和键盘快捷键触发。
-- Markdown 无序列表、待办、引用和有序列表支持回车续写；非空项会延续同缩进前缀，有序列表会递增编号，空项按回车退出当前结构，空项判断直接扫描水平空白、不创建临时 trimmed 字符串，代码围栏内回车保持系统默认输入。
-- Markdown 正文支持 Tab / Shift-Tab 对当前行或多行选区缩进和反缩进；反缩进会删除一个 tab 或最多两个行首空格，行首 UTF-16 offset 会在单次扫描中收集且只扫描到选区有效结束行，多行改写基于原正文单次构造结果，Mac Catalyst 下也可从“写作”菜单和写作工具栏触发。
-- Markdown 正文输入会禁用智能引号、智能破折号和智能插入删除，并只在配置被重置时重新写入 traits，避免系统自动改写 Markdown 标记。
-- Markdown 正文输入 bridge 按需配置 rounded body 字体，只在目标字体变化时写入；UIKit 已确认变化的普通输入、Markdown 回车续写和行缩进会直接且仅一次发布正文，不再先读取旧正文做全文比较，外部正文同步仍按差异更新，光标/选区和焦点继续按需写回。
-- 紧凑/窄屏编辑器由 `EntryEditorFocusPolicy` 明确区分预览焦点生命周期：进入预览清除正文焦点，现有 `⌘⌥P` 从预览回到编辑时请求焦点，Picker 直接选回编辑则保持未聚焦；`MarkdownBodyTextView` 的异步 first responder 请求以最新焦点 binding 和请求代数门控，不改变 IME、marked text、选区或正文写回语义。纯 policy 测试不等价于真实 Mac first responder、VoiceOver 或输入设备交互验收。
-- Markdown 预览，支持标题、段落、引用、无序列表、有序列表、待办、代码块和分割线渲染。
-- 正文包含 `###` 时，预览会按三级标题分组显示每个日记小节。
-- Markdown 预览在接受当前 generation/日记 ID/正文/active 请求后，解析一次并按当前显示路径收集原文、精确去重，单一 `MarkdownPreviewRenderSnapshot` 同时发布 document 与 inline cache。每个唯一标记文本最多转换一次，纯文本不调用 Markdown renderer，失败缓存原文；body 和延迟子闭包只读同一快照，查询不解析、不填充。150ms trailing debounce 等待期间保留旧快照，新文档整体替换缓存；小节标题、代码、编号和勾选语义保持不变，不做跨日记或全局缓存。
-- 日记列表用卡片展示分类、心情、日期、词数和 `###` 小节摘要。
-- 统计看板展示总篇数、总词数、连续记录天数、最近 7 天写作趋势、分类分布、心情分布、主导分类/心情和小节覆盖率；七日趋势在普通 Dynamic Type 下保持七列等分，在 Accessibility Dynamic Type 下使用稳定列宽的水平滚动，词数标签和图表容器可随语义文字自然增高。
-- 日记列表支持搜索标题、正文、分类和心情；搜索、分类筛选和分类计数由单次列表快照派生。`ContentView` 集中持有筛选状态，并在同一次 `body` 评估中只构造一份 `JournalEntryListSnapshot`，显式传给列表、detail binding 和 Mac Catalyst 较新/较早导航；创建、删除和 selection repair 等事件路径按需生成最新快照，不做跨评估缓存。列表、detail、selection repair 以及导航都只消费当前 `filteredEntries`；筛选、Store entries 变化、创建和删除后，隐藏 selection 会切到当前可见首项，可见结果为空则为 `nil`。真实空日记库保留“写一篇”入口，搜索或分类筛选无结果时显示独立提示并可一键清除筛选。
-- 支持选择日记日期、心情、分类和系统分享。
-- iPhone 支持竖屏、横屏左和横屏右。
-- 支持 Mac Catalyst 构建，可在 macOS 上以 Mac app 形态运行同一套本地 JSON 日记数据模型。
-- Mac Catalyst 主窗口保持 `1120×720pt` 最小内容尺寸，sidebar 保持 `260/300/360pt`；最小窗口减理想 sidebar 的 detail 约为 `820pt`，默认单栏。双栏判断使用实际 detail 宽度，隐藏 sidebar 后可能达到阈值。iOS/iPadOS 不附加窗口约束。
-- Mac Catalyst 下保留列表、编辑器、预览和统计主流程，并补充带系统确认保护的右键删除、“日记”菜单、“写作”菜单、`⌘N` 新建、独立统计窗口、Markdown 片段菜单、写作工具栏入口、光标/选区片段插入、可见缩进/反缩进入口和专注写作入口；“日记”菜单可用 `⌘⌥↑` / `⌘⌥↓` 按当前新到旧顺序切换到较新/较早日记，首尾边界独立禁用且不循环；写作工具栏和 Markdown 片段工具栏 hover 提示会显示对应 `⌘⌥` 快捷键，写作工具栏聚焦正文、专注写作、缩进、反缩进和插入 Markdown 会显式设置与命令标题一致的辅助功能标签，预览切换按钮的提示和辅助功能标签会跟随当前状态显示“隐藏预览”“显示预览”或“回到编辑”。
-- 编辑器仅在实际 detail 宽度 `>=1120pt` 且非 Accessibility 字号时允许编辑/预览双栏，两栏扣除 Divider 后等分，正文净宽还需扣除 padding；`820pt` 只保留为普通字号紧凑横向头部档位。窄屏或 Accessibility 使用堆叠头部，Accessibility 工作区为单栏；小节卡片继续随 `.caption` 缩放。
-- `EntryEditorWorkspaceState` 统一布局、Picker、写作菜单和工具栏状态。单栏编辑进双栏保留列偏好、选区与焦点；单栏预览进双栏显示右栏但不抢焦点。双栏退出时，有正文焦点则编辑，否则预览可见则预览，列隐藏则编辑；专注写作的隐藏偏好保留。正文可见期间固定结构位置，仅调整 frame，隐藏右栏仍居中限制正文宽度；单栏预览不保留隐藏输入框。预览隐藏触发 deactivate，再显示读取当前正文。
-- 统计看板在宽屏下使用两列布局，列表概览和小节摘要会自适应窄屏与横屏空间。
+- 原生 SwiftUI 日记，支持 iPhone、iPad 与 Mac Catalyst；用户数据仅保存在本地 JSON。
+- v0.88 使用统一暖白纸面、墨绿强调和语义颜色资源，支持深色及高对比外观；列表、工作台、预览、统计与空态保持一致。
+- 列表提供简洁概览、系统分类菜单、搜索、日记摘要与明确的选中勾选；保留删除确认、可见结果 selection 修复及 Mac 相邻日记快捷键。
+- 写作工作台以标题和正文为中心，日期/分类/心情/小节目录位于可展开详情。头部可独立滚动且最多占实际高度 38%，低高度和辅助字号仍为正文保留空间。
+- 单栏写作宽度限制为 760pt；实际 detail 宽度达到 1120pt 且非 Accessibility 字号时可编辑/预览双栏。正文节点在宽度切换时保持原有结构，选区、IME 和焦点规则保留。专注写作会收起详情并隐藏预览。
+- Markdown 支持三级小节、列表/任务/引用/代码等预览和工具栏插入，支持 UTF-16 选区、回车续写、Tab/Shift-Tab；预览以连续纸面、文字层级和细线组织内容，可选择文字。
+- 统计以完整宽度总览配合自适应网格展示；Accessibility 字号统一单列，指标与分布自然增高。Mac 统计仍为独立窗口。
+- Mac Catalyst 主窗口最小 1120×720pt，侧栏 260/300/360pt；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
+- 保存仍由 JournalStore 唯一管理，debounce 合并编辑写入、actor 串行 JSON 编码/原子写盘；离开活跃态 flush。预览仍为 150ms latest-wins 与按文档去重的 inline cache，不进入持久化。
 
-v0.85 列表卡片由非持久化 `EntryRowLayoutContract` 按 `DynamicTypeSize` 选择布局：`.large` / `.xxxLarge` 保留 metadata、footer 横排、标题与小节标题单行以及水平小节条；`.accessibility1` 至 `.accessibility5` 将 metadata/footer 垂直堆叠、标题取消单行限制，小节改为有限宽度的垂直栈并允许标题至少两行，避免水平 `ScrollView` 的无限宽度提议使换行失效。该契约只消费字号，不进入 Store、JSON、列表快照、正文 metrics、selection 或编辑器状态。
-
-v0.86 的 `MarkdownBodyTextView` 在 Coordinator 内维护非持久化的一次性同步状态：UIKit 普通输入、回车续写和缩进实际发布正文时记录正文与选区 token；`textViewDidChangeSelection` 只更新选区，不建立正文快速路径。下一次非 marked bridge 更新仅在正文和 `NSRange` 都匹配时保留已发布正文/选区并减少重复 bridge 同步；即使 `NSRange` 相同，只要外部正文不同仍走外部同步。状态不匹配或已消费时仍按现有规则同步，marked text、UTF-16 选区、焦点、traits 和 Markdown 输入语义不变。新增 7 项纯值同步状态与 Coordinator 接线测试。该 bridge 行为在 v0.87 保持不变。不能用云端结果包替代真实 Mac 输入延迟、IME、VoiceOver、帧率或 Instruments 分配测量。
+本轮用户要求不启用子智能体，因此方案、实现和结果包核对由同一线程串行执行，不标记为独立 Agent C 验收。
 
 ## 日记结构建议
 
@@ -79,7 +53,7 @@ Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_r
 
 ## 验证
 
-v0.87 当前为实现待云端验证：新增 9 项布局/状态测试与 6 项 inline cache/snapshot 测试，历史基线为 212 项，预期 227 项，实际执行数由 Agent C 核对最新 artifact。只运行 diff、Swift parse、plist、YAML 和边界搜索；不运行本机 build/XCTest/App/UI/性能脚本。真实窗口低高度、UITextView 身份/first responder、IME、VoiceOver、帧率与分配仍未验收。
+v0.88 实现待当前 SHA 的云端验证。新增头部空间预算、统计响应式布局、语义颜色资源和六种界面渲染附件测试；保留 227 项基线，预计 231 项。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
 
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 
@@ -155,7 +129,7 @@ test -x script/build_and_run.sh
 
 v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的阶段一云端结果为 `205/205 passed`，static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均成功；最终 docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1` 的未加密 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对：static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest `205/205 passed`，481/481 ZIP entries 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。阶段一 artifact 仍仅证明阶段一 HEAD；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
 
-本轮完整验证仍待最新 origin/main 对应 v0.87 artifact；Agent C 必须独立核对 commitSha、run/attempt、四阶段结果及新增测试，不复用历史结果包。
+本轮由当前线程下载并核对最新 origin/main 对应 v0.88 artifact 的 commitSha、run/attempt、四阶段结果、测试与渲染附件，不复用历史结果包，不声称独立 Agent C 已验收。
 
 ## 协作与云端验证
 

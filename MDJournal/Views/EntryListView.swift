@@ -62,7 +62,7 @@ struct EntryListView: View {
                             .tag(entry.id)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowInsets(EdgeInsets(top: 3, leading: 12, bottom: 3, trailing: 12))
                             .contextMenu {
                                 Button(role: .destructive) {
                                     requestDeletion(of: entry)
@@ -118,86 +118,72 @@ struct EntryListView: View {
     }
 
     private var listBackground: some View {
-        LinearGradient(
-            colors: [
-                Color.teal.opacity(0.12),
-                Color(.systemGroupedBackground),
-                Color(.systemGroupedBackground)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        JournalTheme.canvas.ignoresSafeArea()
     }
 
-    private func overviewCard(_ overviewSnapshot: JournalListOverviewSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("记录册")
-                        .font(.title3.weight(.bold))
+    private func overviewCard(_ overview: JournalListOverviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("MD JOURNAL", systemImage: "book.closed")
+                .font(.caption.weight(.semibold))
+                .tracking(2)
+                .foregroundStyle(JournalTheme.accent)
 
-                    Text(overviewSnapshot.insightText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+            Text("留住每一天。")
+                .font(.system(.title2, design: .serif).weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
 
-                Spacer(minLength: 12)
+            Text("\(overview.totalEntries) 篇记录 · \(overview.totalWords) 词")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
-                Image(systemName: "text.book.closed")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.teal)
-            }
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 10)], spacing: 10) {
-                SummaryBadge(title: "日记", value: "\(overviewSnapshot.totalEntries)", systemImage: "doc.text")
-                SummaryBadge(title: "连续", value: "\(overviewSnapshot.recentStreak) 天", systemImage: "flame")
-                SummaryBadge(title: "词数", value: "\(overviewSnapshot.totalWords)", systemImage: "text.word.spacing")
+            if overview.recentStreak > 0 {
+                Label("最近连续记录 \(overview.recentStreak) 天", systemImage: "leaf")
+                    .font(.footnote)
+                    .foregroundStyle(JournalTheme.accent)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.55), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
     }
 
     private func categoryFilter(_ listSnapshot: JournalEntryListSnapshot) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                CategoryFilterChip(
-                    title: "全部",
-                    count: listSnapshot.totalCount,
-                    systemImage: "tray.full",
-                    tint: .teal,
-                    isSelected: selectedCategory == nil
-                ) {
-                    selectedCategory = nil
-                }
-
+        Menu {
+            Picker("分类", selection: $selectedCategory) {
+                Label("全部 · \(listSnapshot.totalCount)", systemImage: "tray.full")
+                    .tag(nil as JournalEntry.Category?)
                 ForEach(JournalEntry.Category.allCases) { category in
-                    CategoryFilterChip(
-                        title: category.rawValue,
-                        count: listSnapshot.count(for: category),
-                        systemImage: category.systemImage,
-                        tint: category.tint,
-                        isSelected: selectedCategory == category
-                    ) {
-                        selectedCategory = category
-                    }
+                    Label("\(category.rawValue) · \(listSnapshot.count(for: category))", systemImage: category.systemImage)
+                        .tag(Optional(category))
                 }
             }
-            .padding(.vertical, 2)
+        } label: {
+            HStack(spacing: 8) {
+                Label(selectedCategory?.rawValue ?? "全部日记", systemImage: selectedCategory?.systemImage ?? "tray.full")
+                Spacer(minLength: 4)
+                Text("\(listSnapshot.filteredEntries.count)").monospacedDigit()
+                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+            }
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 12)
+            .frame(minHeight: CategoryFilterChipContract.minimumInteractiveHeight)
+            .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 10))
+            .contentShape(Rectangle())
         }
+        .foregroundStyle(JournalTheme.accent)
+        .accessibilityLabel("筛选分类")
+        .accessibilityValue(CategoryFilterChipContract.accessibilityLabel(
+            title: selectedCategory?.rawValue ?? "全部", count: listSnapshot.filteredEntries.count
+        ))
+        .help("按分类浏览日记")
     }
 
     private func listEmptyState(_ listSnapshot: JournalEntryListSnapshot) -> some View {
         VStack(spacing: 12) {
             Image(systemName: listSnapshot.isCollectionEmpty ? "book.closed" : "line.3.horizontal.decrease.circle")
                 .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(.teal)
+                .foregroundStyle(JournalTheme.accent)
 
             Text(listSnapshot.isCollectionEmpty ? "还没有日记" : "没有符合条件的日记")
                 .font(.headline)
@@ -217,7 +203,7 @@ struct EntryListView: View {
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity)
         .padding(28)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+        .journalSurface()
     }
 
     private func clearFilters() {
@@ -257,83 +243,10 @@ struct EntryListView: View {
     }
 }
 
-private struct SummaryBadge: View {
-    let title: String
-    let value: String
-    let systemImage: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Label(title, systemImage: systemImage)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
 enum CategoryFilterChipContract {
     static let minimumInteractiveHeight: CGFloat = 44
 
     static func accessibilityLabel(title: String, count: Int) -> String {
         "\(title)，\(count) 篇"
-    }
-}
-
-private struct CategoryFilterChip: View {
-    @ScaledMetric(relativeTo: .footnote) private var selectionIndicatorWidth: CGFloat = 14
-
-    let title: String
-    let count: Int
-    let systemImage: String
-    let tint: Color
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Label {
-                    Text("\(title) \(count)")
-                        .font(.footnote.weight(.semibold))
-                } icon: {
-                    Image(systemName: systemImage)
-                        .font(.caption.weight(.bold))
-                }
-
-                Image(systemName: "checkmark")
-                    .font(.caption.weight(.bold))
-                    .frame(width: selectionIndicatorWidth)
-                    .opacity(isSelected ? 1 : 0)
-                    .accessibilityHidden(true)
-            }
-            .lineLimit(1)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(minHeight: CategoryFilterChipContract.minimumInteractiveHeight)
-            .contentShape(Rectangle())
-            .background(
-                isSelected ? tint.opacity(0.18) : Color(.secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? tint.opacity(0.55) : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? tint : .secondary)
-        .accessibilityLabel(CategoryFilterChipContract.accessibilityLabel(title: title, count: count))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
