@@ -344,7 +344,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   Window[Mac Catalyst WindowGroup
-Catalyst 17+: 1360×860 default] --> Content[ContentView]
+1360×860 ideal (system managed)] --> Content[ContentView]
   Content --> Snapshot[JournalEntryListSnapshot]
   Snapshot --> Toolbar[Mac toolbar count]
 ```

@@ -27,10 +27,11 @@
 
 日期：2026-10-13（接续 2026-09-26 未提交工作）。
 
-- Mac Catalyst 17+ 主窗口新增 1360×860pt 建议默认尺寸（旧系统保持默认，不提升部署版本），保留 1120×720pt 最小尺寸。
+- Mac Catalyst 主窗口通过 frame 提供 1360×860pt 内容建议尺寸（不强制窗口尺寸或覆盖系统恢复，不提升部署版本），保留 1120×720pt 最小尺寸。
 - Mac 工具栏显示当前筛选结果数量，并提供对应可访问性文案。
 - 云端图像复核发现低高度正文空间不足与辅助字号工具栏过密：新增紧凑标题、单行模式/工具菜单和状态栏收起；字体配置显式跟随 SwiftUI Dynamic Type，保持正文 bridge 同步与 JSON 不变。新增 2 项测试，预期 233 项。
 - 新增窗口默认尺寸纯值契约，更新 README、测试规范、流程图/流程说明与版本化 prompt。
+- 首轮 commit defacdf7b739a690b348417c297c021340d16489 / run 38343197500 attempt 1：iOS、静态检查和 233 项测试通过，Catalyst 因 SceneBuilder availability 分支不支持而失败。artifact `mdjournal-ci-v0.89-main-defacdf-run38343197500-attempt1` 已下载，549 ZIP entries、digest/CRC/逐文件哈希通过。修复改用根视图 ideal frame，不升系统版本；失败不作为通过依据。
 - 本机预期只做 Swift parse 与 diff 检查，完整 iOS/Catalyst build、XCTest 和 artifact 核对交 GitHub Actions；真实 Mac 窗口、VoiceOver、输入设备与性能仍待人工验收。
 
 ## v0.88 / 写作工作台与统一界面（云端基线通过，视觉问题由 v0.89 修复）
