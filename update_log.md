@@ -29,7 +29,7 @@
 
 - Mac Catalyst 主窗口通过 frame 提供 1360×860pt 内容建议尺寸（不强制窗口尺寸或覆盖系统恢复，不提升部署版本），保留 1120×720pt 最小尺寸。
 - Mac 工具栏显示当前筛选结果数量，并提供对应可访问性文案。
-- 云端图像复核发现低高度正文空间不足与辅助字号工具栏过密：新增紧凑标题、单行模式/工具菜单和状态栏收起；字体配置显式跟随 SwiftUI Dynamic Type，保持正文 bridge 同步与 JSON 不变。新增 2 项测试，预期 233 项。
+- 云端图像复核发现低高度正文空间不足与辅助字号工具栏过密：新增紧凑标题、单行模式/工具菜单和状态栏收起；字体配置显式跟随 SwiftUI Dynamic Type，保持正文 bridge 同步与 JSON 不变。新增 2 项测试，预期 234 项。
 - 新增窗口默认尺寸纯值契约，更新 README、测试规范、流程图/流程说明与版本化 prompt。
 - 首轮 commit defacdf7b739a690b348417c297c021340d16489 / run 38343197500 attempt 1：iOS、静态检查和 233 项测试通过，Catalyst 因 SceneBuilder availability 分支不支持而失败。artifact `mdjournal-ci-v0.89-main-defacdf-run38343197500-attempt1` 已下载，549 ZIP entries、digest/CRC/逐文件哈希通过。修复改用根视图 ideal frame，不升系统版本；失败不作为通过依据。
 - 本机预期只做 Swift parse 与 diff 检查，完整 iOS/Catalyst build、XCTest 和 artifact 核对交 GitHub Actions；真实 Mac 窗口、VoiceOver、输入设备与性能仍待人工验收。
@@ -3543,3 +3543,8 @@
 - 宽屏统计看板改为两列布局。
 - 列表概览指标和小节摘要适配横屏与窄屏。
 - 历史 Xcode generic iOS Debug 构建曾通过；当前记录以最新测试规范为准。
+
+### v0.89 接续审查补充
+固定标题 TextField 结构位置，避免键盘压缩高度时替换输入控件；云端新增 720→320→720pt UIHosting 身份检查，预期总计 234 项。未把 UIKit 控件身份检查描述为真实 IME 或 first responder 验收。
+
+- 窗口兼容修复 commit `a3004123c70ad0c9b520c359ae62f7e964f11c92` 已核对：run `38343902815` attempt `1`，artifact `mdjournal-ci-v0.89-main-a300412-run38343902815-attempt1`（ID 11788670938，1650170 bytes，SHA-256 a6b35ddbad9c17c679f8ac4e7b659ccb47d3452786e0cc232ecfc052d068a932）；四阶段 success，JUnit 4/0/0/0，233 项通过，549 ZIP entries 未加密、CRC/digest/逐文件哈希通过。标题身份补充提交须独立验收。

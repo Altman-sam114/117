@@ -284,32 +284,22 @@ struct EntryEditorView: View {
         layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics, compactHeight: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                if compactHeight {
-                    titleField(layout: layout, compact: true)
-                } else {
+            if !compactHeight {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
                     Text(entry.createdAt.journalTitleText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    detailsButton
                 }
-                Spacer(minLength: 4)
-                Button {
-                    showsDetails.toggle()
-                } label: {
-                    Label(showsDetails ? "收起详情" : "日记详情",
-                          systemImage: showsDetails ? "chevron.up" : "slider.horizontal.3")
-                        .labelStyle(.iconOnly)
-                        .font(.subheadline)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(JournalTheme.accent)
-                .accessibilityValue(showsDetails ? "已展开" : "已收起")
             }
 
-            if !compactHeight { titleField(layout: layout, compact: false) }
+            // Keyboard-driven height changes must not replace the active title field.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                titleField(layout: layout, compact: compactHeight)
+                if compactHeight { detailsButton }
+            }
 
             if showsDetails {
                 Divider().padding(.vertical, 4)
@@ -326,6 +316,22 @@ struct EntryEditorView: View {
         .padding(.vertical, compactHeight ? 0 : 12)
         .frame(maxWidth: JournalTheme.readableWidth, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var detailsButton: some View {
+        Button {
+            showsDetails.toggle()
+        } label: {
+            Label(showsDetails ? "收起详情" : "日记详情",
+                  systemImage: showsDetails ? "chevron.up" : "slider.horizontal.3")
+                .labelStyle(.iconOnly)
+                .font(.subheadline)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(JournalTheme.accent)
+        .accessibilityValue(showsDetails ? "已展开" : "已收起")
     }
 
     private func titleField(layout: EntryEditorLayoutContract, compact: Bool) -> some View {

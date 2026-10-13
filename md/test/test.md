@@ -5,7 +5,7 @@
 ## v0.89 当前验收
 
 - v0.87 起点已由本线程下载核对：763abe32eca3bafd52adaa34b33fe0b2d61a961a，run 34175692697 attempt 1，四阶段 success，227 项 passed，JUnit 4/0/0/0；525 ZIP entries 无加密、CRC 与逐文件哈希通过。
-- v0.88 已核对 run 36234465443 attempt 1，231/231 passed、545 ZIP entries、digest/CRC/逐文件哈希通过；六张附件已导出并视觉复核。v0.89 新增低高度正文预算与 UIKit 字号跟随/字体复用测试，预计 233 项；继续核对六张渲染图。
+- v0.88 已核对 run 36234465443 attempt 1，231/231 passed、545 ZIP entries、digest/CRC/逐文件哈希通过；六张附件已导出并视觉复核。v0.89 新增低高度正文预算与 UIKit 字号跟随/字体复用测试，预计 234 项；继续核对六张渲染图。
 - v0.88 新增 JournalInterfaceTests：头部预算在低高度/辅助字号不超过 38%，统计在窄屏/辅助字号单列，颜色资源覆盖浅/深/高对比，以及六张真实云端 SwiftUI 渲染附件。预计 231 项，以云端实际执行为准。
 - 渲染附件覆盖 1440×900 工作台、390×720 深色、844×320 横屏、辅助字号、320pt 列表、1100pt 统计。它们不替代真实 Mac Catalyst 窗口、键盘/IME、触控和 VoiceOver 验收。
 - 本机仅运行 diff、Swift parse、project plist、workflow YAML、资源 JSON 检查；不运行本机 build/XCTest/xcodebuild/simctl/App/UI/性能测试。任何本机 iOS 运行仍只能使用 UDID 以 FAC4325D 开头的既有唯一模拟器，本轮不调用。
@@ -509,3 +509,6 @@ du -sh /private/tmp/<project>-review-<run_id>/
 
 - 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
 - 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。
+
+### v0.89 高度切换输入身份
+`testTitleInputIdentitySurvivesCompactHeightTransition` 在云端 UIHostingController 内按 720→320→720pt 调整高度，断言同一个标题 UIKit 输入控件保留；不等价于真实键盘弹出、first responder、IME 或触控测试。详情按钮最小交互区为 44×44pt。

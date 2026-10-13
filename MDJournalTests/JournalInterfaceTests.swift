@@ -36,6 +36,40 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(textView.font).pointSize, 40)
     }
 
+    @MainActor
+    func testTitleInputIdentitySurvivesCompactHeightTransition() async throws {
+        let entry = JournalEntry.starterEntry()
+        let controller = UIHostingController(rootView: EntryEditorView(entry: .constant(entry)))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 844, height: 720))
+        window.rootViewController = controller
+        window.isHidden = false
+        defer { window.isHidden = true; window.rootViewController = nil }
+        controller.view.frame = window.bounds
+        controller.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(150))
+        let original = try XCTUnwrap(titleInput(in: controller.view, title: entry.title))
+
+        for height: CGFloat in [320, 720] {
+            window.frame.size.height = height
+            controller.view.frame = window.bounds
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(150))
+            let current = try XCTUnwrap(titleInput(in: controller.view, title: entry.title))
+            XCTAssertTrue(original === current, "Height changes must preserve the title input")
+        }
+    }
+
+    @MainActor
+    private func titleInput(in view: UIView, title: String) -> UIView? {
+        if let input = view as? UITextField, input.text == title { return input }
+        if let input = view as? UITextView, input.text == title { return input }
+        for child in view.subviews {
+            if let input = titleInput(in: child, title: title) { return input }
+        }
+        return nil
+    }
+
     func testHeaderBudgetKeepsMostOfTheViewportForWriting() {
         for height: CGFloat in [0, 260, 390, 720, 1000] {
             for size: DynamicTypeSize in [.large, .xxxLarge, .accessibility1, .accessibility5] {

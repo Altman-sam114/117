@@ -55,7 +55,7 @@ Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_r
 
 ## 验证
 
-v0.88 起点已下载核对：run 36234465443 attempt 1，231/231 passed。v0.89 修复低高度正文空间和 SwiftUI/UIKit 字号一致性，预计 233 项，待自己的最新 SHA 云端验收。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
+v0.88 起点已下载核对：run 36234465443 attempt 1，231/231 passed。v0.89 修复低高度正文空间和 SwiftUI/UIKit 字号一致性，预计 234 项，待自己的最新 SHA 云端验收。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
 
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 

@@ -539,3 +539,5 @@ Mac Catalyst 根视图通过 frame 的 idealWidth/idealHeight 提供 1360×860pt
 
 ### v0.89 写作空间与字号
 实际可用高度 <400pt 时，收起详情的头部上限为 min(52pt, 高度×22%)，仅展示单行标题与详情入口；模式与 Markdown 菜单共用一行，隐藏状态栏。普通高度沿用原预算；辅助字号也使用工具菜单。正文节点结构位置不变。MarkdownBodyTextView 将 SwiftUI DynamicTypeSize 映射到 UIKit preferredContentSizeCategory，只在目标字体变化时设置字体，不改正文同步、selection、IME、焦点或持久化。
+
+标题 TextField 与正文均保留固定结构位置，低高度只调整标题字体/行数与周边 chrome，避免键盘压缩视口时替换正在编辑的标题输入框。
