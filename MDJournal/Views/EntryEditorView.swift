@@ -179,10 +179,14 @@ struct EntryEditorView: View {
             )
             let bodyMetrics = entry.bodyMetrics
             let workspace = workspaceState.resolved(for: layout)
+            let compactHeight = EntryEditorChromeLayout.isCompactHeight(proxy.size.height)
+            let inlineTools = EntryEditorChromeLayout.usesInlineTools(
+                availableHeight: proxy.size.height, dynamicTypeSize: dynamicTypeSize
+            )
 
             VStack(spacing: 0) {
                 ScrollView(.vertical) {
-                    header(layout: layout, bodyMetrics: bodyMetrics)
+                    header(layout: layout, bodyMetrics: bodyMetrics, compactHeight: compactHeight)
                 }
                 .frame(height: EntryEditorChromeLayout.headerHeight(
                     availableHeight: proxy.size.height,
@@ -195,9 +199,10 @@ struct EntryEditorView: View {
                     layout: layout,
                     workspace: workspace,
                     width: proxy.size.width,
-                    bodyMetrics: bodyMetrics
+                    bodyMetrics: bodyMetrics,
+                    inlineTools: inlineTools
                 )
-                writingStatus(bodyMetrics)
+                if !compactHeight { writingStatus(bodyMetrics) }
             }
             .onAppear {
                 workspaceState.updateLayout(layout)
@@ -275,19 +280,26 @@ struct EntryEditorView: View {
         }
     }
 
-    private func header(layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics) -> some View {
+    private func header(
+        layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics, compactHeight: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(entry.createdAt.journalTitleText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if compactHeight {
+                    titleField(layout: layout, compact: true)
+                } else {
+                    Text(entry.createdAt.journalTitleText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer(minLength: 4)
                 Button {
                     showsDetails.toggle()
                 } label: {
                     Label(showsDetails ? "收起详情" : "日记详情",
                           systemImage: showsDetails ? "chevron.up" : "slider.horizontal.3")
+                        .labelStyle(.iconOnly)
                         .font(.subheadline)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
@@ -297,11 +309,7 @@ struct EntryEditorView: View {
                 .accessibilityValue(showsDetails ? "已展开" : "已收起")
             }
 
-            TextField("今天，想记下什么？", text: $entry.title, axis: .vertical)
-                .font(.system(.title, design: .serif).weight(.medium))
-                .textFieldStyle(.plain)
-                .lineLimit(layout.titleLineLimit)
-                .accessibilityLabel("日记标题")
+            if !compactHeight { titleField(layout: layout, compact: false) }
 
             if showsDetails {
                 Divider().padding(.vertical, 4)
@@ -315,9 +323,17 @@ struct EntryEditorView: View {
             }
         }
         .padding(.horizontal, JournalTheme.pageInset)
-        .padding(.vertical, 12)
+        .padding(.vertical, compactHeight ? 0 : 12)
         .frame(maxWidth: JournalTheme.readableWidth, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func titleField(layout: EntryEditorLayoutContract, compact: Bool) -> some View {
+        TextField("今天，想记下什么？", text: $entry.title, axis: .vertical)
+            .font(compact ? .headline : .system(.title, design: .serif).weight(.medium))
+            .textFieldStyle(.plain)
+            .lineLimit(compact ? 1 : layout.titleLineLimit)
+            .accessibilityLabel("日记标题")
     }
 
     private func writingStatus(_ metrics: JournalEntryBodyMetrics) -> some View {
@@ -406,11 +422,14 @@ struct EntryEditorView: View {
     private func editor(
         layout: EntryEditorLayoutContract,
         bodyMetrics: JournalEntryBodyMetrics,
+        showsToolbar: Bool,
         limitsWritingWidth: Bool = false
     ) -> some View {
         VStack(spacing: 0) {
-            MarkdownToolbar(accent: JournalTheme.accent) { insertSnippet($0, layout: layout) }
-            Divider()
+            if showsToolbar {
+                MarkdownToolbar(accent: JournalTheme.accent) { insertSnippet($0, layout: layout) }
+                Divider()
+            }
 
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
@@ -444,21 +463,31 @@ struct EntryEditorView: View {
         layout: EntryEditorLayoutContract,
         workspace: EntryEditorWorkspaceState,
         width: CGFloat,
-        bodyMetrics: JournalEntryBodyMetrics
+        bodyMetrics: JournalEntryBodyMetrics,
+        inlineTools: Bool
     ) -> some View {
         let showsBoth = workspace.showsEditor && workspace.showsPreview
         let columnWidth: CGFloat? = showsBoth ? max(0, (width - 1) / 2) : nil
 
         return VStack(spacing: 0) {
-            if !workspace.usesSplitPreview {
-                Picker("模式", selection: compactModeSelection(layout: layout)) {
-                    ForEach(Mode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
+            if !workspace.usesSplitPreview || inlineTools {
+                HStack(spacing: 12) {
+                    if !workspace.usesSplitPreview {
+                        Picker("模式", selection: compactModeSelection(layout: layout)) {
+                            ForEach(Mode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    } else {
+                        Spacer()
+                    }
+                    if inlineTools && workspace.showsEditor {
+                        MarkdownToolsMenu { insertSnippet($0, layout: layout) }
                     }
                 }
-                .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, inlineTools ? 2 : 10)
             }
 
             // Keep the editor at one structural position across split and width changes.
@@ -471,6 +500,7 @@ struct EntryEditorView: View {
                         editor(
                             layout: layout,
                             bodyMetrics: bodyMetrics,
+                            showsToolbar: !inlineTools,
                             limitsWritingWidth: !workspace.showsPreview
                         )
                     }

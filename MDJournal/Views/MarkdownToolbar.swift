@@ -14,7 +14,7 @@ struct MarkdownToolbar: View {
                         Label(snippet.title, systemImage: snippet.systemImage)
                             .labelStyle(.iconOnly)
                             .font(.body)
-                            .frame(width: 44, height: 44)
+                            .frame(minWidth: 44, minHeight: 44)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -28,5 +28,27 @@ struct MarkdownToolbar: View {
             .padding(.vertical, 8)
         }
         .background(JournalTheme.paper)
+    }
+}
+
+struct MarkdownToolsMenu: View {
+    let onInsert: (MarkdownSnippet) -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(MarkdownSnippet.allCases) { snippet in
+                Button { onInsert(snippet) } label: {
+                    Label(snippet.title, systemImage: snippet.systemImage)
+                }
+            }
+        } label: {
+            Image(systemName: "textformat")
+                .font(.body)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .foregroundStyle(JournalTheme.accent)
+        .accessibilityLabel("插入 Markdown")
+        .help("插入标题、列表与 Markdown 格式")
     }
 }

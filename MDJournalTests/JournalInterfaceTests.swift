@@ -4,6 +4,38 @@ import XCTest
 @testable import MDJournal
 
 final class JournalInterfaceTests: XCTestCase {
+    func testLowHeightChromeUsesOneToolRowAndCompactTitle() {
+        for height: CGFloat in [200, 260, 320, 399] {
+            XCTAssertTrue(EntryEditorChromeLayout.isCompactHeight(height))
+            XCTAssertTrue(EntryEditorChromeLayout.usesInlineTools(availableHeight: height, dynamicTypeSize: .large))
+            let header = EntryEditorChromeLayout.headerHeight(
+                availableHeight: height, showsDetails: false, dynamicTypeSize: .large
+            )
+            XCTAssertLessThanOrEqual(header, 52)
+            XCTAssertGreaterThan(height - header - 48, height * 0.5)
+        }
+        XCTAssertFalse(EntryEditorChromeLayout.isCompactHeight(400))
+        XCTAssertFalse(EntryEditorChromeLayout.usesInlineTools(availableHeight: 720, dynamicTypeSize: .large))
+        XCTAssertTrue(EntryEditorChromeLayout.usesInlineTools(availableHeight: 720, dynamicTypeSize: .accessibility1))
+    }
+
+    @MainActor
+    func testBodyFontTracksSwiftUIDynamicTypeAndRetainsMatchingFont() throws {
+        let textView = UITextView()
+        for size: DynamicTypeSize in [.large, .xxxLarge, .accessibility1, .accessibility3, .accessibility5] {
+            let category = MarkdownBodyTextView.contentSizeCategory(for: size)
+            MarkdownBodyTextView.configureBodyFontIfNeeded(textView, category: category)
+            let font = try XCTUnwrap(textView.font)
+            let expected = UIFont.preferredFont(
+                forTextStyle: .body, compatibleWith: UITraitCollection(preferredContentSizeCategory: category)
+            )
+            XCTAssertEqual(font.pointSize, expected.pointSize)
+            MarkdownBodyTextView.configureBodyFontIfNeeded(textView, category: category)
+            XCTAssertTrue(textView.font === font)
+        }
+        XCTAssertGreaterThan(try XCTUnwrap(textView.font).pointSize, 40)
+    }
+
     func testHeaderBudgetKeepsMostOfTheViewportForWriting() {
         for height: CGFloat in [0, 260, 390, 720, 1000] {
             for size: DynamicTypeSize in [.large, .xxxLarge, .accessibility1, .accessibility5] {

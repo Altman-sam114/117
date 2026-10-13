@@ -339,3 +339,25 @@ flowchart LR
   Accept -- "通过" --> Record["记录版本、artifact 名称和遗留事项"]
   Accept -- "不通过" --> Repair["退回 Agent B 追加修复 commit"]
 ```
+
+
+```mermaid
+flowchart LR
+  Window[Mac Catalyst WindowGroup
+Catalyst 17+: 1360×860 default] --> Content[ContentView]
+  Content --> Snapshot[JournalEntryListSnapshot]
+  Snapshot --> Toolbar[Mac toolbar count]
+```
+
+## v0.89 写作空间
+
+```mermaid
+flowchart LR
+  Height[实际可用高度] --> Compact{低于 400pt?}
+  Compact -->|是| Chrome[紧凑标题 / 单行模式和工具菜单 / 隐藏状态栏]
+  Compact -->|否| Normal[原有标题和状态栏]
+  Type[DynamicTypeSize] --> Menu[辅助字号工具菜单]
+  Type --> Font[UIKit rounded body 字体按需更新]
+  Chrome --> Editor[固定正文节点 / 既有 binding 和 IME]
+  Font --> Editor
+```

@@ -6,7 +6,7 @@ MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
-v0.88 当前为界面重构实现待云端验证。JournalTheme 与 Assets 统一配色；列表采用紧凑行和系统分类菜单。编辑器详情折叠、头部独立滚动且高度最多占 38%，单栏正文限宽 760pt，状态栏展示词数、小节与更新时间。预览为连续纸面；统计以完整总览和自适应网格展示，辅助字号单列。状态、bridge、Store、JSON 和 parser 边界不变。本轮用户要求禁用子智能体，三个阶段由当前线程串行执行，不标记为独立 Agent C 验收。
+v0.88 已核对云端 run 36234465443 attempt 1，231 项通过；v0.89 为当前待验实现。JournalTheme 与 Assets 统一配色；列表采用紧凑行和系统分类菜单。编辑器详情折叠、头部独立滚动且高度最多占 38%，单栏正文限宽 760pt，状态栏展示词数、小节与更新时间。预览为连续纸面；统计以完整总览和自适应网格展示，辅助字号单列。状态、bridge、Store、JSON 和 parser 边界不变。本轮用户要求禁用子智能体，三个阶段由当前线程串行执行，不标记为独立 Agent C 验收。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -532,3 +532,10 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 - `JournalStatistics` 改动：本地轻量检查 + `MDJournalTests` 统计 XCTest + 云端 CI。
 - UI 视图改动：本地轻量检查 + 云端 CI；涉及横屏和布局时补手动视觉验证。
 - 文档-only 改动：`git diff --check`、workflow YAML 解析、必要时补 `plutil`。
+
+
+### v0.89 Mac 桌面入口
+Mac Catalyst 17+ WindowGroup 使用 1360×860pt 建议默认尺寸（旧版本保持系统默认）与 1120×720pt 最小尺寸；ContentView 仅在 Catalyst 工具栏显示当前筛选结果数量，数据仍来自同一次 JournalEntryListSnapshot。
+
+### v0.89 写作空间与字号
+实际可用高度 <400pt 时，收起详情的头部上限为 min(52pt, 高度×22%)，仅展示单行标题与详情入口；模式与 Markdown 菜单共用一行，隐藏状态栏。普通高度沿用原预算；辅助字号也使用工具菜单。正文节点结构位置不变。MarkdownBodyTextView 将 SwiftUI DynamicTypeSize 映射到 UIKit preferredContentSizeCategory，只在目标字体变化时设置字体，不改正文同步、selection、IME、焦点或持久化。

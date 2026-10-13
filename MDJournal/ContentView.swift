@@ -41,6 +41,17 @@ struct ContentView: View {
             }
         }
         .tint(JournalTheme.accent)
+        #if targetEnvironment(macCatalyst)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Label("\(listSnapshot.filteredEntries.count) 篇", systemImage: "book.closed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("当前筛选结果")
+                    .accessibilityValue("\(listSnapshot.filteredEntries.count) 篇")
+            }
+        }
+        #endif
         .onAppear(perform: selectInitialEntry)
         .onChange(of: store.entries) { _ in
             repairSelection()

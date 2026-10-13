@@ -11,7 +11,7 @@
 
 ## 当前状态
 
-- v0.88 界面重构已实现，待本轮云端结果包。v0.87 起点由当前线程核对为 227 项通过，run 34175692697 attempt 1；不将旧结果冒充本轮。用户要求不调用子智能体，本轮串行执行并明确无独立 Agent C。
+- v0.88 已核对云端结果（231 项通过），v0.89 接续桌面与低高度修复待云端结果。v0.87 起点由当前线程核对为 227 项通过，run 34175692697 attempt 1；不将旧结果冒充本轮。用户要求不调用子智能体，本轮串行执行并明确无独立 Agent C。
 
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
@@ -23,10 +23,21 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.88 / 写作工作台与统一界面（实现待云端验证）
+### v0.89 / Mac 桌面窗口与工具栏（实现待云端验证）
+
+日期：2026-10-13（接续 2026-09-26 未提交工作）。
+
+- Mac Catalyst 17+ 主窗口新增 1360×860pt 建议默认尺寸（旧系统保持默认，不提升部署版本），保留 1120×720pt 最小尺寸。
+- Mac 工具栏显示当前筛选结果数量，并提供对应可访问性文案。
+- 云端图像复核发现低高度正文空间不足与辅助字号工具栏过密：新增紧凑标题、单行模式/工具菜单和状态栏收起；字体配置显式跟随 SwiftUI Dynamic Type，保持正文 bridge 同步与 JSON 不变。新增 2 项测试，预期 233 项。
+- 新增窗口默认尺寸纯值契约，更新 README、测试规范、流程图/流程说明与版本化 prompt。
+- 本机预期只做 Swift parse 与 diff 检查，完整 iOS/Catalyst build、XCTest 和 artifact 核对交 GitHub Actions；真实 Mac 窗口、VoiceOver、输入设备与性能仍待人工验收。
+
+## v0.88 / 写作工作台与统一界面（云端基线通过，视觉问题由 v0.89 修复）
 
 日期：2026-09-26。
 
+- 2026-10-13 当前线程下载核对 commit `4f6cda3c84ddd3ddd4a7b1d997fd488f3fd7a708`，run `36234465443` attempt `1`，artifact `mdjournal-ci-v0.88-main-4f6cda3-run36234465443-attempt1`（ID 10903617702，1690920 bytes，SHA-256 fec08f8a651ab9222313b26f57fe109c535fb94a12782fb8a26e25da74f7d8a9）。四阶段 success、JUnit 4/0/0/0、xcresult 231/231 passed；545 ZIP entries 未加密，CRC、digest 和逐文件哈希通过。缓存 `/private/tmp/mdjournal-c-review-36234465443/`。已用 xcresulttool 导出六张附件；低高度和辅助字号视觉问题不因测试通过而放行。无独立 Agent C。
 - 统一暖白纸面、墨绿强调、浅深色及高对比颜色资源；列表概览、分类入口与行信息重排，选中同时具有勾选与边框。
 - 编辑器以标题和正文为中心，元数据/小节目录按需展开；头部独立滚动且最多占实际可用高度 38%，专注写作收起详情，单栏正文上限 760pt。原 WorkspaceState、UITextView bridge、选区、IME、保存与 Markdown 语义保留。
 - 预览改为连续阅读纸面；统计总览完整宽度、分区自适应网格、Accessibility 单列；工具栏与空态同步重整。

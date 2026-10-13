@@ -14,6 +14,9 @@ struct MDJournalApp: App {
                 )
                 #endif
         }
+        #if targetEnvironment(macCatalyst)
+        .journalDefaultWindowSize()
+        #endif
         .commands {
             JournalCommands()
         }
@@ -27,6 +30,22 @@ struct MDJournalApp: App {
     }
 }
 
+#if targetEnvironment(macCatalyst)
+private extension Scene {
+    @SceneBuilder
+    func journalDefaultWindowSize() -> some Scene {
+        if #available(macCatalyst 17.0, *) {
+            defaultSize(
+                width: MacWindowLayoutContract.defaultWindowWidth,
+                height: MacWindowLayoutContract.defaultWindowHeight
+            )
+        } else {
+            self
+        }
+    }
+}
+#endif
+
 enum JournalSceneID {
     static let statistics = "journal-statistics"
 }
@@ -34,6 +53,8 @@ enum JournalSceneID {
 internal enum MacWindowLayoutContract {
     static let minimumWindowWidth: CGFloat = 1120
     static let minimumWindowHeight: CGFloat = 720
+    static let defaultWindowWidth: CGFloat = 1360
+    static let defaultWindowHeight: CGFloat = 860
     static let sidebarMinimumWidth: CGFloat = 260
     static let sidebarIdealWidth: CGFloat = 300
     static let sidebarMaximumWidth: CGFloat = 360

@@ -11,10 +11,12 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - 单栏写作宽度限制为 760pt；实际 detail 宽度达到 1120pt 且非 Accessibility 字号时可编辑/预览双栏。正文节点在宽度切换时保持原有结构，选区、IME 和焦点规则保留。专注写作会收起详情并隐藏预览。
 - Markdown 支持三级小节、列表/任务/引用/代码等预览和工具栏插入，支持 UTF-16 选区、回车续写、Tab/Shift-Tab；预览以连续纸面、文字层级和细线组织内容，可选择文字。
 - 统计以完整宽度总览配合自适应网格展示；Accessibility 字号统一单列，指标与分布自然增高。Mac 统计仍为独立窗口。
-- Mac Catalyst 主窗口最小 1120×720pt，侧栏 260/300/360pt；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
+- Mac Catalyst 主窗口在 Catalyst 17+ 建议默认 1360×860pt（旧系统保持系统默认）、最小 1120×720pt，侧栏 260/300/360pt；工具栏显示当前筛选结果数量；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
 - 保存仍由 JournalStore 唯一管理，debounce 合并编辑写入、actor 串行 JSON 编码/原子写盘；离开活跃态 flush。预览仍为 150ms latest-wins 与按文档去重的 inline cache，不进入持久化。
 
 本轮用户要求不启用子智能体，因此方案、实现和结果包核对由同一线程串行执行，不标记为独立 Agent C 验收。
+
+低高度（可用高度 <400pt）使用紧凑标题、单行模式/Markdown 菜单并隐藏状态栏；辅助字号使用工具菜单，UITextView 字体跟随 SwiftUI Dynamic Type。此策略不改变正文、选区或 IME 同步。
 
 ## 日记结构建议
 
@@ -53,7 +55,7 @@ Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_r
 
 ## 验证
 
-v0.88 实现待当前 SHA 的云端验证。新增头部空间预算、统计响应式布局、语义颜色资源和六种界面渲染附件测试；保留 227 项基线，预计 231 项。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
+v0.88 起点已下载核对：run 36234465443 attempt 1，231/231 passed。v0.89 修复低高度正文空间和 SwiftUI/UIKit 字号一致性，预计 233 项，待自己的最新 SHA 云端验收。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
 
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 

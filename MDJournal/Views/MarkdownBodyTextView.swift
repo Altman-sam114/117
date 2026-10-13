@@ -46,6 +46,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var selectedRange: NSRange
     @Binding var isFocused: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text, selectedRange: $selectedRange, isFocused: $isFocused)
@@ -59,7 +60,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             coordinator?.applyIndentation(direction, to: textView)
         }
         textView.backgroundColor = .clear
-        Self.configureBodyFontIfNeeded(textView)
+        Self.configureBodyFontIfNeeded(textView, category: Self.contentSizeCategory(for: dynamicTypeSize))
         Self.configureMarkdownInputTraits(textView)
         textView.adjustsFontForContentSizeCategory = true
         textView.alwaysBounceVertical = true
@@ -76,7 +77,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         context.coordinator.selectedRange = $selectedRange
         context.coordinator.isFocused = $isFocused
 
-        Self.configureBodyFontIfNeeded(textView)
+        Self.configureBodyFontIfNeeded(textView, category: Self.contentSizeCategory(for: dynamicTypeSize))
         Self.configureMarkdownInputTraits(textView)
 
         let hasMarkedText = textView.markedTextRange != nil
@@ -230,14 +231,29 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         }
     }
 
-    private static var bodyFont: UIFont {
-        let baseFont = UIFont.preferredFont(forTextStyle: .body)
-        let descriptor = baseFont.fontDescriptor.withDesign(.rounded) ?? baseFont.fontDescriptor
-        return UIFont(descriptor: descriptor, size: baseFont.pointSize)
+    static func contentSizeCategory(for size: DynamicTypeSize) -> UIContentSizeCategory {
+        switch size {
+        case .xSmall: return .extraSmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .xLarge: return .extraLarge
+        case .xxLarge: return .extraExtraLarge
+        case .xxxLarge: return .extraExtraExtraLarge
+        case .accessibility1: return .accessibilityMedium
+        case .accessibility2: return .accessibilityLarge
+        case .accessibility3: return .accessibilityExtraLarge
+        case .accessibility4: return .accessibilityExtraExtraLarge
+        case .accessibility5: return .accessibilityExtraExtraExtraLarge
+        @unknown default: return .large
+        }
     }
 
-    static func configureBodyFontIfNeeded(_ textView: UITextView) {
-        let bodyFont = Self.bodyFont
+    static func configureBodyFontIfNeeded(_ textView: UITextView, category: UIContentSizeCategory? = nil) {
+        let traits = category.map { UITraitCollection(preferredContentSizeCategory: $0) }
+        let baseFont = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits)
+        let descriptor = baseFont.fontDescriptor.withDesign(.rounded) ?? baseFont.fontDescriptor
+        let bodyFont = UIFont(descriptor: descriptor, size: baseFont.pointSize)
         if textView.font != bodyFont {
             textView.font = bodyFont
         }
