@@ -22,7 +22,9 @@ struct MDJournalApp: App {
 
         #if targetEnvironment(macCatalyst)
         WindowGroup("统计", id: JournalSceneID.statistics) {
-            StatisticsDashboardView(entries: store.entries, showsCloseButton: false)
+            StatisticsDashboardView(
+                entries: store.entries, bodyPresentations: store.bodyPresentations, showsCloseButton: false
+            )
                 .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
         }
         #endif

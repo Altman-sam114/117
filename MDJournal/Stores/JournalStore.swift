@@ -5,6 +5,7 @@ import Foundation
 final class JournalStore: ObservableObject {
     @Published private(set) var entries: [JournalEntry] = []
     @Published private(set) var errorMessage: String?
+    private(set) var bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation] = [:]
 
     private enum ErrorSource: Equatable {
         case read
@@ -20,6 +21,7 @@ final class JournalStore: ObservableObject {
     private let saveDebounceDelay: Duration
     private let persistenceWriter: any JournalPersistenceWriting
     private let saveScheduler: any JournalSaveScheduling
+    private let makeBodyPresentation: (JournalEntry) -> JournalEntryBodyPresentation
     private var pendingSave: PendingSave?
     private var errorSource: ErrorSource?
 
@@ -31,7 +33,10 @@ final class JournalStore: ObservableObject {
         storageURL: URL? = nil,
         saveDebounceNanoseconds: UInt64 = 450_000_000,
         persistenceWriter: (any JournalPersistenceWriting)? = nil,
-        saveScheduler: any JournalSaveScheduling = TaskJournalSaveScheduler()
+        saveScheduler: any JournalSaveScheduling = TaskJournalSaveScheduler(),
+        makeBodyPresentation: @escaping (JournalEntry) -> JournalEntryBodyPresentation = {
+            JournalEntryBodyPresentation(body: $0.body)
+        }
     ) {
         let resolvedStorageURL: URL
         if let storageURL {
@@ -48,6 +53,7 @@ final class JournalStore: ObservableObject {
         self.persistenceWriter = persistenceWriter
             ?? JSONJournalPersistenceWriter(storageURL: resolvedStorageURL)
         self.saveScheduler = saveScheduler
+        self.makeBodyPresentation = makeBodyPresentation
         load()
     }
 
@@ -74,6 +80,7 @@ final class JournalStore: ObservableObject {
             mood: .calm
         )
 
+        bodyPresentations[entry.id] = makeBodyPresentation(entry)
         entries.insert(entry, at: 0)
         recordMutation()
         submitImmediately(currentSnapshot())
@@ -85,6 +92,9 @@ final class JournalStore: ObservableObject {
 
         cancelPendingSave()
         let shouldSortEntries = entries[index].createdAt != entry.createdAt
+        if entries[index].body != entry.body {
+            bodyPresentations[entry.id] = makeBodyPresentation(entry)
+        }
         var updatedEntry = entry
         updatedEntry.updatedAt = Date()
         entries[index] = updatedEntry
@@ -99,6 +109,7 @@ final class JournalStore: ObservableObject {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
         cancelPendingSave()
+        bodyPresentations.removeValue(forKey: entry.id)
         entries.remove(at: index)
         recordMutation()
         submitImmediately(currentSnapshot())
@@ -129,7 +140,9 @@ final class JournalStore: ObservableObject {
 
     private func load() {
         guard FileManager.default.fileExists(atPath: storageURL.path) else {
-            entries = [JournalEntry.starterEntry()]
+            let starter = JournalEntry.starterEntry()
+            bodyPresentations[starter.id] = makeBodyPresentation(starter)
+            entries = [starter]
             recordMutation()
             submitImmediately(currentSnapshot())
             return
@@ -139,7 +152,11 @@ final class JournalStore: ObservableObject {
             let data = try Data(contentsOf: storageURL)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            entries = try decoder.decode([JournalEntry].self, from: data)
+            let loadedEntries = try decoder.decode([JournalEntry].self, from: data)
+            for entry in loadedEntries {
+                bodyPresentations[entry.id] = makeBodyPresentation(entry)
+            }
+            entries = loadedEntries
             sortEntries()
         } catch {
             publishError("读取本地日记失败：\(error.localizedDescription)", source: .read)

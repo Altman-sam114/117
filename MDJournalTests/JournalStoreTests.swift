@@ -3,6 +3,70 @@ import XCTest
 
 @MainActor
 final class JournalStoreTests: XCTestCase {
+    func testBodyPresentationCacheDerivesOnlyTheChangedEntry() async throws {
+        let entries = [makeEntry(title: "甲", createdAt: Date(timeIntervalSince1970: 200)),
+                       makeEntry(title: "乙", createdAt: Date(timeIntervalSince1970: 100))]
+        var calls: [UUID: Int] = [:]
+        let fixture = try makeStoreFixture(entries: entries, scheduler: ManualSaveScheduler()) { entry in
+            calls[entry.id, default: 0] += 1
+            return JournalEntryBodyPresentation(body: entry.body)
+        }
+        defer { fixture.cleanup() }
+        XCTAssertEqual(calls, Dictionary(uniqueKeysWithValues: entries.map { ($0.id, 1) }))
+        var changed = entries[0]
+        changed.title = "改标题"; fixture.store.update(changed)
+        changed.category = .travel; fixture.store.update(changed)
+        changed.mood = .happy; fixture.store.update(changed)
+        changed.createdAt = Date(timeIntervalSince1970: 50); fixture.store.update(changed)
+        let snapshot = JournalEntryListSnapshot(entries: fixture.store.entries, searchText: "小节", selectedCategory: nil)
+        XCTAssertEqual(snapshot.filteredEntries.count, 2)
+        _ = JournalStatistics(entries: fixture.store.entries, bodyPresentations: fixture.store.bodyPresentations)
+        _ = JournalListOverviewSnapshot(entries: fixture.store.entries, bodyPresentations: fixture.store.bodyPresentations)
+        XCTAssertEqual(calls.values.reduce(0, +), 2, "Metadata, filtering and cached aggregates must not derive bodies")
+        changed.body += "\n\n新增正文 👨‍👩‍👧‍👦"
+        fixture.store.update(changed)
+        fixture.store.update(changed)
+        XCTAssertEqual(calls[changed.id], 2)
+        XCTAssertEqual(calls[entries[1].id], 1)
+        XCTAssertEqual(fixture.store.bodyPresentations[changed.id], JournalEntryBodyPresentation(body: changed.body))
+        _ = await fixture.store.flushPendingSave()
+        XCTAssertEqual(try decodeEntries(from: fixture.storageURL), fixture.store.entries)
+    }
+
+    func testBodyPresentationCacheTracksCreateDeleteAndInvalidMutations() async throws {
+        var calls: [UUID: Int] = [:]
+        let fixture = try makeStoreFixture(scheduler: ManualSaveScheduler()) { entry in
+            calls[entry.id, default: 0] += 1
+            return JournalEntryBodyPresentation(body: entry.body)
+        }
+        defer { fixture.cleanup() }
+        let initial = try XCTUnwrap(fixture.store.entries.first)
+        let created = fixture.store.createEntry()
+        XCTAssertEqual(calls[created], 1)
+        fixture.store.delete(initial)
+        fixture.store.delete(initial)
+        fixture.store.update(initial)
+        XCTAssertNil(fixture.store.bodyPresentations[initial.id])
+        XCTAssertEqual(Set(fixture.store.bodyPresentations.keys), Set(fixture.store.entries.map(\.id)))
+        XCTAssertEqual(calls.values.reduce(0, +), 2)
+        _ = await fixture.store.flushPendingSave()
+        XCTAssertEqual(try decodeEntries(from: fixture.storageURL), fixture.store.entries)
+    }
+
+    func testStarterBodyPresentationIsDerivedOnce() async throws {
+        let fixture = try makeDirectoryFixture()
+        defer { fixture.cleanup() }
+        var calls = 0
+        let store = JournalStore(storageURL: fixture.directoryURL.appendingPathComponent("new.json")) { entry in
+            calls += 1
+            return JournalEntryBodyPresentation(body: entry.body)
+        }
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(Set(store.bodyPresentations.keys), Set(store.entries.map(\.id)))
+        _ = await store.flushPendingSave()
+        XCTAssertEqual(calls, 1)
+    }
+
     func testProductionWriterPreservesJSONByteStrategy() async throws {
         let fixture = try makeDirectoryFixture()
         defer { fixture.cleanup() }
@@ -443,7 +507,10 @@ final class JournalStoreTests: XCTestCase {
     private func makeStoreFixture(
         entries: [JournalEntry]? = nil,
         writer: (any JournalPersistenceWriting)? = nil,
-        scheduler: ManualSaveScheduler
+        scheduler: ManualSaveScheduler,
+        makeBodyPresentation: @escaping (JournalEntry) -> JournalEntryBodyPresentation = {
+            JournalEntryBodyPresentation(body: $0.body)
+        }
     ) throws -> StoreFixture {
         let directoryFixture = try makeDirectoryFixture()
         let storageURL = directoryFixture.directoryURL.appendingPathComponent("entries.json")
@@ -451,7 +518,8 @@ final class JournalStoreTests: XCTestCase {
         let store = JournalStore(
             storageURL: storageURL,
             persistenceWriter: writer,
-            saveScheduler: scheduler
+            saveScheduler: scheduler,
+            makeBodyPresentation: makeBodyPresentation
         )
         return StoreFixture(store: store, directoryURL: directoryFixture.directoryURL, storageURL: storageURL)
     }

@@ -165,6 +165,7 @@ struct EntryEditorView: View {
     typealias Mode = EntryEditorWorkspaceState.Mode
 
     @Binding var entry: JournalEntry
+    let bodyPresentation: JournalEntryBodyPresentation
     @State private var workspaceState = EntryEditorWorkspaceState()
     @State private var showsDetails = false
     @State private var headerContentHeight: CGFloat = 0
@@ -178,7 +179,7 @@ struct EntryEditorView: View {
                 width: proxy.size.width,
                 dynamicTypeSize: dynamicTypeSize
             )
-            let bodyMetrics = entry.bodyMetrics
+            let bodyMetrics = bodyPresentation
             let workspace = workspaceState.resolved(for: layout)
             let canvas = EntryEditorCanvasLayout(
                 width: proxy.size.width, height: proxy.size.height,
@@ -304,7 +305,7 @@ struct EntryEditorView: View {
     }
 
     private func header(
-        layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyMetrics, compactHeight: Bool
+        layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyPresentation, compactHeight: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             if !compactHeight {
@@ -372,7 +373,7 @@ struct EntryEditorView: View {
             .accessibilityLabel("日记标题")
     }
 
-    private func writingStatus(_ metrics: JournalEntryBodyMetrics) -> some View {
+    private func writingStatus(_ metrics: JournalEntryBodyPresentation) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 16) {
                 Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
@@ -460,7 +461,7 @@ struct EntryEditorView: View {
 
     private func editor(
         layout: EntryEditorLayoutContract,
-        bodyMetrics: JournalEntryBodyMetrics,
+        bodyMetrics: JournalEntryBodyPresentation,
         limitsWritingWidth: Bool = false
     ) -> some View {
         HStack(spacing: 0) {
@@ -472,7 +473,7 @@ struct EntryEditorView: View {
         .background(JournalTheme.paper)
     }
 
-    private func bodyEditorArea(bodyMetrics: JournalEntryBodyMetrics) -> some View {
+    private func bodyEditorArea(bodyMetrics: JournalEntryBodyPresentation) -> some View {
         ZStack(alignment: .topLeading) {
             if !bodyMetrics.hasVisibleContent {
                 Text("用 ### 小节组织今天的记录。")
@@ -494,7 +495,7 @@ struct EntryEditorView: View {
         layout: EntryEditorLayoutContract,
         workspace: EntryEditorWorkspaceState,
         width: CGFloat,
-        bodyMetrics: JournalEntryBodyMetrics,
+        bodyMetrics: JournalEntryBodyPresentation,
         inlineTools: Bool
     ) -> some View {
         let showsBoth = workspace.showsEditor && workspace.showsPreview
@@ -645,7 +646,7 @@ private struct EditorHeaderHeightKey: PreferenceKey {
 }
 
 private struct JournalSectionOverview: View {
-    let sections: [JournalSection]
+    let sections: [JournalEntryBodyPresentation.Section]
     let accent: Color
     let titleLineLimit: Int
     let excerptLineLimit: Int

@@ -22,6 +22,30 @@ struct JournalListOverviewSnapshot {
     }
 
     init(entries: [JournalEntry], calendar: Calendar = .current, now: Date = Date()) {
+        self.init(entries: entries, calendar: calendar, now: now) { entry in
+            let metrics = JournalEntryOverviewMetrics(body: entry.body)
+            return (metrics.wordCount, metrics.hasLevelThreeSection)
+        }
+    }
+
+    init(
+        entries: [JournalEntry],
+        bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation],
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) {
+        self.init(entries: entries, calendar: calendar, now: now) { entry in
+            guard let presentation = bodyPresentations[entry.id] else {
+                preconditionFailure("Missing body presentation for current entry")
+            }
+            return (presentation.wordCount, presentation.sectionCount > 0)
+        }
+    }
+
+    private init(
+        entries: [JournalEntry], calendar: Calendar, now: Date,
+        metrics: (JournalEntry) -> (wordCount: Int, hasLevelThreeSection: Bool)
+    ) {
         totalEntries = entries.count
 
         let today = calendar.startOfDay(for: now)
@@ -35,7 +59,7 @@ struct JournalListOverviewSnapshot {
         var categoryTotals: [JournalEntry.Category: EntryAggregate] = [:]
 
         for entry in entries {
-            let overviewMetrics = JournalEntryOverviewMetrics(body: entry.body)
+            let overviewMetrics = metrics(entry)
             let wordCount = overviewMetrics.wordCount
             let day = calendar.startOfDay(for: entry.createdAt)
 

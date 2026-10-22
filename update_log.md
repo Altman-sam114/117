@@ -11,7 +11,7 @@
 
 ## 当前状态
 
-- v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由独立 Agent C 核对 run `38344640193` attempt `1`：四阶段 success、234 项 XCTest、六张渲染图及完整性通过。v0.90 资料库与画布实现待自己的云端结果。本轮用户授权 Agent X 调度 A/B/C，多 Agent 分工，每轮 C 验收后才推进；历史串行授权记录保留。
+- v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 接续性能与 Mac 内部包，待自己的云端结果。
 
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
@@ -23,7 +23,20 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.90 / 资料库时间轴与写作画布（实现待云端验证）
+### v0.91 / 高效写作与 Mac 验收包（实现待云端验证）
+
+日期：2026-10-23。
+
+- 按用户最新要求全程改为当前线程串行，不继续调用子智能体。为减少约十分钟/轮的 runner 排队，将原性能与 Mac 包两个候选目标合并，分别设置验收门槛。
+- JournalStore 在加载/创建/更新/删除处维护按ID的非持久化 BodyPresentation；正文相等复用，变更只派生该篇。缓存只含词数、可见性和每项至多160 Character加省略号的摘要/小节预览，不持有全文excerpt、section markdown、原文副本或AST。
+- ContentView、列表、编辑器、统计sheet/独立窗口显式消费同一投影；概览/统计仍O(n)聚合元数据，搜索仍匹配正文，不宣称整体O(1)或实测帧率。旧纯API作为结果对照保留。
+- 补5项投影Unicode/截断、真实Store构建次数/失效/创建删除/持久化、日历/时区聚合等价测试；245项基线全部保留，预期250项，实际数以新CI为准。辅助字号分类菜单改为垂直信息层级，避免“全部日记”碎行。
+- 原生CoreGraphics源码生成iOS/Mac图标；云端新增Release universal构建、ad-hoc无私钥签名与ZIP，验证实际Mach-O架构、Info/图标/优化参数、权限、签名及独立解压逐文件一致性。build number按run number/attempt追溯；未公证、未Developer ID签名，不公开发布。
+- 关键文件：BodyPresentation/JournalStore、概览/统计和生产视图接线、相关测试、AppIcon/生成源码、package_macos.sh/verify_macos_package.py、工程及workflow；同步README/test/flow/flowchart。
+- 本机仅资源创作、Swift parse、plist/JSON/YAML/脚本语法和diff检查；完整构建、XCTest及包验证交云端。新SHA/run/artifact不预填通过；真实Mac启动、IME、VoiceOver、帧率和正式签名仍未验收。
+- 实际轻量检查退出0：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library`（全部应用Swift）、同环境测试Swift parse、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow Ruby YAML解析、11个run块`bash -n`、3个Python heredoc与包装脚本`ast.parse`、全部asset JSON/PNG尺寸/不透明检查，以及`git diff --check`。图标生成脚本已实际运行并目视检查；未本机build/XCTest/App/模拟器。
+
+### v0.90 / 资料库时间轴与写作画布（云端通过）
 
 日期：2026-10-22。
 
@@ -36,6 +49,8 @@
 - 本机执行 diff、应用/测试 Swift parse、project plist、workflow YAML/内嵌脚本语法检查；不进行本机构建或运行。提交 SHA、push 和本轮 run/artifact 在实际交付及 C 验收后记录，不预填通过。
 - 遗留：真实 Mac 窗口、IME、VoiceOver、鼠标/触控板、性能和签名发布尚未验收；v0.91 缓存与 v0.92 Release 包只是候选后续目标，本轮不提前实现。
 - 首轮实现 SHA `ac317d1cc69fa0ad5c541537a492a312eec259f6` 已push，run `39801156079` attempt `1`、artifact `mdjournal-ci-v0.90-main-ac317d1-run39801156079-attempt1` 已由 C 下载并判 FAIL：static/iOS/Catalyst成功，XCTest 打印 `TEST SUCCEEDED` 后在720秒进程上限触发 SIGALRM、退出142，结果包缺Info.plist/元数据，图片导出失败。没有可核对的逐用例结果，不宣称245项通过。后续最小修复仅将云端选定UDID启动等待限制为120秒并串行完整测试，保留720秒、身份回归及11图要求，等待新SHA自己的结果包。
+
+- 2026-10-23 当前线程串行核对修复提交 `7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）：五阶段success、JUnit 5/0/0/0、245/245 passed；三份xcresult完整，两个build的error/warning/analyzer均0，11图逐张复核。串行用例实际约14秒（render约7.3秒），Test operation约94.8秒；启动/编译等待不算输入性能。缓存 `/private/tmp/mdjournal-c-review-39806459795/`。独立Agent C曾核对起点与失败包，最终新包由当前线程接手，未冒充C通过。
 
 ### v0.89 / Mac 桌面窗口与工具栏（云端基线通过）
 

@@ -2,17 +2,23 @@ import SwiftUI
 
 struct StatisticsDashboardView: View {
     let entries: [JournalEntry]
+    let bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation]
     let showsCloseButton: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    init(entries: [JournalEntry], showsCloseButton: Bool = true) {
+    init(
+        entries: [JournalEntry],
+        bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation],
+        showsCloseButton: Bool = true
+    ) {
         self.entries = entries
+        self.bodyPresentations = bodyPresentations
         self.showsCloseButton = showsCloseButton
     }
 
     var body: some View {
-        let stats = JournalStatistics(entries: entries)
+        let stats = JournalStatistics(entries: entries, bodyPresentations: bodyPresentations)
 
         NavigationStack {
             GeometryReader { proxy in

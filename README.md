@@ -13,9 +13,12 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 - Markdown 支持三级小节、列表/任务/引用/代码等预览和工具栏插入，支持 UTF-16 选区、回车续写、Tab/Shift-Tab；预览以连续纸面、文字层级和细线组织内容，可选择文字。
 - 统计以完整宽度总览配合自适应网格展示；Accessibility 字号统一单列，指标与分布自然增高。Mac 统计仍为独立窗口。
 - Mac Catalyst 主窗口建议内容尺寸 1360×860pt（实际窗口尺寸与恢复由系统决定）、最小 1120×720pt，侧栏 260/300/360pt；工具栏显示当前筛选结果数量；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
+- v0.91 使用 Store 按ID维护的紧凑展示投影，列表/编辑器/概览/统计读取缓存；只有正文变化才重建该篇。展示摘要和小节预览最多160字符加省略号，原始Markdown与JSON不截断。
+- 应用图标由 `script/generate_app_icon.swift` 的原生矢量绘图生成，iOS与Mac共享墨绿笔记本视觉；生成的PNG已纳入工程。
+- CI 新增 universal Mac Catalyst Release 内部包：arm64+x86_64、可追溯build number、ad-hoc签名和ZIP完整性报告。包未Developer ID签名/公证，真实Mac启动和公开分发尚待完成。
 - 保存仍由 JournalStore 唯一管理，debounce 合并编辑写入、actor 串行 JSON 编码/原子写盘；离开活跃态 flush。预览仍为 150ms latest-wins 与按文档去重的 inline cache，不进入持久化。
 
-本轮用户授权 Agent X 主控与多 Agent 协作：A 写版本化提示词，B 唯一写入源码并在 main 提交推送，C 下载最新云端结果包逐图复核；每轮 C 通过后才继续下一轮。
+用户最新要求“不多开子智能体”：现已停止子智能体，后续方案、实现、main推送与云端结果包核对均由当前线程串行完成，明确不标记为独立Agent C验收。此前多Agent工作保留真实历史。
 
 低高度（可用高度 <400pt）使用紧凑标题、单行模式/Markdown 菜单并隐藏状态栏；辅助字号使用工具菜单，UITextView 字体跟随 SwiftUI Dynamic Type。此策略不改变正文、选区或 IME 同步。
 
@@ -56,9 +59,9 @@ Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_r
 
 ## 验证
 
-v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由 Agent C 下载核对：run `38344640193` attempt `1`，四阶段 success、234 项测试通过、六张渲染图及结果包完整性通过。v0.90 新增年月分组、画布空间与生产正文控件身份回归，等待本轮 SHA 的独立云端验收。
+v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由 Agent C 下载核对：run `38344640193` attempt `1`，四阶段 success、234 项测试通过、六张渲染图及结果包完整性通过。v0.90 最终修复 `7283b1e` / run `39806459795` attempt 1已由当前线程下载核对：245项测试、11张图、五阶段与588文件完整性通过。v0.91 新增5项有行为意义的测试与Mac包门槛，等待自己的最新SHA结果。
 
-CI 在四个主阶段后独立导出并核对 11 张生产视图 PNG，包含两个完整宽屏 ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号与统计。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志，JUnit 记录五个 workflow 摘要项；图片是云端 iOS SwiftUI 渲染，不代表真实 Mac 窗口、输入设备、IME 或 VoiceOver 交互。禁止在本机为此运行 App/模拟器/完整构建；人工以后要求本机 iOS 运行时，仅使用 UDID 以 `FAC4325D` 开头的现有唯一模拟器。
+CI 在四个主阶段后独立导出并核对 11 张生产视图 PNG，包含两个完整宽屏 ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号与统计。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志，v0.91 JUnit 记录六个 workflow 摘要项（新增Mac Release包）；图片是云端 iOS SwiftUI 渲染，不代表真实 Mac 窗口、输入设备、IME 或 VoiceOver 交互。禁止在本机为此运行 App/模拟器/完整构建；人工以后要求本机 iOS 运行时，仅使用 UDID 以 `FAC4325D` 开头的现有唯一模拟器。
 
 v0.90 首轮 run `39801156079` 的 iOS/Catalyst build 成功，但 XCTest 进程在输出成功字符串后被 720 秒总限时终止，结果包缺少元数据，图片导出失败，因此不标记通过。云端测试现先用 120 秒上限等待选定 UDID 启动，再串行执行全部用例，保留 720 秒测试进程限制及所有回归/图片要求；新 SHA 须重新验收。
 

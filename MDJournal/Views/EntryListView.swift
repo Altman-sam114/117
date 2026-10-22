@@ -28,6 +28,7 @@ struct JournalDeletionConfirmationState {
 struct EntryListView: View {
     let overviewSnapshot: JournalListOverviewSnapshot
     let snapshot: JournalEntryListSnapshot
+    let bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation]
     @Binding var selection: JournalEntry.ID?
     @Binding var searchText: String
     @Binding var selectedCategory: JournalEntry.Category?
@@ -38,6 +39,7 @@ struct EntryListView: View {
     @State private var deletionConfirmation = JournalDeletionConfirmationState()
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let timeline = JournalEntryTimelineSnapshot(
@@ -65,7 +67,10 @@ struct EntryListView: View {
                 ForEach(timeline.months) { month in
                     Section {
                         ForEach(month.entries) { entry in
-                            EntryRowView(entry: entry, isSelected: selection == entry.id)
+                            EntryRowView(
+                                entry: entry, bodyPresentation: presentation(for: entry.id),
+                                isSelected: selection == entry.id
+                            )
                                 .tag(entry.id)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -168,11 +173,18 @@ struct EntryListView: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
+            let menuLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 8))
+            menuLayout {
                 Label(selectedCategory?.rawValue ?? "全部日记", systemImage: selectedCategory?.systemImage ?? "tray.full")
-                Spacer(minLength: 4)
-                Text("\(listSnapshot.filteredEntries.count)").monospacedDigit()
-                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 4) }
+                HStack(spacing: 8) {
+                    Text("\(listSnapshot.filteredEntries.count)").monospacedDigit()
+                    if dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 4) }
+                    Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                }
             }
             .font(.subheadline.weight(.medium))
             .padding(.horizontal, 12)
@@ -218,6 +230,13 @@ struct EntryListView: View {
     private func clearFilters() {
         searchText = ""
         selectedCategory = nil
+    }
+
+    private func presentation(for id: JournalEntry.ID) -> JournalEntryBodyPresentation {
+        guard let presentation = bodyPresentations[id] else {
+            preconditionFailure("Missing body presentation for visible entry")
+        }
+        return presentation
     }
 
     private var deletionDialogTitle: String {

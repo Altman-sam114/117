@@ -2,6 +2,27 @@ import XCTest
 @testable import MDJournal
 
 final class JournalEntryTests: XCTestCase {
+    func testBodyPresentationBoundsUnicodeWithoutChangingMetrics() {
+        let longText = String(repeating: "👨‍👩‍👧‍👦e\u{301}中文 ", count: 80)
+        for body in ["", " \n\t", "### \n", "普通正文", "```\n### 围栏中的既有小节\n```", "### \(longText)\n\(longText)"] {
+            let summary = JournalEntryBodySummary(body: body)
+            let presentation = JournalEntryBodyPresentation(body: body)
+            XCTAssertEqual(presentation.wordCount, summary.wordCount)
+            XCTAssertEqual(presentation.hasVisibleContent, summary.metrics.hasVisibleContent)
+            XCTAssertEqual(presentation.sectionCount, summary.sectionCount)
+            let expected = String(summary.excerpt.prefix(160)) + (summary.excerpt.count > 160 ? "…" : "")
+            XCTAssertEqual(presentation.excerpt, expected)
+            XCTAssertLessThanOrEqual(presentation.excerpt.count, 161)
+            for (section, original) in zip(presentation.sections, summary.sections) {
+                XCTAssertEqual(section.id, original.order)
+                XCTAssertEqual(section.title, String(original.title.prefix(160)) + (original.title.count > 160 ? "…" : ""))
+                XCTAssertEqual(section.excerpt, String(original.excerpt.prefix(160)) + (original.excerpt.count > 160 ? "…" : ""))
+                XCTAssertLessThanOrEqual(section.excerpt.count, 161)
+            }
+            XCTAssertEqual(presentation.sectionCount > 0, JournalEntryOverviewMetrics(body: body).hasLevelThreeSection)
+        }
+    }
+
     func testDecodesLegacyEntryMissingUpdatedAtCategoryAndMood() throws {
         let json = """
         {

@@ -2,6 +2,40 @@ import XCTest
 @testable import MDJournal
 
 final class JournalStatisticsTests: XCTestCase {
+    func testCachedAggregatesMatchReferenceAcrossCalendarContexts() throws {
+        let formatter = ISO8601DateFormatter()
+        let date = try XCTUnwrap(formatter.date(from: "2026-03-01T00:30:00Z"))
+        let entries = [
+            JournalEntry(title: "月界", body: "### 今天\n中文 words 👨‍👩‍👧‍👦", createdAt: date, category: .daily),
+            JournalEntry(title: "之前", body: "普通正文\n第二行", createdAt: date.addingTimeInterval(-86400), category: .travel)
+        ]
+        let presentations = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, JournalEntryBodyPresentation(body: $0.body)) })
+        for zone in ["UTC", "America/Los_Angeles", "Asia/Taipei"] {
+            for firstWeekday in [1, 2] {
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
+                calendar.firstWeekday = firstWeekday
+                for offset: TimeInterval in [0, 7 * 86400] {
+                    let now = date.addingTimeInterval(offset)
+                    let reference = JournalStatistics(entries: entries, calendar: calendar, now: now)
+                    let cached = JournalStatistics(entries: entries, bodyPresentations: presentations, calendar: calendar, now: now)
+                    XCTAssertEqual([cached.totalWords, cached.totalSections, cached.entriesWithSections, cached.entriesThisWeek,
+                                    cached.wordsThisWeek, cached.recentStreak, cached.longestStreak],
+                                   [reference.totalWords, reference.totalSections, reference.entriesWithSections, reference.entriesThisWeek,
+                                    reference.wordsThisWeek, reference.recentStreak, reference.longestStreak])
+                    XCTAssertEqual(cached.categoryBreakdown.map(\.wordCount), reference.categoryBreakdown.map(\.wordCount))
+                    XCTAssertEqual(cached.lastSevenDays.map(\.wordCount), reference.lastSevenDays.map(\.wordCount))
+                    let overview = JournalListOverviewSnapshot(entries: entries, calendar: calendar, now: now)
+                    let cachedOverview = JournalListOverviewSnapshot(entries: entries, bodyPresentations: presentations, calendar: calendar, now: now)
+                    XCTAssertEqual(cachedOverview.totalWords, overview.totalWords)
+                    XCTAssertEqual(cachedOverview.entriesWithSections, overview.entriesWithSections)
+                    XCTAssertEqual(cachedOverview.wordsThisWeek, overview.wordsThisWeek)
+                    XCTAssertEqual(cachedOverview.recentStreak, overview.recentStreak)
+                }
+            }
+        }
+    }
+
     func testSevenDayBarChartLayoutUsesScrollingOnlyForAccessibilitySizes() {
         XCTAssertFalse(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .large))
         XCTAssertFalse(SevenDayBarChartLayoutContract.usesHorizontalScrolling(for: .xxxLarge))

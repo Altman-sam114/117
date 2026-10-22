@@ -1,5 +1,16 @@
 # 测试规范
 
+## v0.91 当前验证要求
+
+用户最新要求不多开子智能体，当前线程串行实现与验收，不标记独立C。v0.90修复7283b1e/run39806459795/attempt1已完整核对：245项测试、11图、588个未加密ZIP文件与digest/CRC/逐文件SHA-256通过；新版本不能复用旧artifact。
+
+本轮新增5项：投影Unicode与160字符界限；真实Store仅变更正文派生、元数据/筛选/缓存聚合零额外派生；创建删除/无效mutation与JSON一致；starter只派生一次；三个时区、两种周起始及跨周now的缓存聚合等价。预期250项，实际以最新xcresult为准。保留全部245项及11图矩阵。
+
+CI在原四主阶段和图片导出后增加Mac Release/包装门槛，JUnit为6项摘要。`script/package_macos.sh`只在云端构建，不启动App；显式universal架构、Release优化与run number/attempt版本。`verify_macos_package.py`核实际Info/图标/Mach-O/动态库路径/ad-hoc签名，以及ditto ZIP独立解压后的文件哈希、符号链接和权限；明示未公证。验收同时核`macReleaseOutcome`、`MDJournalMacRelease.xcresult`、`mac-release.log`、manifest/files报告与ZIP SHA-256。
+
+本机仅Swift parse、plist、JSON、YAML和全部嵌入脚本语法、diff；图标生成是原生资源创作，不运行应用/测试/模拟器。实际build/XCTest/Mac包以新SHA云端artifact为准。
+
+
 本文指导 Agent A、Agent B、Agent C 和未来 Agent X 主控循环选择测试层级、记录命令和判断当前基线。
 
 ## v0.90 当前验收
@@ -9,7 +20,7 @@
 - `EntryRowLayoutContract` 改为普通标题最多两行、辅助字号完整标题及垂直元数据；行不再展开小节名。画布测试检查纸面与外围不越界，窄屏、低高度和辅助字号保留全可用区域。保留已有标题高度切换测试，新增生产正文 UITextView 在 980→1240→980→1440→980pt 时的身份、UTF-16 选区和 first responder 回归。
 - 真实生产视图渲染使用测试内固定八篇、多月、跨年同月、长中文标题与 emoji fixture；ContentView 从测试临时 JSON 加载，绝不访问用户 Documents。11 张矩阵覆盖完整 ContentView 1360×860 / 1120×720（iOS regular width）、320×900 资料库及滚动历史、1440×900 双栏、390×720 浅/深色、844×320 低高度、390×720 Accessibility3 编辑器、320×900 Accessibility3 资料库和 1100×900 统计。
 - XCTest 后 runner 使用 `xcresulttool export attachments` 导出本轮普通 PNG，保留原生 manifest 并生成 `interface-review/index.json`；核对 11 个名称齐全、PNG 非空及像素尺寸，导出失败使 workflow 失败。manifest 独立记录 `interfaceReviewExportOutcome` 与索引/日志路径；JUnit 为五个 workflow 摘要项，不能当作 XCTest 总数。
-- 本机仅 diff、Swift parse、project plist、workflow YAML 与内嵌脚本语法检查，不运行 build/XCTest/xcodebuild/simctl/App/UI/性能。四个主阶段、图片导出和新增测试实际执行结果待最新 SHA 云端 artifact；本轮 A/B/C/X 分工，C 逐图核对后才能放行下一轮。真实 Mac 窗口恢复、IME、VoiceOver、鼠标/触控板及性能仍需专项验收。
+- 本机仅 diff、Swift parse、project plist、workflow YAML 与内嵌脚本语法检查，不运行 build/XCTest/xcodebuild/simctl/App/UI/性能。四个主阶段、图片导出和新增测试实际执行结果待最新 SHA 云端 artifact；该轮源码曾由A/B协作，最终artifact按用户新要求由当前线程接手核对；后续串行。真实 Mac 窗口恢复、IME、VoiceOver、鼠标/触控板及性能仍需专项验收。
 - 首轮 `ac317d1` / run `39801156079` attempt `1` 明确失败：前3个主阶段 success，XCTest 在 `TEST SUCCEEDED` 后因720秒 alarm 退出142，xcresult 仅有 Data、缺少元数据，export reader失败。无逐用例结果，不能从成功字符串认定245项通过，也不能归因为某个Host用例。修复仅改云端执行策略：选定UDID先 `simctl bootstatus -b`（120秒有界），`-parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1` 串行完整用例，保留720秒限制、全部身份断言和11图；启动诊断写入 `xctest.log`，策略与超时写manifest。最新SHA需重新下载完整结果包。
 
 ## v0.89 历史基线

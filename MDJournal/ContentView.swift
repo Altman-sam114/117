@@ -19,6 +19,7 @@ struct ContentView: View {
             EntryListView(
                 overviewSnapshot: overviewSnapshot,
                 snapshot: listSnapshot,
+                bodyPresentations: store.bodyPresentations,
                 selection: $selectedEntryID,
                 searchText: $searchText,
                 selectedCategory: $selectedCategory,
@@ -34,8 +35,9 @@ struct ContentView: View {
             )
             #endif
         } detail: {
-            if let entryBinding = selectedEntryBinding(using: listSnapshot) {
-                EntryEditorView(entry: entryBinding)
+            if let entryBinding = selectedEntryBinding(using: listSnapshot),
+               let presentation = store.bodyPresentations[entryBinding.wrappedValue.id] {
+                EntryEditorView(entry: entryBinding, bodyPresentation: presentation)
             } else {
                 EmptyStateView(onCreate: createEntry)
             }
@@ -70,7 +72,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingStatistics) {
-            StatisticsDashboardView(entries: store.entries)
+            StatisticsDashboardView(entries: store.entries, bodyPresentations: store.bodyPresentations)
         }
         .focusedSceneValue(\.createJournalEntryAction, createEntry)
         .focusedSceneValue(\.showJournalStatisticsAction, showStatistics)
@@ -96,7 +98,7 @@ struct ContentView: View {
     }
 
     private var overviewSnapshot: JournalListOverviewSnapshot {
-        JournalListOverviewSnapshot(entries: store.entries)
+        JournalListOverviewSnapshot(entries: store.entries, bodyPresentations: store.bodyPresentations)
     }
 
     private func journalEntryNavigationActions(

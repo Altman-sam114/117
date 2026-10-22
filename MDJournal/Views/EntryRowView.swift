@@ -21,6 +21,7 @@ internal struct EntryRowLayoutContract: Equatable {
 
 struct EntryRowView: View {
     let entry: JournalEntry
+    let bodyPresentation: JournalEntryBodyPresentation
     var isSelected = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.calendar) private var calendar
@@ -28,7 +29,7 @@ struct EntryRowView: View {
 
     var body: some View {
         let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
-        let summary = entry.bodySummary
+        let summary = bodyPresentation
 
         VStack(alignment: .leading, spacing: 6) {
             metadata(layout: layout)
@@ -88,7 +89,7 @@ struct EntryRowView: View {
         }
     }
 
-    private func footer(_ summary: JournalEntryBodySummary, layout: EntryRowLayoutContract) -> some View {
+    private func footer(_ summary: JournalEntryBodyPresentation, layout: EntryRowLayoutContract) -> some View {
         let axis = layout.footerAxis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 4))

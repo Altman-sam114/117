@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.90
+      VERSION: v0.91
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
@@ -262,6 +262,15 @@ jobs:
           PY
           } 2>&1 | tee "$RESULT_DIR/interface-review-export.log"
 
+      - name: Build and verify universal Mac Release package
+        id: mac_release
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash script/package_macos.sh "$GITHUB_WORKSPACE/$RESULT_DIR" 2>&1 | tee "$RESULT_DIR/mac-release.log"
+
       - name: Write manifest and summaries
         if: always()
         shell: bash
@@ -271,6 +280,7 @@ jobs:
           MACCATALYST_BUILD_OUTCOME: ${{ steps.maccatalyst_build.outcome }}
           TEST_OUTCOME: ${{ steps.xcode_test.outcome }}
           INTERFACE_REVIEW_OUTCOME: ${{ steps.interface_review.outcome }}
+          MAC_RELEASE_OUTCOME: ${{ steps.mac_release.outcome }}
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         run: |
@@ -301,6 +311,9 @@ jobs:
           interface_review_outcome = os.environ["INTERFACE_REVIEW_OUTCOME"]
           if interface_review_outcome != "success":
               failures.append(("interface-review", interface_review_outcome, "See ci-results/interface-review-export.log."))
+          mac_release_outcome = os.environ["MAC_RELEASE_OUTCOME"]
+          if mac_release_outcome != "success":
+              failures.append(("mac-release", mac_release_outcome, "See ci-results/mac-release.log."))
 
           test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or os.environ["TEST_DESTINATION_FALLBACK"]
 
@@ -338,7 +351,11 @@ jobs:
               "interfaceReviewDirectoryPath": "ci-results/interface-review",
               "interfaceReviewIndexPath": "ci-results/interface-review/index.json",
               "interfaceReviewExportLogPath": "ci-results/interface-review-export.log",
-              "projectSpecificReports": ["ci-results/interface-review/index.json"],
+              "macReleaseOutcome": mac_release_outcome,
+              "macReleaseManifestPath": "ci-results/mac-release-manifest.json",
+              "macReleaseResultBundlePath": "ci-results/MDJournalMacRelease.xcresult",
+              "macReleaseLogPath": "ci-results/mac-release.log",
+              "projectSpecificReports": ["ci-results/interface-review/index.json", "ci-results/mac-release-manifest.json"],
           }
           (result_dir / "ci-artifact-manifest.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -351,6 +368,7 @@ jobs:
               ("maccatalyst-build", maccatalyst_build_outcome, "Mac Catalyst Debug build failed."),
               ("xctest", test_outcome, "XCTest failed."),
               ("interface-review", interface_review_outcome, "Interface review image export or matrix verification failed."),
+              ("mac-release", mac_release_outcome, "Universal Mac Release build or package verification failed."),
           ]
           testsuite = ET.Element(
               "testsuite",
@@ -382,6 +400,8 @@ jobs:
           lines.append("")
           lines.append(f"Interface review export outcome: {interface_review_outcome}.")
           lines.append("")
+          lines.append(f"Mac Release package outcome: {mac_release_outcome}.")
+          lines.append("")
           lines.append(f"Commit: {manifest['commitSha']}")
           lines.append(f"Run: {manifest['runId']} attempt {manifest['runAttempt']}")
           (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -396,6 +416,6 @@ jobs:
           if-no-files-found: error
 
       - name: Fail workflow on failed checks
-        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success' || steps.interface_review.outcome != 'success')
+        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success' || steps.interface_review.outcome != 'success' || steps.mac_release.outcome != 'success')
         shell: bash
         run: exit 1

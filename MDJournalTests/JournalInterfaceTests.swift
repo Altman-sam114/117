@@ -76,7 +76,7 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     func testTitleInputIdentitySurvivesCompactHeightTransition() async throws {
         let entry = JournalEntry.starterEntry()
-        let controller = UIHostingController(rootView: EntryEditorView(entry: .constant(entry)))
+        let controller = UIHostingController(rootView: EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)))
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 844, height: 720))
         window.rootViewController = controller
         window.isHidden = false
@@ -110,7 +110,7 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     func testBodyInputAndUTF16SelectionSurviveSingleAndSplitWidthTransitions() async throws {
         let entry = reviewEntries()[0]
-        let controller = UIHostingController(rootView: EntryEditorView(entry: .constant(entry)))
+        let controller = UIHostingController(rootView: EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)))
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 980, height: 900))
         window.rootViewController = controller
         window.makeKeyAndVisible()
@@ -217,30 +217,31 @@ final class JournalInterfaceTests: XCTestCase {
             name: "content-1120x720-light-regular", size: CGSize(width: 1120, height: 720)
         )
         try await render(
-            EntryEditorView(entry: .constant(entry)),
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-1440x900-light-split", size: CGSize(width: 1440, height: 900)
         )
         try await render(
-            EntryEditorView(entry: .constant(entry)),
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-390x720-light", size: CGSize(width: 390, height: 720)
         )
         try await render(
-            EntryEditorView(entry: .constant(entry)),
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-390x720-dark", size: CGSize(width: 390, height: 720), dark: true
         )
         try await render(
-            EntryEditorView(entry: .constant(entry)),
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-844x320-light-compact", size: CGSize(width: 844, height: 320)
         )
         try await render(
-            EntryEditorView(entry: .constant(entry)),
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-390x720-light-accessibility3", size: CGSize(width: 390, height: 720), typeSize: .accessibility3
         )
         let library = EntryListView(
             overviewSnapshot: JournalListOverviewSnapshot(
-                entries: entries, calendar: reviewCalendar, now: reviewDate("2026-10-22T12:00:00Z")
+                entries: entries, bodyPresentations: store.bodyPresentations, calendar: reviewCalendar, now: reviewDate("2026-10-22T12:00:00Z")
             ),
             snapshot: JournalEntryListSnapshot(entries: entries, searchText: "", selectedCategory: nil),
+            bodyPresentations: store.bodyPresentations,
             selection: .constant(entry.id), searchText: .constant(""), selectedCategory: .constant(nil),
             onCreate: {}, onDelete: { _ in }, onShowStatistics: {}
         )
@@ -254,7 +255,7 @@ final class JournalInterfaceTests: XCTestCase {
             typeSize: .accessibility3
         )
         try await render(
-            StatisticsDashboardView(entries: entries),
+            StatisticsDashboardView(entries: entries, bodyPresentations: store.bodyPresentations),
             name: "statistics-1100x900-light", size: CGSize(width: 1100, height: 900)
         )
     }

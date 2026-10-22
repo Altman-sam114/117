@@ -52,6 +52,30 @@ struct JournalStatistics {
     }
 
     init(entries: [JournalEntry], calendar: Calendar = .current, now: Date = Date()) {
+        self.init(entries: entries, calendar: calendar, now: now) { entry in
+            let metrics = entry.bodyMetrics
+            return (metrics.wordCount, metrics.sectionCount)
+        }
+    }
+
+    init(
+        entries: [JournalEntry],
+        bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation],
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) {
+        self.init(entries: entries, calendar: calendar, now: now) { entry in
+            guard let presentation = bodyPresentations[entry.id] else {
+                preconditionFailure("Missing body presentation for current entry")
+            }
+            return (presentation.wordCount, presentation.sectionCount)
+        }
+    }
+
+    private init(
+        entries: [JournalEntry], calendar: Calendar, now: Date,
+        metrics: (JournalEntry) -> (wordCount: Int, sectionCount: Int)
+    ) {
         let sortedEntries = Self.entriesSortedByCreatedAtDescending(entries)
         self.entries = sortedEntries
 
@@ -73,13 +97,13 @@ struct JournalStatistics {
         var moodTotals: [JournalEntry.Mood: Int] = [:]
 
         for entry in sortedEntries {
-            let bodyMetrics = entry.bodyMetrics
+            let bodyMetrics = metrics(entry)
             let day = calendar.startOfDay(for: entry.createdAt)
 
             totalWordsValue += bodyMetrics.wordCount
             totalSectionsValue += bodyMetrics.sectionCount
 
-            if !bodyMetrics.sections.isEmpty {
+            if bodyMetrics.sectionCount > 0 {
                 entriesWithSectionsValue += 1
             }
 

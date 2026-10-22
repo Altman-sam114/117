@@ -1,5 +1,22 @@
 # 项目流程图
 
+## v0.91 展示缓存与 Mac 包
+
+```mermaid
+flowchart LR
+  Mutation["Store load/create/update/delete"] --> Cache["按ID紧凑正文投影：只重建变更篇"]
+  Cache --> Row["列表行 / 编辑器 / placeholder / 小节卡片"]
+  Cache --> Aggregate["概览/统计：只聚合缓存标量与日期"]
+  Mutation --> JSON["原有debounce/actor/原子JSON"]
+  Main["main push"] --> Checks["iOS/Catalyst Debug + 串行XCTest + 11图"]
+  Checks --> Release["Release arm64+x86_64 + 原生图标"]
+  Release --> Package["ad-hoc签名 / ditto ZIP / fresh extract核对"]
+  Package --> Review["当前线程串行下载最新SHA结果，不标独立C"]
+```
+
+用户最新要求不多开子智能体，既有子智能体已停止。旧A/B/C流程仅在人工再次授权时适用，本轮当前线程完成方案、实现和云端核对。v0.90最终7283b1e/run39806459795/1已核对245项与11图；v0.91须使用自己的结果包。
+
+
 本文用 Mermaid 图描述 MD Journal 当前真实核心数据流、执行流和多 Agent 云端迭代流。每张图前都有通俗读图说明，方便人工快速判断系统怎么运转。
 
 ## v0.90 界面组织
@@ -12,7 +29,7 @@ flowchart LR
   Workspace --> Preview["连续阅读纸面 / 原有 latest-wins 快照"]
   Theme --> Stats["完整宽度总览 / 响应式网格 / 辅助字号单列"]
   Workspace --> Binding["既有 binding → JournalStore → 本地 JSON"]
-  User["本轮用户：授权 Agent X 多 Agent 云端迭代"] --> Agents["A 提示词 → B main 实现 push → C 下载逐图复核 → X 判断"]
+  User["本轮用户：不多开子智能体"] --> Agents["当前线程串行方案/实现/push → 下载最新结果核对"]
 ```
 
 ## 核心逻辑图
