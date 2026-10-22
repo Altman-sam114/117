@@ -12,11 +12,12 @@ permissions:
 jobs:
   ci-results:
     name: Build and Package Results
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
       VERSION: v0.91
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
@@ -67,7 +68,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+          xcrun xcodebuild \
             -project MDJournal.xcodeproj \
             -scheme "$SCHEME" \
             -configuration Debug \
@@ -83,7 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+          xcrun xcodebuild \
             -project MDJournal.xcodeproj \
             -scheme "$SCHEME" \
             -configuration Debug \
@@ -108,7 +109,7 @@ jobs:
           try:
               result = subprocess.run(
                   [
-                      "/Applications/Xcode.app/Contents/Developer/usr/bin/simctl",
+                      "xcrun", "simctl",
                       "list",
                       "devices",
                       "available",
@@ -165,13 +166,21 @@ jobs:
               exit 1
             fi
             device_id="${destination##*id=}"
+            echo "## Build XCTest products separately (600 second limit)"
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 600 \
+              xcrun xcodebuild \
+              -project MDJournal.xcodeproj -scheme "$SCHEME" -configuration Debug \
+              -destination "$destination" -destination-timeout 60 \
+              -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+              -enableCodeCoverage NO CODE_SIGNING_ALLOWED=NO SWIFT_OPTIMIZATION_LEVEL=-Onone \
+              build-for-testing
             echo "## Prepare selected CI simulator (120 second limit)"
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 120 \
               xcrun simctl bootstatus "$device_id" -b
             echo
             # Bound simulator boot/test so a hung destination cannot block the result package forever.
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
-              /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+              xcrun xcodebuild \
               -project MDJournal.xcodeproj \
               -scheme "$SCHEME" \
               -configuration Debug \
@@ -179,10 +188,11 @@ jobs:
               -destination-timeout 60 \
               -parallel-testing-enabled NO \
               -maximum-concurrent-test-simulator-destinations 1 \
+              -enableCodeCoverage NO \
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
-              test
+              test-without-building
           } 2>&1 | tee "$RESULT_DIR/xctest.log"
 
       - name: Export and verify interface review images
@@ -334,7 +344,10 @@ jobs:
               "testDestination": test_destination,
               "testExecutionPolicy": "serial-on-resolved-simulator",
               "testSimulatorBootTimeoutSeconds": 120,
+              "testBuildTimeoutSeconds": 600,
               "testProcessTimeoutSeconds": 720,
+              "ciRunner": "macos-15-intel",
+              "developerDirectory": os.environ["DEVELOPER_DIR"],
               "resultBundlePath": "ci-results/MDJournal.xcresult",
               "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
               "testResultBundlePath": "ci-results/MDJournalTests.xcresult",

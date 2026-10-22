@@ -14,11 +14,12 @@ build_args=(
   -destination 'generic/platform=macOS,variant=Mac Catalyst'
   -derivedDataPath "$derived_dir"
   CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO 'ARCHS=arm64 x86_64'
+  SWIFT_OPTIMIZATION_LEVEL=-O -enableCodeCoverage NO
   "CURRENT_PROJECT_VERSION=$build_number"
 )
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild "${build_args[@]}" \
+xcrun xcodebuild "${build_args[@]}" \
   -showBuildSettings -json > "$result_dir/mac-release-build-settings.json"
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild "${build_args[@]}" \
+xcrun xcodebuild "${build_args[@]}" \
   -resultBundlePath "$result_dir/MDJournalMacRelease.xcresult" build
 
 # Ad-hoc signing uses no certificate or private key and is not Developer ID distribution.

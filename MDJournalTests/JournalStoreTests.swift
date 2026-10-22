@@ -30,7 +30,7 @@ final class JournalStoreTests: XCTestCase {
         XCTAssertEqual(calls[entries[1].id], 1)
         XCTAssertEqual(fixture.store.bodyPresentations[changed.id], JournalEntryBodyPresentation(body: changed.body))
         _ = await fixture.store.flushPendingSave()
-        XCTAssertEqual(try decodeEntries(from: fixture.storageURL), fixture.store.entries)
+        XCTAssertEqual(try Data(contentsOf: fixture.storageURL), try referenceJSONData(for: fixture.store.entries))
     }
 
     func testBodyPresentationCacheTracksCreateDeleteAndInvalidMutations() async throws {
@@ -50,7 +50,7 @@ final class JournalStoreTests: XCTestCase {
         XCTAssertEqual(Set(fixture.store.bodyPresentations.keys), Set(fixture.store.entries.map(\.id)))
         XCTAssertEqual(calls.values.reduce(0, +), 2)
         _ = await fixture.store.flushPendingSave()
-        XCTAssertEqual(try decodeEntries(from: fixture.storageURL), fixture.store.entries)
+        XCTAssertEqual(try Data(contentsOf: fixture.storageURL), try referenceJSONData(for: fixture.store.entries))
     }
 
     func testStarterBodyPresentationIsDerivedOnce() async throws {

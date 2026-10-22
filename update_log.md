@@ -36,6 +36,10 @@
 - 本机仅资源创作、Swift parse、plist/JSON/YAML/脚本语法和diff检查；完整构建、XCTest及包验证交云端。新SHA/run/artifact不预填通过；真实Mac启动、IME、VoiceOver、帧率和正式签名仍未验收。
 - 实际轻量检查退出0：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library`（全部应用Swift）、同环境测试Swift parse、`plutil -lint MDJournal.xcodeproj/project.pbxproj`、workflow Ruby YAML解析、11个run块`bash -n`、3个Python heredoc与包装脚本`ast.parse`、全部asset JSON/PNG尺寸/不透明检查，以及`git diff --check`。图标生成脚本已实际运行并目视检查；未本机build/XCTest/App/模拟器。
 
+
+- 首轮 v0.91 `c5ff108` / run `39816940970` attempt 1为FAIL：应用两个Debug与universal Release均编译成功，250项执行中2项新增持久化断言误将ISO-8601秒精度解码与内存亚秒Date直接比较；测试会话收尾又遭720秒进程上限，结果元数据不全。Mac包装检查因Xcode默认不输出SWIFT_OPTIMIZATION_LEVEL字段报KeyError。当前线程已下载失败包，实际ZIP的arm64+x86_64、Catalyst平台6、AppIcon.icns、macOS13.0、193.1版本和ad-hoc签名均有读包证据，但不能将失败run放行。
+- 追加修复保留250项与11图：持久化断言改核对生产ISO-8601编码后的真实JSON字节；Release显式传入-O并关闭coverage。根据GitHub官方runner-images清单切macos-15-intel及已安装Xcode26.2（避免arm64容量提示与默认16.4漂移），全部构建/模拟器工具统一经xcrun选择；build-for-testing单独有界600秒，再启动设备120秒和test-without-building720秒，避免编译挤占测试与结果包收尾预算。新提交仍需自己的完整云端结果。
+
 ### v0.90 / 资料库时间轴与写作画布（云端通过）
 
 日期：2026-10-22。
