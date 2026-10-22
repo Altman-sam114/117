@@ -14,7 +14,8 @@ build_args=(
   -destination 'generic/platform=macOS,variant=Mac Catalyst'
   -derivedDataPath "$derived_dir"
   CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO 'ARCHS=arm64 x86_64'
-  SWIFT_OPTIMIZATION_LEVEL=-O -enableCodeCoverage NO
+  SWIFT_OPTIMIZATION_LEVEL=-O CLANG_ENABLE_CODE_COVERAGE=NO
+  GCC_GENERATE_TEST_COVERAGE_FILES=NO GCC_INSTRUMENT_PROGRAM_FLOW_ARCS=NO
   "CURRENT_PROJECT_VERSION=$build_number"
 )
 xcrun xcodebuild "${build_args[@]}" \

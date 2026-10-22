@@ -403,3 +403,5 @@ flowchart LR
 云端 XCTest 先对 resolver 选定 UDID 执行120秒有界 bootstatus，再串行完整测试（禁用并行clone、单destination），保留720秒进程限制。只有退出0、完整可读结果包与11图导出同时成立才可进入 C 验收；成功字符串不能替代结果元数据。
 
 云端工具链固定为Intel runner/Xcode26.2：编译测试产物 → 启动选定设备 → 串行test-without-building → 导出11图 → Release包装核对；三个阶段分别有界，不削减用例。
+
+设备选择优先Booted云端iPhone，冷启动迁移有界240秒；Release不使用testing专用命令参数。

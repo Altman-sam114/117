@@ -128,14 +128,15 @@ jobs:
                       name = device.get("name", "")
                       udid = device.get("udid")
                       if device.get("isAvailable") and udid and "iPhone" in name:
-                          candidates.append((runtime, name, udid))
-              # Prefer iPhone 16, then any iPhone, newest runtime last listed last -> reverse
+                          candidates.append((runtime, name, udid, device.get("state")))
+              # Reuse an already booted cloud device before paying for a cold data migration.
+              booted = [c for c in candidates if c[3] == "Booted"]
               preferred = [c for c in candidates if "iPhone 16" in c[1]]
-              ordered = preferred or candidates
+              ordered = booted or preferred or candidates
               if ordered:
                   # sort by runtime string descending so later iOS runtimes win
                   ordered.sort(key=lambda item: item[0], reverse=True)
-                  runtime, name, udid = ordered[0]
+                  runtime, name, udid, state = ordered[0]
                   print(f"platform=iOS Simulator,id={udid}")
                   raise SystemExit
           except Exception:
@@ -174,8 +175,8 @@ jobs:
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -enableCodeCoverage NO CODE_SIGNING_ALLOWED=NO SWIFT_OPTIMIZATION_LEVEL=-Onone \
               build-for-testing
-            echo "## Prepare selected CI simulator (120 second limit)"
-            /usr/bin/perl -e 'alarm shift; exec @ARGV' 120 \
+            echo "## Prepare selected CI simulator (240 second limit)"
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
               xcrun simctl bootstatus "$device_id" -b
             echo
             # Bound simulator boot/test so a hung destination cannot block the result package forever.
@@ -343,7 +344,7 @@ jobs:
               "macCatalystBuildDestination": os.environ["MACCATALYST_BUILD_DESTINATION"],
               "testDestination": test_destination,
               "testExecutionPolicy": "serial-on-resolved-simulator",
-              "testSimulatorBootTimeoutSeconds": 120,
+              "testSimulatorBootTimeoutSeconds": 240,
               "testBuildTimeoutSeconds": 600,
               "testProcessTimeoutSeconds": 720,
               "ciRunner": "macos-15-intel",

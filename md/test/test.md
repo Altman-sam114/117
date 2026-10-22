@@ -536,3 +536,5 @@ du -sh /private/tmp/<project>-review-<run_id>/
 `testTitleInputIdentitySurvivesCompactHeightTransition` 在云端 UIHostingController 内按 720→320→720pt 调整高度，断言同一个标题 UIKit 输入控件保留；不等价于真实键盘弹出、first responder、IME 或触控测试。详情按钮最小交互区为 44×44pt。
 
 云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
+
+最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。

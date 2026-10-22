@@ -554,3 +554,5 @@ Mac Catalyst 根视图通过 frame 的 idealWidth/idealHeight 提供 1360×860pt
 CI保留Debug iOS/Catalyst、单设备串行XCTest和11图导出后，通过package_macos.sh独立构建Release universal app。无私钥ad-hoc签名后以ditto ZIP包装，verify_macos_package.py检查实际架构、Info/图标/优化设置、权限与签名，并在runner临时目录解压复核。仅上传必要ZIP、日志、xcresult与manifest/files报告，不上传第二份App或DerivedData。任何Release/包装失败进入总failure summary和JUnit第六项；当前线程只核最新SHA/run/attempt。此链路不包含公开分发、公证或真实Mac启动。
 
 云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
+
+最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。

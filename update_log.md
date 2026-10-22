@@ -40,6 +40,9 @@
 - 首轮 v0.91 `c5ff108` / run `39816940970` attempt 1为FAIL：应用两个Debug与universal Release均编译成功，250项执行中2项新增持久化断言误将ISO-8601秒精度解码与内存亚秒Date直接比较；测试会话收尾又遭720秒进程上限，结果元数据不全。Mac包装检查因Xcode默认不输出SWIFT_OPTIMIZATION_LEVEL字段报KeyError。当前线程已下载失败包，实际ZIP的arm64+x86_64、Catalyst平台6、AppIcon.icns、macOS13.0、193.1版本和ad-hoc签名均有读包证据，但不能将失败run放行。
 - 追加修复保留250项与11图：持久化断言改核对生产ISO-8601编码后的真实JSON字节；Release显式传入-O并关闭coverage。根据GitHub官方runner-images清单切macos-15-intel及已安装Xcode26.2（避免arm64容量提示与默认16.4漂移），全部构建/模拟器工具统一经xcrun选择；build-for-testing单独有界600秒，再启动设备120秒和test-without-building720秒，避免编译挤占测试与结果包收尾预算。新提交仍需自己的完整云端结果。
 
+
+- 第二轮修复 `541db73` / run `39823883450` attempt 1为FAIL：iOS/Catalyst与build-for-testing成功，测试未启动，iOS26.2冷启动停在LaunchServices数据迁移并超120秒；Release因-enableCodeCoverage仅支持testing被拒绝。与上一轮的Date断言/缺优化字段不是同因。追加移除Release测试专用flag、改用coverage构建设置，优先复用已Booted的云端iPhone，迁移上限依据日志改240秒，保留720秒执行限时和250用例/11图。若再次同因失败停止重试，不无限循环。
+
 ### v0.90 / 资料库时间轴与写作画布（云端通过）
 
 日期：2026-10-22。

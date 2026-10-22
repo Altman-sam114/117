@@ -244,3 +244,5 @@ v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesR
 - 2026-06-27：补充 `agent.md` 作为后续 Codex 系统提示词和项目维护规范；README 同步记录横屏、响应式布局、验证命令和后续维护要求。已验证 `plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过，`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过；本次仅改文档，未重跑 Xcode 构建。
 
 云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
+
+最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。
