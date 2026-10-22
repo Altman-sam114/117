@@ -270,6 +270,7 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 11. v0.85 实现与 docs-close 均已完成：实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的 run `32645093679`、attempt `1` 对应 artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`、size `456026` bytes、digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`），Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。docs-close HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，对应 run `32646077288`、attempt `1` 的 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`），Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。
 
 12. v0.90 保留四个主阶段，另独立导出并验证11张生产视图 PNG；附件原生 manifest 与 index.json 进入结果包，manifest 记录 interfaceReviewExportOutcome 与索引/日志路径，导出失败进入 failure summary 与 workflow 失败条件。JUnit 记录五个 workflow 摘要项，XCTest 数量独立核对。v0.89 起点 run 38344640193 attempt 1 的234项结果只证明起点。
+13. XCTest 云端链路先有界120秒等待 resolver 选定UDID启动，随后禁用并行测试/clone、只允许一个并发模拟器destination，保留720秒进程上限；全部用例与图片要求不变。启动输出与测试输出同入 `xctest.log`，成功必须同时满足进程退出0、可读完整 xcresult 和本轮图片导出，不按 `TEST SUCCEEDED` 字符串独立放行。
 
 ### 3.6 Agent C 结果包验收
 

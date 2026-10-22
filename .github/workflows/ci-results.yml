@@ -159,6 +159,16 @@ jobs:
             echo "## XCTest destination"
             echo "$destination"
             echo
+            # Boot the selected cloud device once; serial tests avoid clone startup contention.
+            if [[ "$destination" != "platform=iOS Simulator,id="* ]]; then
+              echo "A resolved simulator UDID is required for bounded CI preparation."
+              exit 1
+            fi
+            device_id="${destination##*id=}"
+            echo "## Prepare selected CI simulator (120 second limit)"
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 120 \
+              xcrun simctl bootstatus "$device_id" -b
+            echo
             # Bound simulator boot/test so a hung destination cannot block the result package forever.
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
               /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
@@ -167,6 +177,8 @@ jobs:
               -configuration Debug \
               -destination "$destination" \
               -destination-timeout 60 \
+              -parallel-testing-enabled NO \
+              -maximum-concurrent-test-simulator-destinations 1 \
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
@@ -307,6 +319,9 @@ jobs:
               "buildDestination": os.environ["BUILD_DESTINATION"],
               "macCatalystBuildDestination": os.environ["MACCATALYST_BUILD_DESTINATION"],
               "testDestination": test_destination,
+              "testExecutionPolicy": "serial-on-resolved-simulator",
+              "testSimulatorBootTimeoutSeconds": 120,
+              "testProcessTimeoutSeconds": 720,
               "resultBundlePath": "ci-results/MDJournal.xcresult",
               "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
               "testResultBundlePath": "ci-results/MDJournalTests.xcresult",

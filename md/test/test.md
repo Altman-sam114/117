@@ -10,6 +10,7 @@
 - 真实生产视图渲染使用测试内固定八篇、多月、跨年同月、长中文标题与 emoji fixture；ContentView 从测试临时 JSON 加载，绝不访问用户 Documents。11 张矩阵覆盖完整 ContentView 1360×860 / 1120×720（iOS regular width）、320×900 资料库及滚动历史、1440×900 双栏、390×720 浅/深色、844×320 低高度、390×720 Accessibility3 编辑器、320×900 Accessibility3 资料库和 1100×900 统计。
 - XCTest 后 runner 使用 `xcresulttool export attachments` 导出本轮普通 PNG，保留原生 manifest 并生成 `interface-review/index.json`；核对 11 个名称齐全、PNG 非空及像素尺寸，导出失败使 workflow 失败。manifest 独立记录 `interfaceReviewExportOutcome` 与索引/日志路径；JUnit 为五个 workflow 摘要项，不能当作 XCTest 总数。
 - 本机仅 diff、Swift parse、project plist、workflow YAML 与内嵌脚本语法检查，不运行 build/XCTest/xcodebuild/simctl/App/UI/性能。四个主阶段、图片导出和新增测试实际执行结果待最新 SHA 云端 artifact；本轮 A/B/C/X 分工，C 逐图核对后才能放行下一轮。真实 Mac 窗口恢复、IME、VoiceOver、鼠标/触控板及性能仍需专项验收。
+- 首轮 `ac317d1` / run `39801156079` attempt `1` 明确失败：前3个主阶段 success，XCTest 在 `TEST SUCCEEDED` 后因720秒 alarm 退出142，xcresult 仅有 Data、缺少元数据，export reader失败。无逐用例结果，不能从成功字符串认定245项通过，也不能归因为某个Host用例。修复仅改云端执行策略：选定UDID先 `simctl bootstatus -b`（120秒有界），`-parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1` 串行完整用例，保留720秒限制、全部身份断言和11图；启动诊断写入 `xctest.log`，策略与超时写manifest。最新SHA需重新下载完整结果包。
 
 ## v0.89 历史基线
 

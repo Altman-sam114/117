@@ -60,6 +60,8 @@ v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由 Agent C 下载核
 
 CI 在四个主阶段后独立导出并核对 11 张生产视图 PNG，包含两个完整宽屏 ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号与统计。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志，JUnit 记录五个 workflow 摘要项；图片是云端 iOS SwiftUI 渲染，不代表真实 Mac 窗口、输入设备、IME 或 VoiceOver 交互。禁止在本机为此运行 App/模拟器/完整构建；人工以后要求本机 iOS 运行时，仅使用 UDID 以 `FAC4325D` 开头的现有唯一模拟器。
 
+v0.90 首轮 run `39801156079` 的 iOS/Catalyst build 成功，但 XCTest 进程在输出成功字符串后被 720 秒总限时终止，结果包缺少元数据，图片导出失败，因此不标记通过。云端测试现先用 120 秒上限等待选定 UDID 启动，再串行执行全部用例，保留 720 秒测试进程限制及所有回归/图片要求；新 SHA 须重新验收。
+
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 
 ```sh

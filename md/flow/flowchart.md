@@ -382,3 +382,5 @@ flowchart LR
   Index --> Outcome[独立 export outcome + 五项JUnit + failure gate]
   Outcome --> Review[Agent C 下载最新 SHA 的图片并逐张复核]
 ```
+
+云端 XCTest 先对 resolver 选定 UDID 执行120秒有界 bootstatus，再串行完整测试（禁用并行clone、单destination），保留720秒进程限制。只有退出0、完整可读结果包与11图导出同时成立才可进入 C 验收；成功字符串不能替代结果元数据。

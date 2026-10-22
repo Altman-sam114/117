@@ -35,6 +35,7 @@
 - 关键文件：TimelineSnapshot、EntryList/Row、EntryEditor/ChromeLayout、MarkdownToolbar、Theme、DateFormatters、相关测试、工程 Sources、CI 和 v0.90 prompt；README、test、flow、flowchart 同步当前事实及多 Agent 授权。
 - 本机执行 diff、应用/测试 Swift parse、project plist、workflow YAML/内嵌脚本语法检查；不进行本机构建或运行。提交 SHA、push 和本轮 run/artifact 在实际交付及 C 验收后记录，不预填通过。
 - 遗留：真实 Mac 窗口、IME、VoiceOver、鼠标/触控板、性能和签名发布尚未验收；v0.91 缓存与 v0.92 Release 包只是候选后续目标，本轮不提前实现。
+- 首轮实现 SHA `ac317d1cc69fa0ad5c541537a492a312eec259f6` 已push，run `39801156079` attempt `1`、artifact `mdjournal-ci-v0.90-main-ac317d1-run39801156079-attempt1` 已由 C 下载并判 FAIL：static/iOS/Catalyst成功，XCTest 打印 `TEST SUCCEEDED` 后在720秒进程上限触发 SIGALRM、退出142，结果包缺Info.plist/元数据，图片导出失败。没有可核对的逐用例结果，不宣称245项通过。后续最小修复仅将云端选定UDID启动等待限制为120秒并串行完整测试，保留720秒、身份回归及11图要求，等待新SHA自己的结果包。
 
 ### v0.89 / Mac 桌面窗口与工具栏（云端基线通过）
 
