@@ -11,9 +11,9 @@
 
 ## 当前状态
 
-- v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 接续性能与 Mac 内部包，待自己的云端结果。
+- v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
-- 当前阶段：`v0.x` 项目初始化与协作规范阶段。
+- 当前阶段：`v0.91` Mac内部验收与发布准备（云端测试阻塞）。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
 - 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 实现验证 HEAD 云端 artifact 为 212 项（新增 7 项同步状态/接线测试），已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
@@ -23,7 +23,7 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.91 / 高效写作与 Mac 验收包（实现待云端验证）
+### v0.91 / 高效写作与 Mac 验收包（构建完成，测试阻塞）
 
 日期：2026-10-23。
 
@@ -42,6 +42,12 @@
 
 
 - 第二轮修复 `541db73` / run `39823883450` attempt 1为FAIL：iOS/Catalyst与build-for-testing成功，测试未启动，iOS26.2冷启动停在LaunchServices数据迁移并超120秒；Release因-enableCodeCoverage仅支持testing被拒绝。与上一轮的Date断言/缺优化字段不是同因。追加移除Release测试专用flag、改用coverage构建设置，优先复用已Booted的云端iPhone，迁移上限依据日志改240秒，保留720秒执行限时和250用例/11图。若再次同因失败停止重试，不无限循环。
+
+
+- 最终云端构建源为 `9af6efa0e39cf4b579f8caa1421028d5f782103d`，run `39827664416` attempt `1`，artifact `mdjournal-ci-v0.91-main-9af6efa-run39827664416-attempt1`（ID12448566315，1718287 bytes，SHA-256 b1c7b6e2b06ee2640b67fda2ab2bb03994d69630227c9ff0325f1ffd3d62f9c7）。static/iOS Debug/Catalyst Debug及universal Release实际构建成功；完整CI仍FAIL：冷启动从迁移推进至Waiting on System App后超过240秒，最新250项未执行，11图未导出。与前轮同类启动阻塞连续复现，遵AGENTS停止重跑；不宣布发布级或目标完成。
+- Release校验另发现Intel端otool默认仅输出宿主架构，已改`otool -arch all`，避免误将真实universal二进制判为单平台。当前线程使用修复后的脚本只读检查该云端ZIP：x86_64+arm64、两个Catalyst platform6、macOS13.0、1.0/build195.1、图标、ad-hoc签名、独立解压后的全部内容/符号链接/权限一致，结果通过。此报告明确`verificationOrigin=local-read-only-review`，不能冒充CI成功，也不写回原始artifact。
+- 内部包已放 `/Users/a114514/Desktop/MDJournal-v0.91-Mac-9af6efa.zip`（1593680 bytes，SHA-256 6119a30a7ea583492bba8eaab52f2fce10db247bec21250bba66fc089895f66f），同目录verification.json明示CI failure、未执行最新测试、未启动App、未公证。下载与本地核对缓存 `/private/tmp/mdjournal-review-39827664416/`；外层33个文件的未加密/CRC/逐文件SHA-256与GitHub digest一致。
+- 本轮无本机build/XCTest/模拟器/App运行；只读产物核对使用lipo、otool、codesign verify、ditto及Python。独立Agent C只核过旧起点与失败包，最终工作按用户要求串行完成，不标独立C PASS。修复后的校验脚本和收尾文档未另起CI，原因是连续同因云端启动阻塞停止条件；应用/测试/工程/workflow相对9af6efa不再修改。
 
 ### v0.90 / 资料库时间轴与写作画布（云端通过）
 

@@ -538,3 +538,5 @@ du -sh /private/tmp/<project>-review-<run_id>/
 云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
 
 最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。
+
+当前交付状态：9af6efa/run39827664416/attempt1的iOS/Catalyst Debug与universal Mac Release构建成功；整体CI为FAIL，模拟器启动超过240秒，最新250项及11图没有执行/生成。连续同类启动阻塞触发AGENTS停止重跑条件。Mac ZIP由当前线程以修正后的otool -arch all脚本作本地只读核对，双架构/图标/版本/签名/解压内容和权限通过，报告明确local-read-only-review；不是CI或独立C通过。桌面内部包MDJournal-v0.91-Mac-9af6efa.zip，未公证、未启动App。最后已通过的完整UI基线仍为v0.90的245项/11图。恢复可用的云端模拟器后仍需对新的main完整重验，不能称发布验收完成。

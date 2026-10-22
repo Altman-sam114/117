@@ -405,3 +405,5 @@ flowchart LR
 云端工具链固定为Intel runner/Xcode26.2：编译测试产物 → 启动选定设备 → 串行test-without-building → 导出11图 → Release包装核对；三个阶段分别有界，不削减用例。
 
 设备选择优先Booted云端iPhone，冷启动迁移有界240秒；Release不使用testing专用命令参数。
+
+当前结果：Mac双架构Release构建完成→本地只读包核对通过；模拟器冷启动重复超时→停止云端重跑→待可用环境完整测试。此路径不经过“CI/发布验收通过”节点。

@@ -73,11 +73,11 @@ def main():
                 continue
         architectures = command("lipo", "-archs", str(path)).strip().split()
         assert set(architectures) == {"arm64", "x86_64"}, (str(path), architectures)
-        loads = command("otool", "-l", str(path))
+        loads = command("otool", "-arch", "all", "-l", str(path))
         platforms = re.findall(r"\bplatform\s+(\S+)", loads)
         allowed_platforms = {"6", "MACCATALYST"} if path == executable else {"1", "MACOS", "6", "MACCATALYST"}
         assert len(platforms) == 2 and all(p in allowed_platforms for p in platforms), platforms
-        dependencies = [line for line in command("otool", "-L", str(path)).splitlines() if line[:1].isspace()]
+        dependencies = [line for line in command("otool", "-arch", "all", "-L", str(path)).splitlines() if line[:1].isspace()]
         assert not any("/Users/runner/" in line or "/private/tmp/" in line for line in dependencies)
         binaries.append({"path": str(path.relative_to(app)), "architectures": architectures,
                          "platforms": platforms})
@@ -112,6 +112,7 @@ def main():
         "archiveSHA256": hashlib.sha256(archive.read_bytes()).hexdigest(), "binaries": binaries,
         "icons": icons, "signatureType": "ad-hoc", "notarized": False, "developerIdSigned": False,
         "freshExtractMatches": True, "filesReport": "mac-release-files.json",
+        "verificationOrigin": "github-actions" if os.environ.get("GITHUB_ACTIONS") == "true" else "local-read-only-review",
         "verificationBoundary": "Internal review package; no app launch, Developer ID signing or notarization."
     }
     (output / "mac-release-files.json").write_text(json.dumps(files, indent=2) + "\n")
