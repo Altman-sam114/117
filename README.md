@@ -6,15 +6,16 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 - 原生 SwiftUI 日记，支持 iPhone、iPad 与 Mac Catalyst；用户数据仅保存在本地 JSON。
 - v0.88 使用统一暖白纸面、墨绿强调和语义颜色资源，支持深色及高对比外观；列表、工作台、预览、统计与空态保持一致。
-- 列表提供简洁概览、系统分类菜单、搜索、日记摘要与明确的选中勾选；保留删除确认、可见结果 selection 修复及 Mac 相邻日记快捷键。
-- 写作工作台以标题和正文为中心，日期/分类/心情/小节目录位于可展开详情。头部可独立滚动且最多占实际高度 38%，低高度和辅助字号仍为正文保留空间。
+- 资料库提供紧凑集合摘要、系统分类菜单和按年月组织的时间轴。记录行展示日期、标题、两行摘要与分类/词数，选中有底色、强调线和勾选；保留搜索、删除确认、可见结果 selection 修复及 Mac 相邻日记快捷键。
+- 写作工作台以标题和正文为中心，宽屏在 canvas 内展示带留白与细边界的纸面；收起详情时可见日期、分类与心情，展开后编辑元数据并查看小节目录。头部按内容实测高度收敛且最多占可用纸面高度 38%，低高度和辅助字号仍为正文保留空间。
+- 编辑/预览与 Markdown 合为一条命令带，宽屏显示小节、加粗、待办和完整格式菜单，窄屏/低高度/辅助字号使用模式切换与菜单；不再叠加独立 pane header 与完整九按钮工具层。
 - 单栏写作宽度限制为 760pt；实际 detail 宽度达到 1120pt 且非 Accessibility 字号时可编辑/预览双栏。正文节点在宽度切换时保持原有结构，选区、IME 和焦点规则保留。专注写作会收起详情并隐藏预览。
 - Markdown 支持三级小节、列表/任务/引用/代码等预览和工具栏插入，支持 UTF-16 选区、回车续写、Tab/Shift-Tab；预览以连续纸面、文字层级和细线组织内容，可选择文字。
 - 统计以完整宽度总览配合自适应网格展示；Accessibility 字号统一单列，指标与分布自然增高。Mac 统计仍为独立窗口。
 - Mac Catalyst 主窗口建议内容尺寸 1360×860pt（实际窗口尺寸与恢复由系统决定）、最小 1120×720pt，侧栏 260/300/360pt；工具栏显示当前筛选结果数量；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
 - 保存仍由 JournalStore 唯一管理，debounce 合并编辑写入、actor 串行 JSON 编码/原子写盘；离开活跃态 flush。预览仍为 150ms latest-wins 与按文档去重的 inline cache，不进入持久化。
 
-本轮用户要求不启用子智能体，因此方案、实现和结果包核对由同一线程串行执行，不标记为独立 Agent C 验收。
+本轮用户授权 Agent X 主控与多 Agent 协作：A 写版本化提示词，B 唯一写入源码并在 main 提交推送，C 下载最新云端结果包逐图复核；每轮 C 通过后才继续下一轮。
 
 低高度（可用高度 <400pt）使用紧凑标题、单行模式/Markdown 菜单并隐藏状态栏；辅助字号使用工具菜单，UITextView 字体跟随 SwiftUI Dynamic Type。此策略不改变正文、选区或 IME 同步。
 
@@ -55,7 +56,9 @@ Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_r
 
 ## 验证
 
-v0.88 起点已下载核对：run 36234465443 attempt 1，231/231 passed。v0.89 修复低高度正文空间和 SwiftUI/UIKit 字号一致性，预计 234 项，待自己的最新 SHA 云端验收。截图仅为云端 iOS SwiftUI 渲染证据，不代表 Mac 窗口/输入设备、IME 或 VoiceOver 交互。
+v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由 Agent C 下载核对：run `38344640193` attempt `1`，四阶段 success、234 项测试通过、六张渲染图及结果包完整性通过。v0.90 新增年月分组、画布空间与生产正文控件身份回归，等待本轮 SHA 的独立云端验收。
+
+CI 在四个主阶段后独立导出并核对 11 张生产视图 PNG，包含两个完整宽屏 ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号与统计。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志，JUnit 记录五个 workflow 摘要项；图片是云端 iOS SwiftUI 渲染，不代表真实 Mac 窗口、输入设备、IME 或 VoiceOver 交互。禁止在本机为此运行 App/模拟器/完整构建；人工以后要求本机 iOS 运行时，仅使用 UDID 以 `FAC4325D` 开头的现有唯一模拟器。
 
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 
@@ -131,7 +134,7 @@ test -x script/build_and_run.sh
 
 v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的阶段一云端结果为 `205/205 passed`，static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均成功；最终 docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1` 的未加密 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对：static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest `205/205 passed`，481/481 ZIP entries 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。阶段一 artifact 仍仅证明阶段一 HEAD；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
 
-本轮由当前线程下载并核对最新 origin/main 对应 v0.88 artifact 的 commitSha、run/attempt、四阶段结果、测试与渲染附件，不复用历史结果包，不声称独立 Agent C 已验收。
+本轮由独立 Agent C 下载最新 origin/main 对应 v0.90 artifact，核对 commitSha、run/attempt、四个主阶段、独立图片导出、测试与 11 张渲染附件；历史 artifact 只作为各自版本证据，不复用为新 SHA 的验收结果。
 
 ## 协作与云端验证
 

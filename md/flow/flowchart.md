@@ -2,17 +2,17 @@
 
 本文用 Mermaid 图描述 MD Journal 当前真实核心数据流、执行流和多 Agent 云端迭代流。每张图前都有通俗读图说明，方便人工快速判断系统怎么运转。
 
-## v0.88 界面组织
+## v0.90 界面组织
 
 ```mermaid
 flowchart LR
-  Theme["JournalTheme + 语义颜色资源"] --> Library["紧凑概览 / 分类菜单 / 轻量列表行"]
-  Theme --> Workspace["标题 / 可展开详情 / 固定正文节点 / 状态栏"]
-  Workspace --> Header["独立滚动头部：最多占可用高度 38%"]
+  Theme["JournalTheme + 语义颜色资源"] --> Library["紧凑集合摘要 / 分类菜单 / 年月 Section / 轻量行"]
+  Theme --> Workspace["canvas 内纸面 / 标题 / 单条命令带 / 固定正文 / 状态栏"]
+  Workspace --> Header["实测内容头部：最多占可用纸面高度 38%"]
   Workspace --> Preview["连续阅读纸面 / 原有 latest-wins 快照"]
   Theme --> Stats["完整宽度总览 / 响应式网格 / 辅助字号单列"]
   Workspace --> Binding["既有 binding → JournalStore → 本地 JSON"]
-  User["本轮用户：不启用子智能体"] --> Serial["同线程方案 → 实现与 push → 云端 artifact 核对"]
+  User["本轮用户：授权 Agent X 多 Agent 云端迭代"] --> Agents["A 提示词 → B main 实现 push → C 下载逐图复核 → X 判断"]
 ```
 
 ## 核心逻辑图
@@ -48,7 +48,7 @@ flowchart TD
   CrossThreshold --> StableEditor["固定 HStack 中的正文位置；仅改 frame，不重置选区，不建隐藏输入框"]
   CompactFocus --> FocusPolicy["EntryEditorFocusPolicy：进入预览 resign；⌘⌥P 返回编辑 focus；Picker 选回编辑 preserve"]
   FocusPolicy --> BodyTextView
-  Editor --> MarkdownToolbarNode["Markdown 工具栏：44×44pt 矩形交互区、语义 body 图标、辅助功能标签，片段 hover 提示复用 ⌘⌥ 快捷键"]
+  Editor --> MarkdownToolbarNode["单条命令带：模式 / 常用格式 / 完整 Markdown 菜单；44pt 命中、label 与快捷键 help"]
   MarkdownToolbarNode --> SnippetInsertion
   Editor --> BodyTextView["MarkdownBodyTextView：UITextView bridge，按需配置 rounded body 字体和 Markdown 输入 traits；正文发布时由 Coordinator 建立一次性 token，外部正文或状态不匹配时按差异同步，marked text 延迟覆盖，最新 binding/请求代数门控异步焦点，承载 Tab / Shift-Tab"]
   BodyTextView --> BodySyncState["Coordinator sync state：正文发布时记录 body + selection token；选区变化只更新选区，不建 token"]
@@ -87,7 +87,9 @@ flowchart TD
   BodySnapshot --> ListSnapshot["JournalEntryListSnapshot：filteredEntries + 完整 entries 分类计数 + 空状态"]
   BodySnapshot --> DetailBinding["selectedEntryBinding(using:)：只用快照做 detail guard，Binding getter/setter 仍读写 Store"]
   BodySnapshot --> NavigationActions
-  ListSnapshot --> List
+  ListSnapshot --> Timeline["JournalEntryTimelineSnapshot：当前可见顺序 + Calendar month interval；不排序、不扫正文"]
+  Timeline --> MonthSections["真实年月 List Section：可见计数、entry.id tag、context/swipe"]
+  MonthSections --> List
   ListSnapshot --> SelectionPolicy["JournalEntrySelectionPolicy：可见保留 / 隐藏切首项 / 空结果 nil"]
   SelectionPolicy --> NavigationActions
   SelectionPolicy --> CV
@@ -106,12 +108,11 @@ flowchart TD
   TrendLayout -- "普通字号" --> EqualTrend["七日趋势：七列等分"]
   TrendLayout -- "Accessibility 字号" --> ScrollingTrend["七日趋势：56pt 稳定列宽水平滚动"]
   Stats --> Dashboard
-  Summary --> Row["EntryRowView：列表卡片、分类心情、摘要、小节条"]
+  Summary --> Row["EntryRowView：日期心情 / 标题 / 两行摘要 / 分类词数；行日期共享 Calendar 时区"]
   RowTypeSize["DynamicTypeSize"] --> RowLayout["EntryRowLayoutContract：只消费字号的纯值布局策略"]
   Row --> RowTypeSize
-  RowLayout -- "large / xxxLarge" --> RowRegular["普通：metadata/footer 横排；标题/小节标题单行；水平小节条"]
-  RowLayout -- "accessibility1...5" --> RowAccessibility["Accessibility：metadata/footer 垂直；标题自然增高；小节有限宽度垂直栈"]
-  RowAccessibility --> RowAccessibleSections["前三个小节 +N：不使用水平无限提议"]
+  RowLayout -- "large / xxxLarge" --> RowRegular["普通：metadata/footer 横排；标题最多两行；不展开小节名"]
+  RowLayout -- "accessibility1...5" --> RowAccessibility["Accessibility：metadata/footer 垂直；完整标题自然增高"]
   Summary --> EditorStats["EntryEditorView：头部词数和懒加载小节概览"]
   MetricsNode --> Stats
   OverviewMetrics --> ListOverview
@@ -285,9 +286,9 @@ flowchart TD
   LocalTests --> Commit["git commit：只提交本轮相关文件"]
   Commit --> Push["git push origin main"]
   Push --> Actions["GitHub Actions：ci-results workflow"]
-  Actions --> Checks["静态检查 + generic iOS Debug build + Mac Catalyst build + XCTest"]
+  Actions --> Checks["四个主阶段 + 独立图片导出/11张矩阵核对"]
   Checks --> Artifact["上传未加密 CI 结果包"]
-  Artifact --> AgentCDownload["Agent C：使用已有 GitHub CLI 授权下载 artifact，不执行 gh auth login"]
+  Artifact --> AgentCDownload["Agent C：确认 GitHub CLI 授权后下载最新 artifact"]
   AgentCDownload --> Verify["核对 manifest、commitSha、runId、runAttempt、JUnit、日志"]
   Verify --> CDecision{"Agent C artifact 验收是否通过？"}
   CDecision -- "不通过" --> AgentXFail["Agent X 判断：退回修复或暂停"]
@@ -323,6 +324,8 @@ flowchart LR
   Artifact --> BuildLog["xcodebuild.log"]
   Artifact --> CatalystLog["maccatalyst-build.log"]
   Artifact --> TestLog["xctest.log"]
+  Artifact --> Images["interface-review：原生 manifest + index.json + 11张本轮 PNG"]
+  Images --> VisualReview["Agent C 逐张看图：年月、选中、正文空间、窄屏/低高度/辅助字号"]
   Artifact --> Summary["ci-failure-summary.md"]
   Artifact --> XCResult["MDJournal.xcresult（可用时）"]
   Artifact --> CatalystResult["MDJournalMacCatalyst.xcresult（可用时）"]
@@ -336,6 +339,7 @@ flowchart LR
   CatalystResult --> Outcome
   Match --> Accept{"Agent C 结论"}
   Outcome --> Accept
+  VisualReview --> Accept
   Accept -- "通过" --> Record["记录版本、artifact 名称和遗留事项"]
   Accept -- "不通过" --> Repair["退回 Agent B 追加修复 commit"]
 ```
@@ -360,4 +364,21 @@ flowchart LR
   Type --> Font[UIKit rounded body 字体按需更新]
   Chrome --> Editor[固定正文节点 / 既有 binding 和 IME]
   Font --> Editor
+```
+
+## v0.90 画布与云端图片
+
+```mermaid
+flowchart LR
+  Detail[实际 detail 宽高与 Dynamic Type] --> Canvas[CanvasLayout：纸面净宽高 / 外围留白]
+  Detail --> Split[原始 detail >=1120pt 且非 Accessibility]
+  Canvas --> Header[实测头部内容与38%预算取较小值]
+  Header --> Commands[一条模式与格式命令带]
+  Commands --> Body[固定 HStack 中同一 UITextView]
+  Split --> Body
+  Body --> Images[云端11张生产图附件]
+  Images --> Export[runner xcresulttool 导出普通 PNG]
+  Export --> Index[验证名称 / PNG尺寸 / 原生mapping / index.json]
+  Index --> Outcome[独立 export outcome + 五项JUnit + failure gate]
+  Outcome --> Review[Agent C 下载最新 SHA 的图片并逐张复核]
 ```

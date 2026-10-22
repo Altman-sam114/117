@@ -9,17 +9,13 @@ internal struct EntryRowLayoutContract: Equatable {
     let metadataAxis: EntryRowLayoutAxis
     let footerAxis: EntryRowLayoutAxis
     let titleLineLimit: Int?
-    let sectionTitleLineLimit: Int
-    let usesVerticalSectionLayout: Bool
 
     init(dynamicTypeSize: DynamicTypeSize) {
         let isAccessibilitySize = dynamicTypeSize.isAccessibilitySize
 
         metadataAxis = isAccessibilitySize ? .vertical : .horizontal
         footerAxis = isAccessibilitySize ? .vertical : .horizontal
-        titleLineLimit = isAccessibilitySize ? nil : 1
-        sectionTitleLineLimit = isAccessibilitySize ? 2 : 1
-        usesVerticalSectionLayout = isAccessibilitySize
+        titleLineLimit = isAccessibilitySize ? nil : 2
     }
 }
 
@@ -27,12 +23,14 @@ struct EntryRowView: View {
     let entry: JournalEntry
     var isSelected = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.calendar) private var calendar
+    @Environment(\.locale) private var locale
 
     var body: some View {
         let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
         let summary = entry.bodySummary
 
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             metadata(layout: layout)
 
             Text(entry.displayTitle)
@@ -46,35 +44,23 @@ struct EntryRowView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if !summary.sections.isEmpty {
-                if layout.usesVerticalSectionLayout {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(summary.sections.prefix(3)) { section in
-                            Text(section.title).lineLimit(layout.sectionTitleLineLimit)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                } else {
-                    Text(summary.sections.prefix(3).map(\.title).joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(layout.sectionTitleLineLimit)
-                }
-            }
-
             footer(summary, layout: layout)
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(isSelected ? JournalTheme.inset : JournalTheme.paper,
-                    in: RoundedRectangle(cornerRadius: JournalTheme.cornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: JournalTheme.cornerRadius)
-                .strokeBorder(isSelected ? JournalTheme.accent : JournalTheme.separator,
-                              lineWidth: isSelected ? 1.5 : 0.5)
+        .background(isSelected ? JournalTheme.inset : .clear,
+                    in: RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .leading) {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(JournalTheme.accent)
+                    .frame(width: 3)
+                    .padding(.vertical, 14)
+                    .accessibilityHidden(true)
+            }
         }
-        .contentShape(RoundedRectangle(cornerRadius: JournalTheme.cornerRadius))
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -85,7 +71,7 @@ struct EntryRowView: View {
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
 
         return axis {
-            Text(entry.createdAt.journalListText)
+            Text(entry.createdAt.journalTimelineText(calendar: calendar, locale: locale))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             if layout.metadataAxis == .horizontal { Spacer(minLength: 4) }
@@ -111,7 +97,7 @@ struct EntryRowView: View {
             Label(entry.category.rawValue, systemImage: entry.category.systemImage)
                 .foregroundStyle(entry.category.tint)
             if layout.footerAxis == .horizontal { Spacer(minLength: 4) }
-            Text("\(summary.wordCount) 词 · \(summary.sectionCount) 小节")
+            Text("\(summary.wordCount) 词")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

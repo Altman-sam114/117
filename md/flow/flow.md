@@ -6,7 +6,7 @@ MD Journal 的当前主链路是：`MDJournalApp` 持有共享 `JournalStore`，
 
 编辑器正文 binding、`JournalStore` 保存和 Markdown 预览派生是三条独立边界：正文继续即时写入内存和 Store，预览只消费正文快照并以 `MarkdownPreviewUpdateModel` 管理已解析结果；预览连续输入采用 `150ms` trailing debounce，generation 与 entry ID 实现 latest-wins，隐藏、离开视图或切换日记会使旧请求失效，解析结果不进入 JSON。
 
-v0.88 已核对云端 run 36234465443 attempt 1，231 项通过；v0.89 为当前待验实现。JournalTheme 与 Assets 统一配色；列表采用紧凑行和系统分类菜单。编辑器详情折叠、头部独立滚动且高度最多占 38%，单栏正文限宽 760pt，状态栏展示词数、小节与更新时间。预览为连续纸面；统计以完整总览和自适应网格展示，辅助字号单列。状态、bridge、Store、JSON 和 parser 边界不变。本轮用户要求禁用子智能体，三个阶段由当前线程串行执行，不标记为独立 Agent C 验收。
+v0.89 起点 c354f9c / run 38344640193 attempt 1 已由独立 Agent C 核对四阶段、234 项测试、六张图与完整性。v0.90 为当前待验实现：资料库采用紧凑集合摘要、分类菜单与纯年月分组的 List Section，行不展开小节名；写作区使用 canvas 包围纸面，头部按内容实测高度且最多占可用纸面高度 38%，模式与常用格式/完整菜单共用命令带。单栏正文仍限宽 760pt，低高度/窄屏/辅助字号取消外围占用。预览、统计、状态、bridge、Store、JSON 和 parser 边界不变。本轮用户明确授权 Agent X 调度 A/B/C：A 写提示词、B 唯一写源码并 main 直推、C 下载本轮最新 artifact 逐图复核后再推进。
 
 协作主链路是：人工提出目标 -> Agent A 写版本化提示词 -> Agent B 在 `main` 上实现并直推 `origin/main` -> GitHub Actions 生成未加密 CI 结果包 -> Agent C 下载结果包复判 -> 通过则记录版本，失败则退回 Agent B 在 `main` 上追加修复 commit。
 
@@ -44,8 +44,8 @@ JournalEntry.body
 
 EntryRowView + DynamicTypeSize
   -> EntryRowLayoutContract：只按 isAccessibilitySize 派生非持久化布局策略
-  -> 普通字号：metadata/footer 横排、标题/小节标题单行、保留紧凑单行小节文本
-  -> Accessibility 字号：metadata/footer 垂直堆叠、标题不限单行、小节在有限宽度垂直栈中至少允许两行
+  -> 普通字号：metadata/footer 横排、标题最多两行、正文摘要最多两行，不展开小节名
+  -> Accessibility 字号：metadata/footer 垂直堆叠、标题不限行并自然增高，摘要仍最多两行
   -> 不进入 JournalStore、JSON、JournalEntryListSnapshot、正文 metrics、selection、Markdown 或焦点状态
 
 JournalEntry.body
@@ -117,7 +117,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 8. 用户在正文中按 Tab 或 Shift-Tab 时，`MarkdownBodyTextView` 调用 `MarkdownLineIndentation`；当前行或多行选区会按两个空格缩进，反缩进会删除一个 tab 或最多两个行首空格，行首索引和 UTF-16 offset 在单次正文扫描中收集，扫描只覆盖到选区有效结束行，多行结果基于原正文和升序 operation 单次构造。
 9. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorWorkspaceState.perform(.focusWriting, layout:)` 时，编辑器会切回编辑模式并聚焦正文；宽屏下同时隐藏右侧预览栏，让正文获得更多空间并停止该栏实时预览渲染，同时把正文输入区居中并限制到舒适最大宽度。
 10. Mac Catalyst “写作”菜单或写作工具栏触发 `EntryEditorView.applyIndentation(_:layout:)` 时，编辑器会先切回编辑模式并聚焦正文，再复用 `MarkdownLineIndentation` 对当前行或多行选区增加缩进或减少缩进。
-11. `MarkdownToolbar`、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:layout:)`；正文 Markdown 工具栏为每个 `16pt` 图标提供 `44×44pt` 矩形交互区，并保留片段快捷键 hover help 和辅助功能标签，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
+11. 统一命令带中的 `MarkdownToolbar`（小节/加粗/待办及完整格式菜单）、“插入 Markdown”菜单或 Mac Catalyst 写作工具栏触发 `EntryEditorView.insertSnippet(_:layout:)`；正文 Markdown 工具栏为每个 `16pt` 图标提供 `44×44pt` 矩形交互区，并保留片段快捷键 hover help 和辅助功能标签，片段包含小节、加粗、斜体、引用、无序列表、有序列表、待办、代码和分割线。
 12. `EntryEditorView.insertSnippet(_:layout:)` 调用 `MarkdownSnippetInsertion`，按当前光标插入片段，或按选区包裹/逐行转换文本；引用、无序列表、待办和有序列表按 LF 单次扫描选区并增量构造替换文本，保留 CR/CRLF 和尾随 LF 语义，跳过选区里的空白行，有序列表只对非空行从 `1. ` 开始连续编号。
 13. 若窄屏当前处于预览模式，片段插入、写作缩进命令或专注写作命令会先切回编辑模式并重新聚焦正文；预览模式由 Picker 进入时清除正文焦点，直接 Picker 选回编辑不抢焦点，现有 ⌘⌥P 返回编辑时才按 policy 请求焦点。
 14. binding setter 调用 `JournalStore.update(_:)`。
@@ -139,15 +139,15 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 7. 删除入口仍由 `EntryListView.requestDeletion(of:)` 统一进入 confirmation dialog；待确认状态稳定持有完整目标，取消、Esc、外部关闭只清理状态，确认先消费一次目标再调用 `ContentView.deleteEntry(_:)`。
 8. `ContentView.deleteEntry(_:)` 仍只调用 `JournalStore.delete(_:)`，随后用删除后的 filtered snapshot 和 policy 修复 selection；筛选之外仍存在的日记不会被选回。
 9. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
-10. `EntryRowView` 单次构造 `JournalEntryBodySummary`，展示分类、心情、日期、摘要、词数、小节数和小节标题；`EntryRowLayoutContract` 只消费 `DynamicTypeSize`，普通字号保持既有横向布局，Accessibility 字号使用垂直 metadata/footer、自然增高标题和有限宽度垂直小节栈。
-11. Accessibility 小节路径不使用水平 `ScrollView` 或无限宽度提议；前三个小节和 `+N` 仍按既有顺序展示，空状态也进入有限宽度容器。列表卡片布局策略不写入 Store/JSON，也不改变摘要、metrics、selection 或编辑器状态。
+10. `EntryListView` 将当前 `filteredEntries` 传入 `JournalEntryTimelineSnapshot`：按同一注入 Calendar 的 month interval 派生非本地化组 ID，以 Locale 格式化标题；不重新筛选、排序或读取正文，组顺序和组内顺序保留，flatten ID 与可见数组一致。List 用真实年月 Section，组计数只来自可见 entries；行日期通过 Date.FormatStyle 使用同一 Calendar、时区与 Locale，避免月界语境不一致。
+11. `EntryRowView` 单次构造 `JournalEntryBodySummary`，只展示日期/心情、标题、两行摘要和分类/词数；普通标题最多两行，Accessibility 使用垂直 metadata/footer 与完整标题，不展开小节名、不使用无限水平提议。选中有底色、强调线、勾选与 selected trait；布局策略不写 Store/JSON，也不改变摘要、metrics、selection 或编辑器状态。
 12. `journalEntryNavigationActions(using:)` 只把本次 body 评估共享 snapshot 的 `filteredEntries` 传给 `JournalEntryNavigation`；较新/较早继续按可见新到旧顺序相邻移动，首尾不循环，只改变 selection，不调用 Store、保存或正文焦点 API。
 13. Store/JSON、保存 debounce/flush/writer、Markdown parser/preview、编辑器正文和删除确认语义均不因筛选或 selection 状态改变。
 
 ### 2.5 Markdown 预览
 
 1. `EntryEditorView` 在窄屏用 segmented picker 切换编辑和预览；`EntryEditorFocusPolicy` 只处理 compact 焦点动作，进入预览清除正文焦点，现有 ⌘⌥P 从预览回编辑时请求焦点，Picker 直接选回编辑保持未聚焦；宽屏预览列不经过该 policy。
-2. `EntryEditorLayoutContract.usesSplitPreview` 精确要求实际 detail `>=1120pt` 且非 Accessibility，`820pt` 只决定头部宽度档位。双栏扣除 `1pt` Divider 后等分，净正文还需扣 padding；预览行宽上限保持 `560pt`，双栏隐藏右栏时正文居中且上限 `760pt`。
+2. `EntryEditorLayoutContract.usesSplitPreview` 精确要求实际 detail `>=1120pt` 且非 Accessibility，`820pt` 只决定头部宽度档位。宽屏纸面扣除外围留白后再扣 `1pt` Divider 等分，净正文还需扣内部 padding；预览行宽上限保持 `560pt`，双栏隐藏右栏时正文居中且上限 `760pt`。
 3. `MarkdownPreviewUpdateModel` 使用单一 `@Published snapshot` 同时持有 document 与 `MarkdownPreviewInlineCache`。body 捕获同一快照，将对应 cache 显式传给 block、section、ForEach/LazyVStack 子闭包；旧闭包不读取 model 的新缓存。
 4. 初始化为空快照；首次激活立即解析当前正文并构建匹配缓存。正文连续变化递增 generation，并通过固定 `150ms` trailing debounce 合并，等待期间保留上一份 document/cache。
 5. 接受请求前校验 active、entry ID、正文和 generation；被拒绝的迟到请求不调用 parser/renderer，不改变快照。隐藏预览时视图移除并 deactivate；重新显示、切日记或重新 activate 时使用当前正文构建新快照。
@@ -269,13 +269,13 @@ Agent X 不能无条件无限循环。遇到连续 3 轮同一阻塞、连续 2 
 
 11. v0.85 实现与 docs-close 均已完成：实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的 run `32645093679`、attempt `1` 对应 artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`、size `456026` bytes、digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`），Agent C 从 `/private/tmp/mdjournal-c-review-32645093679/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。docs-close HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，对应 run `32646077288`、attempt `1` 的 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`、size `457085` bytes、digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`），Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并 PASS；四阶段均为 `success`，XCTest `205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。
 
-12. v0.88 待最新 main commit 的四阶段 CI；本线程核对布局、资源、渲染附件与既有测试。v0.87 的 run 34175692697 attempt 1、227 项基线已下载核对，仅证明起点。
+12. v0.90 保留四个主阶段，另独立导出并验证11张生产视图 PNG；附件原生 manifest 与 index.json 进入结果包，manifest 记录 interfaceReviewExportOutcome 与索引/日志路径，导出失败进入 failure summary 与 workflow 失败条件。JUnit 记录五个 workflow 摘要项，XCTest 数量独立核对。v0.89 起点 run 38344640193 attempt 1 的234项结果只证明起点。
 
 ### 3.6 Agent C 结果包验收
 
 1. 确认 `origin/main` 最新 commit。
-2. 使用当前已有的 GitHub CLI 授权状态下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`；本轮不执行 `gh auth login`，不修改认证配置。
-3. 打开并核对 `ci-artifact-manifest.json`、`junit.xml`、主日志和失败摘要；`junit.xml` 必须能明确读出 `failures`、`errors` 和 `skipped`。
+2. 确认 GitHub CLI 授权后下载最新 run 的 artifact 到 `/private/tmp/mdjournal-c-review-<run_id>/`；已有有效授权无需改变凭证，需要交互登录/权限时记录阻塞。
+3. 打开并核对 `ci-artifact-manifest.json`、`junit.xml`、主日志、导出日志和失败摘要；`junit.xml` 必须能明确读出 `failures`、`errors` 和 `skipped`。v0.90 还须按普通图片索引逐张查看11张本轮图片，核对多月/跨年、完整主界面、正文空间、窄屏/低高度/辅助字号。
 4. 只验收 manifest 中 `branch=main` 且 `commitSha`、`runId`、`runAttempt` 与最新 `origin/main` 和 GitHub Actions run 完全一致的结果包。
 5. 通过则确认文档和 `update_log.md` 已同步；失败则退回 Agent B 在 `main` 上追加修复 commit 并重新 push。
 
@@ -541,3 +541,7 @@ Mac Catalyst 根视图通过 frame 的 idealWidth/idealHeight 提供 1360×860pt
 实际可用高度 <400pt 时，收起详情的头部上限为 min(52pt, 高度×22%)，仅展示单行标题与详情入口；模式与 Markdown 菜单共用一行，隐藏状态栏。普通高度沿用原预算；辅助字号也使用工具菜单。正文节点结构位置不变。MarkdownBodyTextView 将 SwiftUI DynamicTypeSize 映射到 UIKit preferredContentSizeCategory，只在目标字体变化时设置字体，不改正文同步、selection、IME、焦点或持久化。
 
 标题 TextField 与正文均保留固定结构位置，低高度只调整标题字体/行数与周边 chrome，避免键盘压缩视口时替换正在编辑的标题输入框。
+
+### v0.90 资料库与写作画布
+
+`JournalEntryTimelineSnapshot` 是只读年月展示 helper，不另存筛选或选中状态；月份 ID 来自 Calendar month interval，Locale 只影响标题。生产 List Section 与每行日期共享 environment Calendar/Locale。`EntryEditorCanvasLayout` 根据 detail 宽高与字号计算纸面净空间，窄屏/低高度/辅助字号不消耗外围留白；原始 detail 仍决定1120pt双栏资格。头部 Geometry preference 只记录内容高度，取其与38%预算的较小值，不更换输入节点。命令带位于固定正文 HStack 之前，合并模式、可见常用格式和完整菜单；没有额外正文 ScrollView。状态栏仍称“更新于”，不宣称磁盘已保存。

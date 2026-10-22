@@ -49,6 +49,7 @@
 		C10000000000000000000003 /* EntryEditorChromeLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000003 /* EntryEditorChromeLayout.swift */; };
 		C10000000000000000000004 /* JournalDashboardLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000004 /* JournalDashboardLayout.swift */; };
 		C10000000000000000000005 /* JournalInterfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000005 /* JournalInterfaceTests.swift */; };
+		C10000000000000000000006 /* JournalEntryTimelineSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000006 /* JournalEntryTimelineSnapshot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -106,6 +107,7 @@
 		C20000000000000000000003 /* EntryEditorChromeLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryEditorChromeLayout.swift; sourceTree = "<group>"; };
 		C20000000000000000000004 /* JournalDashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalDashboardLayout.swift; sourceTree = "<group>"; };
 		C20000000000000000000005 /* JournalInterfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInterfaceTests.swift; sourceTree = "<group>"; };
+		C20000000000000000000006 /* JournalEntryTimelineSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryTimelineSnapshot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -191,6 +193,7 @@
 				A2000000000000000000001A /* JournalEntryNavigation.swift */,
 				A20000000000000000000005 /* JournalDateFormatters.swift */,
 				A20000000000000000000013 /* JournalEntryListSnapshot.swift */,
+				C20000000000000000000006 /* JournalEntryTimelineSnapshot.swift */,
 				A20000000000000000000019 /* JournalListOverviewSnapshot.swift */,
 				A20000000000000000000010 /* JournalStatistics.swift */,
 				A20000000000000000000006 /* MarkdownBlockParser.swift */,
@@ -336,6 +339,7 @@
 				A10000000000000000000019 /* JournalPersistenceWriter.swift in Sources */,
 				C10000000000000000000003 /* EntryEditorChromeLayout.swift in Sources */,
 				C10000000000000000000004 /* JournalDashboardLayout.swift in Sources */,
+				C10000000000000000000006 /* JournalEntryTimelineSnapshot.swift in Sources */,
 				C10000000000000000000001 /* JournalTheme.swift in Sources */,
 				A10000000000000000000001 /* MDJournalApp.swift in Sources */,
 				A10000000000000000000002 /* ContentView.swift in Sources */,

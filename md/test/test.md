@@ -2,7 +2,16 @@
 
 本文指导 Agent A、Agent B、Agent C 和未来 Agent X 主控循环选择测试层级、记录命令和判断当前基线。
 
-## v0.89 当前验收
+## v0.90 当前验收
+
+- 起点 `c354f9c05924c2778e1023254740b9709a9ae012` / run `38344640193` / attempt `1` 已由独立 Agent C 下载核对：四阶段 success、234 项 XCTest、六张渲染图及 ZIP/哈希完整性通过。该包只证明 v0.89 起点。
+- 新增九项 `JournalEntryTimelineSnapshot` 语义测试：同月、多月、跨年同月、空集合、相同日期稳定顺序、筛选后可见计数/flatten、Calendar 时区月界、Locale 只变标题、日期跨月后重建。生产 List Section 直接消费当前 `filteredEntries`，不重新搜索、排序或读取正文。
+- `EntryRowLayoutContract` 改为普通标题最多两行、辅助字号完整标题及垂直元数据；行不再展开小节名。画布测试检查纸面与外围不越界，窄屏、低高度和辅助字号保留全可用区域。保留已有标题高度切换测试，新增生产正文 UITextView 在 980→1240→980→1440→980pt 时的身份、UTF-16 选区和 first responder 回归。
+- 真实生产视图渲染使用测试内固定八篇、多月、跨年同月、长中文标题与 emoji fixture；ContentView 从测试临时 JSON 加载，绝不访问用户 Documents。11 张矩阵覆盖完整 ContentView 1360×860 / 1120×720（iOS regular width）、320×900 资料库及滚动历史、1440×900 双栏、390×720 浅/深色、844×320 低高度、390×720 Accessibility3 编辑器、320×900 Accessibility3 资料库和 1100×900 统计。
+- XCTest 后 runner 使用 `xcresulttool export attachments` 导出本轮普通 PNG，保留原生 manifest 并生成 `interface-review/index.json`；核对 11 个名称齐全、PNG 非空及像素尺寸，导出失败使 workflow 失败。manifest 独立记录 `interfaceReviewExportOutcome` 与索引/日志路径；JUnit 为五个 workflow 摘要项，不能当作 XCTest 总数。
+- 本机仅 diff、Swift parse、project plist、workflow YAML 与内嵌脚本语法检查，不运行 build/XCTest/xcodebuild/simctl/App/UI/性能。四个主阶段、图片导出和新增测试实际执行结果待最新 SHA 云端 artifact；本轮 A/B/C/X 分工，C 逐图核对后才能放行下一轮。真实 Mac 窗口恢复、IME、VoiceOver、鼠标/触控板及性能仍需专项验收。
+
+## v0.89 历史基线
 
 - v0.87 起点已由本线程下载核对：763abe32eca3bafd52adaa34b33fe0b2d61a961a，run 34175692697 attempt 1，四阶段 success，227 项 passed，JUnit 4/0/0/0；525 ZIP entries 无加密、CRC 与逐文件哈希通过。
 - v0.88 已核对 run 36234465443 attempt 1，231/231 passed、545 ZIP entries、digest/CRC/逐文件哈希通过；六张附件已导出并视觉复核。v0.89 新增低高度正文预算与 UIKit 字号跟随/字体复用测试，预计 234 项；继续核对六张渲染图。
@@ -372,7 +381,7 @@ v0.85 阶段一与 docs-close 均已由 Agent C 只针对各自最新 `origin/ma
 
 Agent C 必须先具备 GitHub CLI 权限：
 
-当前使用已有的 GitHub CLI 授权状态下载 artifact；本轮不执行 `gh auth login`，不修改认证配置。
+已有有效 GitHub CLI 授权时直接下载 artifact，无需改变凭证；若需要交互登录或缺少权限，记录阻塞，不以旧包或本地结果替代。
 
 下载缓存默认位置：
 
@@ -396,6 +405,7 @@ Agent C 必须核对：
 - `static-checks.log`、`xcodebuild.log` 和 `xctest.log` 的关键错误。
 - `maccatalyst-build.log` 的结尾和 `macCatalystBuildOutcome`。
 - `ci-failure-summary.md` 是否与实际 outcome 一致。
+- v0.90 起另核对 `interfaceReviewExportOutcome`、`interface-review-export.log`、附件原生 manifest、11 张普通 PNG 与 `interface-review/index.json` 的名称/尺寸/路径对应关系；逐张查看实际排版，不能只看索引声明成功。
 - `MDJournalMacCatalyst.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - `MDJournalTests.xcresult` 是否存在；若不存在，manifest 和日志中必须能解释原因。
 - artifact 是否来自本轮最新 run，而不是旧 run 或旧输出。

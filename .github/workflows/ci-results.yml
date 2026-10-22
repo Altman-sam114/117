@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.89
+      VERSION: v0.90
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
@@ -173,6 +173,83 @@ jobs:
               test
           } 2>&1 | tee "$RESULT_DIR/xctest.log"
 
+      - name: Export and verify interface review images
+        id: interface_review
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            xcrun xcresulttool export attachments \
+              --path "$RESULT_DIR/MDJournalTests.xcresult" \
+              --output-path "$RESULT_DIR/interface-review"
+            python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import struct
+
+          result_dir = pathlib.Path(os.environ["RESULT_DIR"])
+          export_dir = result_dir / "interface-review"
+          manifest = json.loads((export_dir / "manifest.json").read_text())
+          expected = {
+              "review-content-1360x860-light-regular": (1360, 860, "light", "large", "ContentView / iOS regular width"),
+              "review-content-1120x720-light-regular": (1120, 720, "light", "large", "ContentView / iOS regular width"),
+              "review-editor-1440x900-light-split": (1440, 900, "light", "large", "EntryEditorView / split"),
+              "review-editor-390x720-light": (390, 720, "light", "large", "EntryEditorView"),
+              "review-editor-390x720-dark": (390, 720, "dark", "large", "EntryEditorView"),
+              "review-editor-844x320-light-compact": (844, 320, "light", "large", "EntryEditorView / compact height"),
+              "review-editor-390x720-light-accessibility3": (390, 720, "light", "accessibility3", "EntryEditorView"),
+              "review-library-320x900-light": (320, 900, "light", "large", "EntryListView"),
+              "review-library-320x900-light-history": (320, 900, "light", "large", "EntryListView / scrolled history"),
+              "review-library-320x900-light-accessibility3": (320, 900, "light", "accessibility3", "EntryListView"),
+              "review-statistics-1100x900-light": (1100, 900, "light", "large", "StatisticsDashboardView"),
+          }
+          images = {}
+          for test in manifest:
+              for attachment in test.get("attachments", []):
+                  suggested = attachment.get("suggestedHumanReadableName", "")
+                  name = suggested.split("_", 1)[0]
+                  if name not in expected:
+                      continue
+                  if name in images:
+                      raise SystemExit(f"Duplicate required image: {name}")
+                  image = export_dir / attachment["exportedFileName"]
+                  if not image.resolve().is_relative_to(export_dir.resolve()):
+                      raise SystemExit(f"Invalid exported path: {image}")
+                  with image.open("rb") as handle:
+                      header = handle.read(24)
+                  if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+                      raise SystemExit(f"Missing or invalid PNG: {image}")
+                  width, height = struct.unpack(">II", header[16:24])
+                  wanted_width, wanted_height, appearance, type_size, surface = expected[name]
+                  if (width, height) != (wanted_width, wanted_height):
+                      raise SystemExit(f"Wrong dimensions for {name}: {width}x{height}")
+                  images[name] = {
+                      "name": name,
+                      "testIdentifier": test.get("testIdentifier"),
+                      "path": str(image.relative_to(result_dir)),
+                      "width": width, "height": height,
+                      "appearance": appearance, "dynamicType": type_size,
+                      "surface": surface,
+                      "deviceName": attachment.get("deviceName"),
+                      "sourceName": suggested,
+                  }
+          missing = sorted(set(expected) - set(images))
+          if missing:
+              raise SystemExit(f"Required interface images missing: {missing}")
+          index = {
+              "matrixVerified": True,
+              "expectedImageCount": len(expected),
+              "renderBoundary": "Production SwiftUI views rendered on CI iOS; not Mac window or interaction evidence.",
+              "images": [images[name] for name in expected],
+          }
+          (export_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n")
+          print(f"Verified {len(images)} production interface PNGs and preserved xcresult attachment mapping.")
+          PY
+          } 2>&1 | tee "$RESULT_DIR/interface-review-export.log"
+
       - name: Write manifest and summaries
         if: always()
         shell: bash
@@ -181,6 +258,7 @@ jobs:
           BUILD_OUTCOME: ${{ steps.xcode_build.outcome }}
           MACCATALYST_BUILD_OUTCOME: ${{ steps.maccatalyst_build.outcome }}
           TEST_OUTCOME: ${{ steps.xcode_test.outcome }}
+          INTERFACE_REVIEW_OUTCOME: ${{ steps.interface_review.outcome }}
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         run: |
@@ -208,6 +286,9 @@ jobs:
           test_outcome = os.environ["TEST_OUTCOME"]
           if test_outcome != "success":
               failures.append(("xctest", test_outcome, "See ci-results/xctest.log."))
+          interface_review_outcome = os.environ["INTERFACE_REVIEW_OUTCOME"]
+          if interface_review_outcome != "success":
+              failures.append(("interface-review", interface_review_outcome, "See ci-results/interface-review-export.log."))
 
           test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or os.environ["TEST_DESTINATION_FALLBACK"]
 
@@ -238,27 +319,33 @@ jobs:
               "buildOutcome": build_outcome,
               "macCatalystBuildOutcome": maccatalyst_build_outcome,
               "testOutcome": test_outcome,
-              "projectSpecificReports": [],
+              "interfaceReviewExportOutcome": interface_review_outcome,
+              "interfaceReviewDirectoryPath": "ci-results/interface-review",
+              "interfaceReviewIndexPath": "ci-results/interface-review/index.json",
+              "interfaceReviewExportLogPath": "ci-results/interface-review-export.log",
+              "projectSpecificReports": ["ci-results/interface-review/index.json"],
           }
           (result_dir / "ci-artifact-manifest.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
 
-          testsuite = ET.Element(
-              "testsuite",
-              name="MDJournalCI",
-              tests="4",
-              failures=str(len(failures)),
-              errors="0",
-              skipped="0",
-          )
-          for name, outcome, message in [
+          stages = [
               ("static-checks", static_outcome, "Static checks failed."),
               ("xcodebuild", build_outcome, "Generic iOS Debug build failed."),
               ("maccatalyst-build", maccatalyst_build_outcome, "Mac Catalyst Debug build failed."),
               ("xctest", test_outcome, "XCTest failed."),
-          ]:
+              ("interface-review", interface_review_outcome, "Interface review image export or matrix verification failed."),
+          ]
+          testsuite = ET.Element(
+              "testsuite",
+              name="MDJournalCI",
+              tests=str(len(stages)),
+              failures=str(len(failures)),
+              errors="0",
+              skipped="0",
+          )
+          for name, outcome, message in stages:
               case = ET.SubElement(testsuite, "testcase", name=name)
               if outcome != "success":
                   failure = ET.SubElement(case, "failure", message=message)
@@ -278,6 +365,8 @@ jobs:
           lines.append("")
           lines.append(f"XCTest outcome: {test_outcome}.")
           lines.append("")
+          lines.append(f"Interface review export outcome: {interface_review_outcome}.")
+          lines.append("")
           lines.append(f"Commit: {manifest['commitSha']}")
           lines.append(f"Run: {manifest['runId']} attempt {manifest['runAttempt']}")
           (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -292,6 +381,6 @@ jobs:
           if-no-files-found: error
 
       - name: Fail workflow on failed checks
-        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success')
+        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success' || steps.interface_review.outcome != 'success')
         shell: bash
         run: exit 1

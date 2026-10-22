@@ -167,6 +167,7 @@ struct EntryEditorView: View {
     @Binding var entry: JournalEntry
     @State private var workspaceState = EntryEditorWorkspaceState()
     @State private var showsDetails = false
+    @State private var headerContentHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private let focusedWritingMaxWidth = JournalTheme.readableWidth
@@ -179,31 +180,53 @@ struct EntryEditorView: View {
             )
             let bodyMetrics = entry.bodyMetrics
             let workspace = workspaceState.resolved(for: layout)
-            let compactHeight = EntryEditorChromeLayout.isCompactHeight(proxy.size.height)
+            let canvas = EntryEditorCanvasLayout(
+                width: proxy.size.width, height: proxy.size.height,
+                dynamicTypeSize: dynamicTypeSize, usesSplitPreview: layout.usesSplitPreview
+            )
+            let compactHeight = EntryEditorChromeLayout.isCompactHeight(canvas.paperHeight)
             let inlineTools = EntryEditorChromeLayout.usesInlineTools(
-                availableHeight: proxy.size.height, dynamicTypeSize: dynamicTypeSize
+                availableWidth: canvas.paperWidth, availableHeight: canvas.paperHeight,
+                dynamicTypeSize: dynamicTypeSize
+            )
+            let headerBudget = EntryEditorChromeLayout.headerHeight(
+                availableHeight: canvas.paperHeight,
+                showsDetails: showsDetails, dynamicTypeSize: dynamicTypeSize
             )
 
             VStack(spacing: 0) {
                 ScrollView(.vertical) {
                     header(layout: layout, bodyMetrics: bodyMetrics, compactHeight: compactHeight)
+                        .background {
+                            GeometryReader { headerProxy in
+                                Color.clear.preference(key: EditorHeaderHeightKey.self, value: headerProxy.size.height)
+                            }
+                        }
                 }
-                .frame(height: EntryEditorChromeLayout.headerHeight(
-                    availableHeight: proxy.size.height,
-                    showsDetails: showsDetails,
-                    dynamicTypeSize: dynamicTypeSize
-                ))
-                .background(JournalTheme.paper)
+                .frame(height: min(headerContentHeight > 0 ? headerContentHeight : headerBudget, headerBudget))
+                .onPreferenceChange(EditorHeaderHeightKey.self) { height in
+                    if abs(headerContentHeight - height) > 0.5 { headerContentHeight = height }
+                }
                 Divider()
                 editorWorkspace(
                     layout: layout,
                     workspace: workspace,
-                    width: proxy.size.width,
+                    width: canvas.paperWidth,
                     bodyMetrics: bodyMetrics,
                     inlineTools: inlineTools
                 )
                 if !compactHeight { writingStatus(bodyMetrics) }
             }
+            .frame(width: canvas.paperWidth, height: canvas.paperHeight)
+            .background(JournalTheme.paper)
+            .clipShape(RoundedRectangle(cornerRadius: canvas.cornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: canvas.cornerRadius)
+                    .strokeBorder(JournalTheme.separator, lineWidth: canvas.cornerRadius > 0 ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(JournalTheme.canvas)
             .onAppear {
                 workspaceState.updateLayout(layout)
             }
@@ -219,7 +242,7 @@ struct EntryEditorView: View {
         }
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .background(JournalTheme.paper)
+        .background(JournalTheme.canvas)
         .onChange(of: entry.id) { _ in
             resetBodySelectionToEnd()
         }
@@ -286,10 +309,16 @@ struct EntryEditorView: View {
         VStack(alignment: .leading, spacing: 12) {
             if !compactHeight {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(entry.createdAt.journalTitleText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(entry.createdAt.journalTitleText)
+                            .font(.subheadline)
+                        if !showsDetails {
+                            Text("\(entry.category.rawValue) · \(entry.mood.rawValue)")
+                                .font(.caption)
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 4)
                     detailsButton
                 }
@@ -332,6 +361,7 @@ struct EntryEditorView: View {
         .buttonStyle(.plain)
         .foregroundStyle(JournalTheme.accent)
         .accessibilityValue(showsDetails ? "已展开" : "已收起")
+        .help(showsDetails ? "收起日期、分类、心情与小节目录" : "编辑日期、分类、心情与查看小节目录")
     }
 
     private func titleField(layout: EntryEditorLayoutContract, compact: Bool) -> some View {
@@ -356,8 +386,11 @@ struct EntryEditorView: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, JournalTheme.pageInset)
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(JournalTheme.canvas)
+        .frame(maxWidth: JournalTheme.readableWidth, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .top) {
+            Rectangle().fill(JournalTheme.separator).frame(height: 0.5)
+        }
     }
 
     private func metadata(layout: EntryEditorLayoutContract) -> some View {
@@ -428,23 +461,15 @@ struct EntryEditorView: View {
     private func editor(
         layout: EntryEditorLayoutContract,
         bodyMetrics: JournalEntryBodyMetrics,
-        showsToolbar: Bool,
         limitsWritingWidth: Bool = false
     ) -> some View {
-        VStack(spacing: 0) {
-            if showsToolbar {
-                MarkdownToolbar(accent: JournalTheme.accent) { insertSnippet($0, layout: layout) }
-                Divider()
-            }
-
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                bodyEditorArea(bodyMetrics: bodyMetrics)
-                    .frame(maxWidth: limitsWritingWidth ? focusedWritingMaxWidth : .infinity)
-                Spacer(minLength: 0)
-            }
-            .background(JournalTheme.paper)
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            bodyEditorArea(bodyMetrics: bodyMetrics)
+                .frame(maxWidth: limitsWritingWidth ? focusedWritingMaxWidth : .infinity)
+            Spacer(minLength: 0)
         }
+        .background(JournalTheme.paper)
     }
 
     private func bodyEditorArea(bodyMetrics: JournalEntryBodyMetrics) -> some View {
@@ -476,37 +501,18 @@ struct EntryEditorView: View {
         let columnWidth: CGFloat? = showsBoth ? max(0, (width - 1) / 2) : nil
 
         return VStack(spacing: 0) {
-            if !workspace.usesSplitPreview || inlineTools {
-                HStack(spacing: 12) {
-                    if !workspace.usesSplitPreview {
-                        Picker("模式", selection: compactModeSelection(layout: layout)) {
-                            ForEach(Mode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    } else {
-                        Spacer()
-                    }
-                    if inlineTools && workspace.showsEditor {
-                        MarkdownToolsMenu { insertSnippet($0, layout: layout) }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, inlineTools ? 2 : 10)
-            }
+            commandBand(
+                layout: layout, workspace: workspace, columnWidth: columnWidth, inlineTools: inlineTools
+            )
+            Divider()
 
             // Keep the editor at one structural position across split and width changes.
             HStack(spacing: 0) {
                 if workspace.showsEditor {
                     VStack(spacing: 0) {
-                        if workspace.usesSplitPreview {
-                            WorkspacePaneHeader(title: "编辑", systemImage: "square.and.pencil", tint: JournalTheme.accent)
-                        }
                         editor(
                             layout: layout,
                             bodyMetrics: bodyMetrics,
-                            showsToolbar: !inlineTools,
                             limitsWritingWidth: !workspace.showsPreview
                         )
                     }
@@ -520,9 +526,6 @@ struct EntryEditorView: View {
 
                 if workspace.showsPreview {
                     VStack(spacing: 0) {
-                        if workspace.usesSplitPreview {
-                            WorkspacePaneHeader(title: "预览", systemImage: "doc.richtext", tint: JournalTheme.accent)
-                        }
                         MarkdownPreviewView(
                             entryID: entry.id,
                             markdown: entry.body,
@@ -534,8 +537,58 @@ struct EntryEditorView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .background(JournalTheme.canvas)
+            .background(JournalTheme.paper)
         }
+    }
+
+    private func commandBand(
+        layout: EntryEditorLayoutContract,
+        workspace: EntryEditorWorkspaceState,
+        columnWidth: CGFloat?,
+        inlineTools: Bool
+    ) -> some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 8) {
+                if workspace.usesSplitPreview {
+                    Label("编辑", systemImage: "square.and.pencil")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Picker("写作模式", selection: compactModeSelection(layout: layout)) {
+                        ForEach(Mode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 180)
+                    .accessibilityValue(workspace.mode.rawValue)
+                    .help("切换正文编辑与阅读预览")
+                }
+                Spacer(minLength: 0)
+                MarkdownToolbar(showsCommonActions: !inlineTools && workspace.showsEditor) {
+                    insertSnippet($0, layout: layout)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 2)
+            .frame(width: columnWidth)
+            .frame(maxWidth: .infinity)
+
+            if workspace.showsEditor && workspace.showsPreview {
+                Divider().frame(width: 1)
+                HStack {
+                    Label("预览", systemImage: "doc.richtext")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 20)
+                .frame(width: columnWidth)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(JournalTheme.paper)
     }
 
     private func compactModeSelection(layout: EntryEditorLayoutContract) -> Binding<Mode> {
@@ -583,22 +636,11 @@ struct EntryEditorView: View {
 
 }
 
-private struct WorkspacePaneHeader: View {
-    let title: String
-    let systemImage: String
-    let tint: Color
+private struct EditorHeaderHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
 
-    var body: some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tint)
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(JournalTheme.paper)
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

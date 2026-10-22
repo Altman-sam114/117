@@ -11,7 +11,7 @@
 
 ## 当前状态
 
-- v0.88 已核对云端结果（231 项通过），v0.89 接续桌面与低高度修复待云端结果。v0.87 起点由当前线程核对为 227 项通过，run 34175692697 attempt 1；不将旧结果冒充本轮。用户要求不调用子智能体，本轮串行执行并明确无独立 Agent C。
+- v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由独立 Agent C 核对 run `38344640193` attempt `1`：四阶段 success、234 项 XCTest、六张渲染图及完整性通过。v0.90 资料库与画布实现待自己的云端结果。本轮用户授权 Agent X 调度 A/B/C，多 Agent 分工，每轮 C 验收后才推进；历史串行授权记录保留。
 
 - 当前阶段：`v0.x` 项目初始化与协作规范阶段。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
@@ -23,7 +23,20 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.89 / Mac 桌面窗口与工具栏（实现待云端验证）
+### v0.90 / 资料库时间轴与写作画布（实现待云端验证）
+
+日期：2026-10-22。
+
+- 资料库由简短集合摘要与分类菜单开始，以真实 List Section 按当前可见日记的年月分组；纯 `JournalEntryTimelineSnapshot` 只读日期，保持输入/组内顺序与 flatten ID，不重新排序或扫描正文。跨年、时区月界和 Locale 独立处理。
+- 记录行改为日期/心情、两行标题与摘要、分类/词数，移除重复小节清单与层层边框；选中保留底色、短强调线、勾选与 selected trait。搜索、分类计数、tag/context/swipe、删除确认、selection repair 与导航边界继续使用原入口。
+- 宽屏在 canvas 中展示带外围留白与细线的纸面，单栏仍限正文 760pt；双栏资格仍按原始 detail >=1120pt 且非 Accessibility，净纸面扣 Divider 后等分。窄屏/低高度/辅助字号取消外围占用；头部实测内容高度并按38%预算封顶，收起时可见分类/心情。
+- 单条命令带容纳模式、三个常用格式与完整菜单，紧凑时只保留模式/菜单；双栏不再叠加 pane header 和独立工具栏。正文及标题固定结构，WorkspaceState、bridge、IME、选区、Store、JSON、parser 与预览 cache 未改。
+- 新增九项分组与行日期语义测试、画布容量测试、生产 UITextView 跨单/双栏身份/UTF-16 选区/焦点回归；保留原标题高度切换测试。固定八篇 fixture 生成11张真实生产视图附件，包含完整主界面、跨年滚动、浅深色、低高度和辅助字号。runner 导出普通 PNG、原生 manifest 与索引，验证名称/尺寸，独立 export outcome 纳入失败条件及五项 JUnit。
+- 关键文件：TimelineSnapshot、EntryList/Row、EntryEditor/ChromeLayout、MarkdownToolbar、Theme、DateFormatters、相关测试、工程 Sources、CI 和 v0.90 prompt；README、test、flow、flowchart 同步当前事实及多 Agent 授权。
+- 本机执行 diff、应用/测试 Swift parse、project plist、workflow YAML/内嵌脚本语法检查；不进行本机构建或运行。提交 SHA、push 和本轮 run/artifact 在实际交付及 C 验收后记录，不预填通过。
+- 遗留：真实 Mac 窗口、IME、VoiceOver、鼠标/触控板、性能和签名发布尚未验收；v0.91 缓存与 v0.92 Release 包只是候选后续目标，本轮不提前实现。
+
+### v0.89 / Mac 桌面窗口与工具栏（云端基线通过）
 
 日期：2026-10-13（接续 2026-09-26 未提交工作）。
 
@@ -33,6 +46,7 @@
 - 新增窗口默认尺寸纯值契约，更新 README、测试规范、流程图/流程说明与版本化 prompt。
 - 首轮 commit defacdf7b739a690b348417c297c021340d16489 / run 38343197500 attempt 1：iOS、静态检查和 233 项测试通过，Catalyst 因 SceneBuilder availability 分支不支持而失败。artifact `mdjournal-ci-v0.89-main-defacdf-run38343197500-attempt1` 已下载，549 ZIP entries、digest/CRC/逐文件哈希通过。修复改用根视图 ideal frame，不升系统版本；失败不作为通过依据。
 - 本机预期只做 Swift parse 与 diff 检查，完整 iOS/Catalyst build、XCTest 和 artifact 核对交 GitHub Actions；真实 Mac 窗口、VoiceOver、输入设备与性能仍待人工验收。
+- 2026-10-22 独立 Agent C 补核对最终起点 SHA `c354f9c05924c2778e1023254740b9709a9ae012`、run `38344640193`、attempt `1`，artifact `mdjournal-ci-v0.89-main-c354f9c-run38344640193-attempt1`：四阶段 success、234 项 XCTest，六张附件及完整性 PASS。该结果不作为 v0.90 新 SHA 的证据。
 
 ## v0.88 / 写作工作台与统一界面（云端基线通过，视觉问题由 v0.89 修复）
 

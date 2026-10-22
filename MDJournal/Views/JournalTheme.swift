@@ -10,6 +10,7 @@ enum JournalTheme {
     static let cornerRadius: CGFloat = 14
     static let pageInset: CGFloat = 24
     static let readableWidth: CGFloat = 760
+    static let canvasInset: CGFloat = 24
 }
 
 private struct JournalSurface: ViewModifier {

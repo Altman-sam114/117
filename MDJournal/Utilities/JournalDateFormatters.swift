@@ -39,6 +39,13 @@ extension Date {
         JournalDateFormatters.titleDate.string(from: self)
     }
 
+    func journalTimelineText(calendar: Calendar, locale: Locale) -> String {
+        formatted(Date.FormatStyle(
+            date: .omitted, time: .omitted, locale: locale,
+            calendar: calendar, timeZone: calendar.timeZone
+        ).day().weekday(.abbreviated))
+    }
+
     var journalWeekdayText: String {
         JournalDateFormatters.weekday.string(from: self)
     }

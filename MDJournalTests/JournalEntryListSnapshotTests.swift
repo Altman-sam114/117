@@ -3,6 +3,134 @@ import SwiftUI
 @testable import MDJournal
 
 final class JournalEntryListSnapshotTests: XCTestCase {
+    func testTimelineGroupsSameMonthWithoutChangingVisibleOrder() {
+        let entries = [
+            timelineEntry("月底", "2026-10-30T12:00:00Z"),
+            timelineEntry("月中", "2026-10-15T12:00:00Z"),
+            timelineEntry("月初", "2026-10-01T00:00:00Z")
+        ]
+        let timeline = JournalEntryTimelineSnapshot(
+            entries: entries, calendar: timelineCalendar(), locale: Locale(identifier: "zh_CN")
+        )
+        XCTAssertEqual(timeline.months.count, 1)
+        XCTAssertEqual(timeline.months.first?.title, "2026年10月")
+        XCTAssertEqual(timeline.months.first?.entries.map(\.id), entries.map(\.id))
+    }
+
+    func testTimelineSeparatesMonthsAndSameMonthAcrossYears() {
+        let entries = [
+            timelineEntry("十月", "2026-10-22T12:00:00Z"),
+            timelineEntry("九月", "2026-09-03T12:00:00Z"),
+            timelineEntry("去年十月", "2025-10-22T12:00:00Z")
+        ]
+        let timeline = JournalEntryTimelineSnapshot(entries: entries, calendar: timelineCalendar())
+        XCTAssertEqual(timeline.months.map { $0.entries.count }, [1, 1, 1])
+        XCTAssertEqual(Set(timeline.months.map(\.id)).count, 3)
+        XCTAssertEqual(timeline.months.flatMap(\.entries).map(\.id), entries.map(\.id))
+    }
+
+    func testTimelineEmptyCollectionHasNoMonthSections() {
+        XCTAssertTrue(JournalEntryTimelineSnapshot(entries: [], calendar: timelineCalendar()).months.isEmpty)
+    }
+
+    func testTimelinePreservesStableOrderForEqualDates() {
+        let entries = ["第一篇", "第二篇", "第三篇"].map {
+            timelineEntry($0, "2026-10-22T12:00:00Z")
+        }
+        let timeline = JournalEntryTimelineSnapshot(entries: entries, calendar: timelineCalendar())
+        XCTAssertEqual(timeline.months.flatMap(\.entries).map(\.id), entries.map(\.id))
+    }
+
+    func testTimelineConsumesOnlyFilteredEntriesAndUsesVisibleMonthCounts() {
+        let entries = [
+            timelineEntry("散步一", "2026-10-22T12:00:00Z"),
+            timelineEntry("不匹配搜索", "2026-10-20T12:00:00Z"),
+            timelineEntry("散步二", "2026-10-18T12:00:00Z", category: .travel),
+            timelineEntry("散步三", "2026-09-10T12:00:00Z")
+        ]
+        let snapshot = JournalEntryListSnapshot(entries: entries, searchText: "散步", selectedCategory: .daily)
+        let timeline = JournalEntryTimelineSnapshot(entries: snapshot.filteredEntries, calendar: timelineCalendar())
+        XCTAssertEqual(snapshot.count(for: .daily), 3)
+        XCTAssertEqual(timeline.months.map { $0.entries.count }, [1, 1])
+        XCTAssertEqual(timeline.months.flatMap(\.entries).map(\.id), snapshot.filteredEntries.map(\.id))
+        XCTAssertEqual(timeline.months.flatMap(\.entries).map(\.title), ["散步一", "散步三"])
+    }
+
+    func testTimelineUsesCalendarTimeZoneAtMonthBoundary() {
+        let entries = [
+            timelineEntry("之后", "2026-03-01T00:30:00Z"),
+            timelineEntry("之前", "2026-02-28T23:30:00Z")
+        ]
+        let utc = JournalEntryTimelineSnapshot(entries: entries, calendar: timelineCalendar())
+        let pacific = JournalEntryTimelineSnapshot(
+            entries: entries, calendar: timelineCalendar(timeZone: "America/Los_Angeles")
+        )
+        let taipei = JournalEntryTimelineSnapshot(
+            entries: entries, calendar: timelineCalendar(timeZone: "Asia/Taipei")
+        )
+        XCTAssertEqual(utc.months.map { $0.entries.count }, [1, 1])
+        XCTAssertEqual(pacific.months.map { $0.entries.count }, [2])
+        XCTAssertEqual(taipei.months.map { $0.entries.count }, [2])
+        XCTAssertNotEqual(pacific.months.first?.id, taipei.months.first?.id)
+        XCTAssertEqual(taipei.months.flatMap(\.entries).map(\.id), entries.map(\.id))
+    }
+
+    func testTimelineLocaleChangesTitlesWithoutChangingMonthIdentity() {
+        let entries = [timelineEntry("记录", "2026-10-22T12:00:00Z")]
+        let chinese = JournalEntryTimelineSnapshot(
+            entries: entries, calendar: timelineCalendar(), locale: Locale(identifier: "zh_CN")
+        )
+        let english = JournalEntryTimelineSnapshot(
+            entries: entries, calendar: timelineCalendar(), locale: Locale(identifier: "en_US")
+        )
+        XCTAssertEqual(chinese.months.map(\.id), english.months.map(\.id))
+        XCTAssertEqual(chinese.months.flatMap(\.entries), english.months.flatMap(\.entries))
+        XCTAssertNotEqual(chinese.months.first?.title, english.months.first?.title)
+    }
+
+    func testTimelineRowDateUsesTheSameTimeZoneAsItsMonthSection() {
+        let entry = timelineEntry("跨月", "2026-03-01T00:30:00Z")
+        let locale = Locale(identifier: "en_US")
+        let utcCalendar = timelineCalendar()
+        let pacificCalendar = timelineCalendar(timeZone: "America/Los_Angeles")
+        let utc = JournalEntryTimelineSnapshot(entries: [entry], calendar: utcCalendar, locale: locale)
+        let pacific = JournalEntryTimelineSnapshot(entries: [entry], calendar: pacificCalendar, locale: locale)
+        let utcRow = entry.createdAt.journalTimelineText(calendar: utcCalendar, locale: locale)
+        let pacificRow = entry.createdAt.journalTimelineText(calendar: pacificCalendar, locale: locale)
+        XCTAssertEqual(utc.months.first?.title, "March 2026")
+        XCTAssertEqual(pacific.months.first?.title, "February 2026")
+        XCTAssertEqual(utcRow.filter(\.isNumber), "1")
+        XCTAssertEqual(pacificRow.filter(\.isNumber), "28")
+        XCTAssertTrue(utcRow.contains("Sun"))
+        XCTAssertTrue(pacificRow.contains("Sat"))
+    }
+
+    func testTimelineRebuildReflectsDateMovingAcrossMonths() {
+        var moved = timelineEntry("调整日期", "2026-09-01T12:00:00Z")
+        let other = timelineEntry("保持日期", "2026-09-02T12:00:00Z")
+        let before = JournalEntryTimelineSnapshot(entries: [other, moved], calendar: timelineCalendar())
+        moved.createdAt = ISO8601DateFormatter().date(from: "2026-10-22T12:00:00Z")!
+        let after = JournalEntryTimelineSnapshot(entries: [moved, other], calendar: timelineCalendar())
+        XCTAssertEqual(before.months.count, 1)
+        XCTAssertEqual(after.months.count, 2)
+        XCTAssertEqual(after.months.flatMap(\.entries).map(\.id), [moved.id, other.id])
+    }
+
+    private func timelineCalendar(timeZone: String = "UTC") -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZone)!
+        return calendar
+    }
+
+    private func timelineEntry(
+        _ title: String, _ date: String, category: JournalEntry.Category = .daily
+    ) -> JournalEntry {
+        JournalEntry(
+            title: title, body: "固定内容", createdAt: ISO8601DateFormatter().date(from: date)!,
+            category: category
+        )
+    }
+
     func testDeletionRequestRetainsCompleteTargetAndBuildsAccurateTitle() {
         let entry = JournalEntry(
             id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
@@ -94,9 +222,7 @@ final class JournalEntryListSnapshotTests: XCTestCase {
 
             XCTAssertEqual(layout.metadataAxis, .horizontal)
             XCTAssertEqual(layout.footerAxis, .horizontal)
-            XCTAssertEqual(layout.titleLineLimit, 1)
-            XCTAssertEqual(layout.sectionTitleLineLimit, 1)
-            XCTAssertFalse(layout.usesVerticalSectionLayout)
+            XCTAssertEqual(layout.titleLineLimit, 2)
         }
 
         for dynamicTypeSize in [DynamicTypeSize.accessibility1, .accessibility5] {
@@ -105,8 +231,6 @@ final class JournalEntryListSnapshotTests: XCTestCase {
             XCTAssertEqual(layout.metadataAxis, .vertical)
             XCTAssertEqual(layout.footerAxis, .vertical)
             XCTAssertNil(layout.titleLineLimit)
-            XCTAssertGreaterThanOrEqual(layout.sectionTitleLineLimit, 2)
-            XCTAssertTrue(layout.usesVerticalSectionLayout)
         }
     }
 

@@ -36,53 +36,67 @@ struct EntryListView: View {
     let onShowStatistics: () -> Void
 
     @State private var deletionConfirmation = JournalDeletionConfirmationState()
+    @Environment(\.calendar) private var calendar
+    @Environment(\.locale) private var locale
 
     var body: some View {
+        let timeline = JournalEntryTimelineSnapshot(
+            entries: snapshot.filteredEntries, calendar: calendar, locale: locale
+        )
+
         List(selection: $selection) {
             Section {
-                overviewCard(overviewSnapshot)
+                VStack(alignment: .leading, spacing: 12) {
+                    overviewCard(overviewSnapshot)
+                    categoryFilter(snapshot)
+                }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
-
-                categoryFilter(snapshot)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
 
-            Section {
-                if snapshot.filteredEntries.isEmpty {
+            if snapshot.filteredEntries.isEmpty {
+                Section {
                     listEmptyState(snapshot)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
-                } else {
-                    ForEach(snapshot.filteredEntries) { entry in
-                        EntryRowView(entry: entry, isSelected: selection == entry.id)
-                            .tag(entry.id)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 3, leading: 12, bottom: 3, trailing: 12))
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    requestDeletion(of: entry)
-                                } label: {
-                                    Label("删除日记", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    requestDeletion(of: entry)
-                                } label: {
-                                    Label("删除", systemImage: "trash")
-                                }
-                            }
-                        }
                 }
-            } header: {
-                Text(snapshot.sectionTitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(timeline.months) { month in
+                    Section {
+                        ForEach(month.entries) { entry in
+                            EntryRowView(entry: entry, isSelected: selection == entry.id)
+                                .tag(entry.id)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 1, leading: 12, bottom: 1, trailing: 12))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        requestDeletion(of: entry)
+                                    } label: {
+                                        Label("删除日记", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        requestDeletion(of: entry)
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    } header: {
+                        HStack(spacing: 8) {
+                            Text(month.title)
+                            Spacer(minLength: 4)
+                            Text("\(month.entries.count) 篇").monospacedDigit()
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .textCase(nil)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
             }
         }
         .listStyle(.plain)
@@ -122,29 +136,24 @@ struct EntryListView: View {
     }
 
     private func overviewCard(_ overview: JournalListOverviewSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("MD JOURNAL", systemImage: "book.closed")
-                .font(.caption.weight(.semibold))
-                .tracking(2)
-                .foregroundStyle(JournalTheme.accent)
-
-            Text("留住每一天。")
-                .font(.system(.title2, design: .serif).weight(.semibold))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("\(overview.totalEntries) 篇记录 · \(overview.totalWords) 词")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            if overview.recentStreak > 0 {
-                Label("最近连续记录 \(overview.recentStreak) 天", systemImage: "leaf")
-                    .font(.footnote)
-                    .foregroundStyle(JournalTheme.accent)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("资料库")
+                    .font(.system(.title3, design: .serif).weight(.semibold))
+                Spacer(minLength: 4)
+                if overview.recentStreak > 0 {
+                    Label("\(overview.recentStreak) 天", systemImage: "leaf")
+                        .font(.caption)
+                        .foregroundStyle(JournalTheme.accent)
+                        .accessibilityLabel("最近连续记录 \(overview.recentStreak) 天")
+                }
             }
+            Text("\(overview.totalEntries) 篇日记 · \(overview.totalWords) 词")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
     }
 

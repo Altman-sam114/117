@@ -2,12 +2,13 @@ import SwiftUI
 
 struct MarkdownToolbar: View {
     var accent: Color = JournalTheme.accent
+    var showsCommonActions = true
     let onInsert: (MarkdownSnippet) -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(MarkdownSnippet.allCases) { snippet in
+        HStack(spacing: 2) {
+            if showsCommonActions {
+                ForEach([MarkdownSnippet.heading, .bold, .checklist]) { snippet in
                     Button {
                         onInsert(snippet)
                     } label: {
@@ -19,15 +20,12 @@ struct MarkdownToolbar: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(accent)
-                    .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 8))
                     .accessibilityLabel(snippet.title)
                     .help(snippet.helpText)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            MarkdownToolsMenu(onInsert: onInsert)
         }
-        .background(JournalTheme.paper)
     }
 }
 
@@ -40,6 +38,7 @@ struct MarkdownToolsMenu: View {
                 Button { onInsert(snippet) } label: {
                     Label(snippet.title, systemImage: snippet.systemImage)
                 }
+                .help(snippet.helpText)
             }
         } label: {
             Image(systemName: "textformat")
