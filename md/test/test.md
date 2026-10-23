@@ -1,5 +1,13 @@
 # 测试规范
 
+## v0.92 当前验证要求
+
+本轮只修复云端策略，不修改应用与 XCTest。macos-15 / Xcode16.4 / iOS18.5 对应最后完整成功环境；选定已有 iPhone 后在编译前启动同一 UDID，保留600秒编译、240秒等待和720秒测试上限，不创建克隆，不改测试数量或图片门槛。缺少固定 runtime 或可用设备明确失败，不回退到其他系统。
+
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v` 是本机可跑的纯 JSON fixture 检查：固定 runtime、同runtime Booted优先、iPhone16优先、不可用/iPad排除、缺runtime失败、非法UDID、稳定顺序和UDID报告一致，共8项，不连接simctl。workflow静态阶段同样运行。
+
+新artifact额外核对 simulator-selection.json、simulator-devices.json、环境日志、manifest的testRuntime/developerDirectory/simulatorPreparationOutcome。其余6项JUnit、4份xcresult、250项预期用例、11图及Mac包完整性门槛不变。本轮没有独立Agent C，由当前线程串行下载复判。旧v0.91失败不复用为成功，v0.93只有本轮验收通过后才开始。
+
 ## v0.91 当前验证要求
 
 用户最新要求不多开子智能体，当前线程串行实现与验收，不标记独立C。v0.90修复7283b1e/run39806459795/attempt1已完整核对：245项测试、11图、588个未加密ZIP文件与digest/CRC/逐文件SHA-256通过；新版本不能复用旧artifact。

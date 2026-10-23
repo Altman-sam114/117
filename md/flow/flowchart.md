@@ -1,5 +1,21 @@
 # 项目流程图
 
+## 当前云端恢复策略（v0.92）
+
+```mermaid
+flowchart LR
+  Main["main / macos-15 / Xcode16.4"] --> Select["iOS18.5已有设备 / 显式UDID / 8项fixture"]
+  Select --> EarlyBoot["提前启动同一设备 / 不创建克隆"]
+  EarlyBoot --> Builds["iOS + Catalyst Debug / build-for-testing"]
+  Builds --> Test["有界bootstatus / 串行完整XCTest"]
+  Test --> Images["11张生产视图 / 不减门槛"]
+  Images --> Mac["universal Release / otool全部架构 / ad-hoc / ZIP核对"]
+  Mac --> Review["当前线程下载最新SHA结果包 / 不标独立C"]
+  Review --> Gate{"通过？"}
+  Gate -- "是" --> UI["进入v0.93 UI重构"]
+  Gate -- "否" --> Stop["最小修复或按停止条件报告阻塞"]
+```
+
 ## v0.91 展示缓存与 Mac 包
 
 ```mermaid

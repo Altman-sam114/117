@@ -1,5 +1,11 @@
 # 项目核心流程文档
 
+## 当前云端执行策略（v0.92）
+
+main push → 固定macos-15/Xcode16.4 → 静态检查与8项设备选择fixture → 在固定iOS18.5清单内选择已有iPhone（同runtime Booted优先，再iPhone16）→ 记录UDID/runtime/初始状态并提前启动 → iOS/Catalyst Debug → 独立build-for-testing → 同一设备bootstatus有界等待 → 串行完整XCTest → 11张图片导出 → universal Mac Release/签名/ZIP核对 → manifest/JUnit/未加密artifact → 当前线程下载复判。无设备时明确失败，不吞错退回其他runtime，不在本机执行构建或simctl。
+
+用户最新禁用子智能体覆盖旧多Agent默认：方案、实现和C职责的包核对顺序保留，但不声称独立Agent。有限两轮先恢复验证、再重构UI；失败或停止条件触发时不进入下一轮。
+
 ## 0. 一句话总览
 
 MDJournalApp 持有共享 JournalStore；ContentView 管理筛选与选择，JournalEntryListSnapshot 在一次body评估内共享给列表、详情和相邻导航。JournalStore 是唯一日记集合与JSON持久化入口，并同步维护按ID的非持久化 JournalEntryBodyPresentation：加载/新建派生，正文变更只重建该篇，元数据更新复用，删除释放；缓存先更新后发布entries。投影临时使用既有summary后丢弃全文/section markdown，只保留词数、可见性和160 Character界限的摘录/小节预览。生产列表、编辑器、概览与统计窗口显式消费缓存；统计继续O(n)元数据聚合，日历/now变化不让正文失效。旧metrics/summary/overview纯入口保留作为结果对照。Markdown解析、预览150ms latest-wins、UTF-16/IME bridge、快捷插入、回车/缩进和actor原子JSON保存边界保留。

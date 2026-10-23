@@ -2,6 +2,12 @@
 
 MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。目标是简洁、美观、快速写作，并能随时切换预览。
 
+## 当前迭代（v0.92）
+
+2026-10-23，遵照用户最新要求不开子智能体。有限两轮：v0.92 先修复云端验证，验收通过后 v0.93 重构原生 UI 与 Mac 写作体验。本轮不运行本机完整构建、XCTest、模拟器或 App。
+
+云端恢复最后成功日志中的 macos-15 arm64 / Xcode 16.4 / iOS 18.5，固定已有设备而非选择最新 runtime；编译前启动，编译后有界等待并串行测试。设备缺失明确失败，JSON 选择器有 8 项纯 fixture 检查。保留预期 250 项 XCTest、11 图和 universal Mac Release 校验，结果只以新 SHA 的 artifact 为准。此工具链恢复不代表满足未来 App Store SDK、Developer ID 或公证要求。
+
 ## 功能
 
 - 原生 SwiftUI 日记，支持 iPhone、iPad 与 Mac Catalyst；用户数据仅保存在本地 JSON。

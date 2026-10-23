@@ -12,17 +12,18 @@ permissions:
 jobs:
   ci-results:
     name: Build and Package Results
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.91
-      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      VERSION: v0.92
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
+      PYTHONDONTWRITEBYTECODE: '1'
       PROJECT_NAME: MD Journal
       SCHEME: MDJournal
       BUILD_DESTINATION: generic/platform=iOS
       MACCATALYST_BUILD_DESTINATION: generic/platform=macOS,variant=Mac Catalyst
-      TEST_DESTINATION_FALLBACK: platform=iOS Simulator,name=iPhone 16
 
     steps:
       - name: Checkout
@@ -60,7 +61,34 @@ jobs:
             echo "## xcrun swiftc -parse"
             swift_files=$(git ls-files 'MDJournal/*.swift' 'MDJournal/**/*.swift')
             xcrun swiftc -parse -parse-as-library $swift_files
+            echo
+            echo "## CI simulator selection fixture checks"
+            python3 -m unittest discover -s script/tests -v
           } 2>&1 | tee "$RESULT_DIR/static-checks.log"
+
+      - name: Prepare cloud simulator
+        id: test_destination
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Pinned toolchain and runner"
+            uname -m
+            xcrun xcodebuild -version
+            xcrun simctl list runtimes
+            xcrun simctl list devices available --json > "$RESULT_DIR/simulator-devices.json"
+            destination=$(python3 script/ci_simulator.py \
+              --devices "$RESULT_DIR/simulator-devices.json" --runtime "$TEST_RUNTIME" \
+              --report "$RESULT_DIR/simulator-selection.json")
+            echo "destination=${destination}" >> "$GITHUB_OUTPUT"
+            echo "Resolved XCTest destination: ${destination}"
+            device_id="${destination##*id=}"
+            # Start the one selected device early while the build steps compile; never create clones.
+            if ! xcrun simctl list devices booted | grep -Fq "$device_id"; then
+              /usr/bin/perl -e 'alarm shift; exec @ARGV' 60 xcrun simctl boot "$device_id"
+            fi
+          } 2>&1 | tee "$RESULT_DIR/xctest-destination.log"
 
       - name: Generic iOS Debug build
         id: xcode_build
@@ -94,60 +122,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee "$RESULT_DIR/maccatalyst-build.log"
 
-      - name: Resolve XCTest destination
-        id: test_destination
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          destination=$(python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-
-          fallback = os.environ["TEST_DESTINATION_FALLBACK"]
-          try:
-              result = subprocess.run(
-                  [
-                      "xcrun", "simctl",
-                      "list",
-                      "devices",
-                      "available",
-                      "--json",
-                  ],
-                  check=True,
-                  capture_output=True,
-                  text=True,
-              )
-              data = json.loads(result.stdout)
-              candidates = []
-              for runtime, devices in data.get("devices", {}).items():
-                  if "iOS" not in runtime:
-                      continue
-                  for device in devices:
-                      name = device.get("name", "")
-                      udid = device.get("udid")
-                      if device.get("isAvailable") and udid and "iPhone" in name:
-                          candidates.append((runtime, name, udid, device.get("state")))
-              # Reuse an already booted cloud device before paying for a cold data migration.
-              booted = [c for c in candidates if c[3] == "Booted"]
-              preferred = [c for c in candidates if "iPhone 16" in c[1]]
-              ordered = booted or preferred or candidates
-              if ordered:
-                  # sort by runtime string descending so later iOS runtimes win
-                  ordered.sort(key=lambda item: item[0], reverse=True)
-                  runtime, name, udid, state = ordered[0]
-                  print(f"platform=iOS Simulator,id={udid}")
-                  raise SystemExit
-          except Exception:
-              pass
-
-          print(fallback)
-          PY
-          )
-          echo "destination=${destination}" >> "$GITHUB_OUTPUT"
-          echo "Resolved XCTest destination: ${destination}" | tee "$RESULT_DIR/xctest-destination.log"
-
       - name: XCTest
         id: xcode_test
         continue-on-error: true
@@ -156,7 +130,7 @@ jobs:
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
         run: |
           set -euo pipefail
-          destination="${RESOLVED_TEST_DESTINATION:-$TEST_DESTINATION_FALLBACK}"
+          destination="${RESOLVED_TEST_DESTINATION:-}"
           {
             echo "## XCTest destination"
             echo "$destination"
@@ -292,6 +266,7 @@ jobs:
           TEST_OUTCOME: ${{ steps.xcode_test.outcome }}
           INTERFACE_REVIEW_OUTCOME: ${{ steps.interface_review.outcome }}
           MAC_RELEASE_OUTCOME: ${{ steps.mac_release.outcome }}
+          SIMULATOR_PREPARATION_OUTCOME: ${{ steps.test_destination.outcome }}
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         run: |
@@ -326,7 +301,7 @@ jobs:
           if mac_release_outcome != "success":
               failures.append(("mac-release", mac_release_outcome, "See ci-results/mac-release.log."))
 
-          test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or os.environ["TEST_DESTINATION_FALLBACK"]
+          test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or "unresolved"
 
           manifest = {
               "version": os.environ["VERSION"],
@@ -347,8 +322,11 @@ jobs:
               "testSimulatorBootTimeoutSeconds": 240,
               "testBuildTimeoutSeconds": 600,
               "testProcessTimeoutSeconds": 720,
-              "ciRunner": "macos-15-intel",
+              "ciRunner": "macos-15",
               "developerDirectory": os.environ["DEVELOPER_DIR"],
+              "testRuntime": os.environ["TEST_RUNTIME"],
+              "simulatorPreparationOutcome": os.environ["SIMULATOR_PREPARATION_OUTCOME"],
+              "simulatorSelectionPath": "ci-results/simulator-selection.json",
               "resultBundlePath": "ci-results/MDJournal.xcresult",
               "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
               "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
