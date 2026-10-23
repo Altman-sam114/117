@@ -4,6 +4,26 @@ import XCTest
 @testable import MDJournal
 
 final class JournalInterfaceTests: XCTestCase {
+    func testNarrowTitleGetsThirdLineWhileWideAndAccessibilityPoliciesRemainExplicit() {
+        for width: CGFloat in [320, 390, 819] {
+            XCTAssertEqual(EntryEditorLayoutContract(width: width, dynamicTypeSize: .large).titleLineLimit, 3)
+        }
+        for width: CGFloat in [820, 1120, 1440] {
+            XCTAssertEqual(EntryEditorLayoutContract(width: width, dynamicTypeSize: .large).titleLineLimit, 2)
+        }
+        for width: CGFloat in [320, 1440] {
+            XCTAssertNil(EntryEditorLayoutContract(width: width, dynamicTypeSize: .accessibility3).titleLineLimit)
+        }
+    }
+
+    @MainActor
+    func testWritingInsetsAlignBodyWithThePaperHeaderAndPlaceholder() {
+        XCTAssertEqual(MarkdownBodyTextView.writingInsets.left, JournalTheme.pageInset)
+        XCTAssertEqual(MarkdownBodyTextView.writingInsets.right, JournalTheme.pageInset)
+        XCTAssertEqual(MarkdownBodyTextView.writingInsets.top, 20)
+        XCTAssertEqual(MarkdownBodyTextView.writingInsets.bottom, 24)
+    }
+
     func testLowHeightChromeUsesOneToolRowAndCompactTitle() {
         for height: CGFloat in [200, 260, 320, 399] {
             XCTAssertTrue(EntryEditorChromeLayout.isCompactHeight(height))
@@ -119,6 +139,8 @@ final class JournalInterfaceTests: XCTestCase {
         controller.view.layoutIfNeeded()
         try await Task.sleep(for: .milliseconds(150))
         let original = try XCTUnwrap(bodyInput(in: controller.view, text: entry.body))
+        XCTAssertEqual(original.accessibilityLabel, "日记正文")
+        XCTAssertEqual(original.textContainerInset, MarkdownBodyTextView.writingInsets)
         XCTAssertTrue(original.becomeFirstResponder())
         let selectedRange = (entry.body as NSString).range(of: "河边")
         XCTAssertNotEqual(selectedRange.location, NSNotFound)
@@ -257,6 +279,25 @@ final class JournalInterfaceTests: XCTestCase {
         try await render(
             StatisticsDashboardView(entries: entries, bodyPresentations: store.bodyPresentations),
             name: "statistics-1100x900-light", size: CGSize(width: 1100, height: 900)
+        )
+        try await render(
+            MarkdownPreviewView(entryID: entry.id, markdown: entry.body),
+            name: "preview-390x720-light", size: CGSize(width: 390, height: 720)
+        )
+        try await render(
+            library, name: "library-320x900-dark", size: CGSize(width: 320, height: 900), dark: true
+        )
+        try await render(
+            EmptyStateView(onCreate: {}), name: "empty-390x720-light", size: CGSize(width: 390, height: 720)
+        )
+        try await render(
+            StatisticsDashboardView(entries: entries, bodyPresentations: store.bodyPresentations),
+            name: "statistics-390x900-light", size: CGSize(width: 390, height: 900)
+        )
+        try await render(
+            StatisticsDashboardView(entries: entries, bodyPresentations: store.bodyPresentations),
+            name: "statistics-390x900-light-accessibility3", size: CGSize(width: 390, height: 900),
+            typeSize: .accessibility3
         )
     }
 

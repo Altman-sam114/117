@@ -13,6 +13,17 @@ enum JournalTheme {
     static let canvasInset: CGFloat = 24
 }
 
+struct JournalBackdrop: View {
+    var body: some View {
+        LinearGradient(
+            colors: [JournalTheme.canvas, JournalTheme.paper, JournalTheme.canvas],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
 private struct JournalSurface: ViewModifier {
     func body(content: Content) -> some View {
         content

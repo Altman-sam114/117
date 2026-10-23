@@ -1,5 +1,13 @@
 # 项目核心流程文档
 
+## 当前界面与渲染边界（v0.93）
+
+资料库：纸本引导/新建按钮 → 系统分类筛选 → 既有可见年月Section。每行从entry元数据和Store缓存构造`JournalEntryRowContent`，仅持有ID、标题、日期、分类、心情、有限摘要与词数；Equatable只比较该投影与选中状态，不持有或比较全文/小节数组。字号、Calendar和Locale仍由行环境消费；页码日期与年月分组使用同一Calendar时区。
+
+工作台：固定结构标题优先 → 日期/分类/心情与详情入口 → 模式/Markdown命令带 → 固定结构UITextView/预览 → 词数/仅在本机。窄屏三行标题、宽屏两行、辅助字号不限行；头部实测且38%预算独立滚动。正文/占位/标题横向24pt，UIKit桥只改创建时inset与标签，原同步/IME/选区/焦点不变。最近编辑时间只在展开详情时格式化；“仅在本机”不是磁盘durable声明。
+
+预览小节编号/衬线层级与辅助字号不限行只影响展示；统计指标去嵌套、网格顶对齐，空态与渐变canvas共享主题。原150ms latest-wins、Store正文缓存、持久化与Markdown规则不变。云端矩阵16张，当前线程逐轮下载，不标独立C。
+
 ## 当前云端执行策略（v0.92）
 
 main push → 固定macos-15/Xcode16.4 → 静态检查与8项设备选择fixture → 在固定iOS18.5清单内选择已有iPhone（同runtime Booted优先，再iPhone16）→ 记录UDID/runtime/初始状态并提前启动 → iOS/Catalyst Debug → 独立build-for-testing → 同一设备bootstatus有界等待 → 串行完整XCTest → 11张图片导出 → universal Mac Release/签名/ZIP核对 → manifest/JUnit/未加密artifact → 当前线程下载复判。无设备时明确失败，不吞错退回其他runtime，不在本机执行构建或simctl。
@@ -148,7 +156,7 @@ JournalStatistics.lastSevenDays / maxDailyWordCount
 8. `ContentView.deleteEntry(_:)` 仍只调用 `JournalStore.delete(_:)`，随后用删除后的 filtered snapshot 和 policy 修复 selection；筛选之外仍存在的日记不会被选回。
 9. 过滤结果为空时，snapshot 的 `isCollectionEmpty` 区分真实空日记库和搜索/分类无结果；真实空库保留新建入口，筛选空结果提供清除搜索与分类操作。
 10. `EntryListView` 将当前 `filteredEntries` 传入 `JournalEntryTimelineSnapshot`：按同一注入 Calendar 的 month interval 派生非本地化组 ID，以 Locale 格式化标题；不重新筛选、排序或读取正文，组顺序和组内顺序保留，flatten ID 与可见数组一致。List 用真实年月 Section，组计数只来自可见 entries；行日期通过 Date.FormatStyle 使用同一 Calendar、时区与 Locale，避免月界语境不一致。
-11. `EntryRowView` 单次构造 `JournalEntryBodySummary`，只展示日期/心情、标题、两行摘要和分类/词数；普通标题最多两行，Accessibility 使用垂直 metadata/footer 与完整标题，不展开小节名、不使用无限水平提议。选中有底色、强调线、勾选与 selected trait；布局策略不写 Store/JSON，也不改变摘要、metrics、selection 或编辑器状态。
+11. `EntryRowView` 从entry元数据和Store展示缓存构造有限`JournalEntryRowContent`，不重新派生summary、不持有全文/sections；普通字号日期页码与内容并列，标题两行、摘要两行和分类/心情/词数。Accessibility日期与footer垂直、标题完整自然增高。Equatable只比较显示投影与选中，选中仍有底色、强调线、勾选/selected trait；环境驱动字号/日期，布局不写Store/JSON或编辑器状态。
 12. `journalEntryNavigationActions(using:)` 只把本次 body 评估共享 snapshot 的 `filteredEntries` 传给 `JournalEntryNavigation`；较新/较早继续按可见新到旧顺序相邻移动，首尾不循环，只改变 selection，不调用 Store、保存或正文焦点 API。
 13. Store/JSON、保存 debounce/flush/writer、Markdown parser/preview、编辑器正文和删除确认语义均不因筛选或 selection 状态改变。
 

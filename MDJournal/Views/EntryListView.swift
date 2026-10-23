@@ -48,8 +48,9 @@ struct EntryListView: View {
 
         List(selection: $selection) {
             Section {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     overviewCard(overviewSnapshot)
+                    createButton
                     categoryFilter(snapshot)
                 }
                     .listRowSeparator(.hidden)
@@ -71,6 +72,7 @@ struct EntryListView: View {
                                 entry: entry, bodyPresentation: presentation(for: entry.id),
                                 isSelected: selection == entry.id
                             )
+                                .equatable()
                                 .tag(entry.id)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -137,29 +139,54 @@ struct EntryListView: View {
     }
 
     private var listBackground: some View {
-        JournalTheme.canvas.ignoresSafeArea()
+        JournalBackdrop().ignoresSafeArea()
     }
 
     private func overviewCard(_ overview: JournalListOverviewSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("资料库")
-                    .font(.system(.title3, design: .serif).weight(.semibold))
+                Label("我的资料库", systemImage: "book.closed")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(JournalTheme.accent)
                 Spacer(minLength: 4)
+            }
+            Text("日常，值得记下。")
+                .font(.system(.title2, design: .serif).weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
+            let metricsLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                : AnyLayout(HStackLayout(spacing: 10))
+            metricsLayout {
+                Text("\(overview.totalEntries) 篇 · \(overview.totalWords) 词")
+                    .foregroundStyle(.secondary)
                 if overview.recentStreak > 0 {
-                    Label("\(overview.recentStreak) 天", systemImage: "leaf")
-                        .font(.caption)
+                    Label("连续 \(overview.recentStreak) 天", systemImage: "leaf")
                         .foregroundStyle(JournalTheme.accent)
-                        .accessibilityLabel("最近连续记录 \(overview.recentStreak) 天")
                 }
             }
-            Text("\(overview.totalEntries) 篇日记 · \(overview.totalWords) 词")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    private var createButton: some View {
+        Button(action: onCreate) {
+            HStack(spacing: 10) {
+                Label("写一篇日记", systemImage: "square.and.pencil")
+                Spacer(minLength: 0)
+                #if targetEnvironment(macCatalyst)
+                Text("⌘N").font(.caption).accessibilityHidden(true)
+                #endif
+            }
+            .font(.subheadline.weight(.medium))
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(JournalTheme.accent)
+        .help("新建日记（⌘N）")
     }
 
     private func categoryFilter(_ listSnapshot: JournalEntryListSnapshot) -> some View {

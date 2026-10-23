@@ -46,6 +46,17 @@ extension Date {
         ).day().weekday(.abbreviated))
     }
 
+    func journalDayText(calendar: Calendar, locale: Locale) -> String {
+        calendar.component(.day, from: self).formatted(.number.locale(locale).grouping(.never))
+    }
+
+    func journalWeekdayText(calendar: Calendar, locale: Locale) -> String {
+        formatted(Date.FormatStyle(
+            date: .omitted, time: .omitted, locale: locale,
+            calendar: calendar, timeZone: calendar.timeZone
+        ).weekday(.abbreviated))
+    }
+
     var journalWeekdayText: String {
         JournalDateFormatters.weekday.string(from: self)
     }

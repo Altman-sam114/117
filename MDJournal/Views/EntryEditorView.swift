@@ -38,7 +38,7 @@ internal struct EntryEditorLayoutContract: Equatable {
         summaryAxis = usesCompactHeaderLayout ? .horizontal : .vertical
         statisticsPillAxis = isAccessibilitySize ? .vertical : .horizontal
         statisticsWidth = usesCompactHeaderLayout ? Self.regularWideStatisticsWidth : nil
-        titleLineLimit = isAccessibilitySize ? nil : 2
+        titleLineLimit = isAccessibilitySize ? nil : (isWideEditorLayout ? 2 : 3)
         sectionTitleLineLimit = isAccessibilitySize ? 2 : 1
         sectionExcerptLineLimit = isAccessibilitySize ? 3 : 2
     }
@@ -170,6 +170,7 @@ struct EntryEditorView: View {
     @State private var showsDetails = false
     @State private var headerContentHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let focusedWritingMaxWidth = JournalTheme.readableWidth
 
@@ -227,7 +228,7 @@ struct EntryEditorView: View {
                     .allowsHitTesting(false)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(JournalTheme.canvas)
+            .background { JournalBackdrop() }
             .onAppear {
                 workspaceState.updateLayout(layout)
             }
@@ -291,6 +292,24 @@ struct EntryEditorView: View {
         }
         #endif
 
+        #if !targetEnvironment(macCatalyst)
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button { perform(.focusWriting, layout: layout) } label: {
+                    Label(EditorWritingCommand.focusWriting.title, systemImage: EditorWritingCommand.focusWriting.systemImage)
+                }
+                Button { perform(.togglePreview, layout: layout) } label: {
+                    Label(workspace.previewToggleTitle, systemImage: EditorWritingCommand.togglePreview.systemImage)
+                }
+                Button { showsDetails.toggle() } label: {
+                    Label(showsDetails ? "收起详情" : "日记详情", systemImage: "slider.horizontal.3")
+                }
+            } label: {
+                Label("写作选项", systemImage: "ellipsis.circle")
+            }
+        }
+        #endif
+
         ToolbarItem(placement: .primaryAction) {
             ShareLink(item: entry.markdownDocument, subject: Text(entry.displayTitle)) {
                 Label("分享", systemImage: "square.and.arrow.up")
@@ -308,14 +327,26 @@ struct EntryEditorView: View {
         layout: EntryEditorLayoutContract, bodyMetrics: JournalEntryBodyPresentation, compactHeight: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            // The title stays at the same structural position when the keyboard changes height.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                titleField(layout: layout, compact: compactHeight)
+                if compactHeight { detailsButton }
+            }
+
             if !compactHeight {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(entry.createdAt.journalTitleText)
-                            .font(.subheadline)
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(entry.createdAt.journalTitleText, systemImage: "calendar")
+                            .font(.caption)
                         if !showsDetails {
-                            Text("\(entry.category.rawValue) · \(entry.mood.rawValue)")
-                                .font(.caption)
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 12) {
+                                    Label(entry.category.rawValue, systemImage: entry.category.systemImage)
+                                    Label(entry.mood.rawValue, systemImage: entry.mood.systemImage)
+                                }
+                                Text("\(entry.category.rawValue) · \(entry.mood.rawValue)")
+                            }
+                            .font(.caption)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -323,12 +354,6 @@ struct EntryEditorView: View {
                     Spacer(minLength: 4)
                     detailsButton
                 }
-            }
-
-            // Keyboard-driven height changes must not replace the active title field.
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                titleField(layout: layout, compact: compactHeight)
-                if compactHeight { detailsButton }
             }
 
             if showsDetails {
@@ -340,6 +365,9 @@ struct EntryEditorView: View {
                     titleLineLimit: layout.sectionTitleLineLimit,
                     excerptLineLimit: layout.sectionExcerptLineLimit
                 )
+                Text("最近编辑：\(entry.updatedAt.journalRelativeUpdateText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, JournalTheme.pageInset)
@@ -350,7 +378,9 @@ struct EntryEditorView: View {
 
     private var detailsButton: some View {
         Button {
-            showsDetails.toggle()
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
+                showsDetails.toggle()
+            }
         } label: {
             Label(showsDetails ? "收起详情" : "日记详情",
                   systemImage: showsDetails ? "chevron.up" : "slider.horizontal.3")
@@ -378,7 +408,7 @@ struct EntryEditorView: View {
             HStack(spacing: 16) {
                 Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
                 Spacer(minLength: 12)
-                Text("更新于 \(entry.updatedAt.journalRelativeUpdateText)")
+                Label("仅在本机", systemImage: "internaldrive")
             }
             Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
         }
@@ -477,9 +507,11 @@ struct EntryEditorView: View {
         ZStack(alignment: .topLeading) {
             if !bodyMetrics.hasVisibleContent {
                 Text("用 ### 小节组织今天的记录。")
+                    .font(.body)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 18)
+                    .padding(.horizontal, JournalTheme.pageInset)
+                    .padding(.top, MarkdownBodyTextView.writingInsets.top)
+                    .allowsHitTesting(false)
             }
 
             MarkdownBodyTextView(
@@ -551,7 +583,7 @@ struct EntryEditorView: View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
                 if workspace.usesSplitPreview {
-                    Label("编辑", systemImage: "square.and.pencil")
+                    Label("Markdown 原文", systemImage: "square.and.pencil")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 } else {
@@ -578,7 +610,7 @@ struct EntryEditorView: View {
             if workspace.showsEditor && workspace.showsPreview {
                 Divider().frame(width: 1)
                 HStack {
-                    Label("预览", systemImage: "doc.richtext")
+                    Label("阅读预览", systemImage: "doc.richtext")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -589,7 +621,7 @@ struct EntryEditorView: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .background(JournalTheme.paper)
+        .background(JournalTheme.inset.opacity(0.35))
     }
 
     private func compactModeSelection(layout: EntryEditorLayoutContract) -> Binding<Mode> {

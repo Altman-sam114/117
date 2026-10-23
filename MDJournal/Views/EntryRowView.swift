@@ -19,36 +19,71 @@ internal struct EntryRowLayoutContract: Equatable {
     }
 }
 
-struct EntryRowView: View {
-    let entry: JournalEntry
-    let bodyPresentation: JournalEntryBodyPresentation
-    var isSelected = false
+/// Only displayed values participate in row invalidation; the body and section array stay in the store.
+struct JournalEntryRowContent: Equatable, Sendable {
+    let id: JournalEntry.ID
+    let title: String
+    let createdAt: Date
+    let category: JournalEntry.Category
+    let mood: JournalEntry.Mood
+    let excerpt: String
+    let wordCount: Int
+
+    init(entry: JournalEntry, bodyPresentation: JournalEntryBodyPresentation) {
+        id = entry.id
+        title = entry.displayTitle
+        createdAt = entry.createdAt
+        category = entry.category
+        mood = entry.mood
+        excerpt = bodyPresentation.excerpt
+        wordCount = bodyPresentation.wordCount
+    }
+}
+
+struct EntryRowView: View, Equatable {
+    let content: JournalEntryRowContent
+    let isSelected: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.calendar) private var calendar
     @Environment(\.locale) private var locale
+    @ScaledMetric(relativeTo: .title2) private var dateStampWidth: CGFloat = 34
+
+    init(entry: JournalEntry, bodyPresentation: JournalEntryBodyPresentation, isSelected: Bool = false) {
+        content = JournalEntryRowContent(entry: entry, bodyPresentation: bodyPresentation)
+        self.isSelected = isSelected
+    }
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.content == rhs.content && lhs.isSelected == rhs.isSelected
+    }
 
     var body: some View {
         let layout = EntryRowLayoutContract(dynamicTypeSize: dynamicTypeSize)
-        let summary = bodyPresentation
+        let rowLayout = layout.metadataAxis == .vertical
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
 
-        VStack(alignment: .leading, spacing: 6) {
-            metadata(layout: layout)
+        rowLayout {
+            dateStamp(layout: layout)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(content.title)
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(layout.titleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Text(entry.displayTitle)
-                .font(.headline)
-                .foregroundStyle(.primary)
-                .lineLimit(layout.titleLineLimit)
+                Text(content.excerpt)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Text(summary.excerpt)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            footer(summary, layout: layout)
+                footer(layout: layout)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isSelected ? JournalTheme.inset : .clear,
                     in: RoundedRectangle(cornerRadius: 10))
@@ -66,39 +101,47 @@ struct EntryRowView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private func metadata(layout: EntryRowLayoutContract) -> some View {
-        let axis = layout.metadataAxis == .horizontal
-            ? AnyLayout(HStackLayout(spacing: 8))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-
-        return axis {
-            Text(entry.createdAt.journalTimelineText(calendar: calendar, locale: locale))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-            if layout.metadataAxis == .horizontal { Spacer(minLength: 4) }
-            HStack(spacing: 8) {
-                Label(entry.mood.rawValue, systemImage: entry.mood.systemImage)
-                    .labelStyle(.iconOnly)
+    @ViewBuilder
+    private func dateStamp(layout: EntryRowLayoutContract) -> some View {
+        if layout.metadataAxis == .vertical {
+            Text(content.createdAt.journalTimelineText(calendar: calendar, locale: locale))
+                .font(.caption)
+                .foregroundStyle(isSelected ? JournalTheme.accent : .secondary)
+        } else {
+            VStack(spacing: 2) {
+                Text(content.createdAt.journalDayText(calendar: calendar, locale: locale))
+                    .font(.system(.title2, design: .serif).weight(.medium))
+                    .foregroundStyle(isSelected ? JournalTheme.accent : .primary)
+                Text(content.createdAt.journalWeekdayText(calendar: calendar, locale: locale))
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
                 Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
                     .foregroundStyle(JournalTheme.accent)
                     .opacity(isSelected ? 1 : 0)
                     .accessibilityHidden(true)
             }
-            .font(.caption)
+            .frame(width: dateStampWidth)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(content.createdAt.journalTimelineText(calendar: calendar, locale: locale))
         }
     }
 
-    private func footer(_ summary: JournalEntryBodyPresentation, layout: EntryRowLayoutContract) -> some View {
+    private func footer(layout: EntryRowLayoutContract) -> some View {
         let axis = layout.footerAxis == .horizontal
             ? AnyLayout(HStackLayout(spacing: 8))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
 
         return axis {
-            Label(entry.category.rawValue, systemImage: entry.category.systemImage)
-                .foregroundStyle(entry.category.tint)
+            HStack(spacing: 8) {
+                Label(content.category.rawValue, systemImage: content.category.systemImage)
+                    .foregroundStyle(content.category.tint)
+                Label(content.mood.rawValue, systemImage: content.mood.systemImage)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(.secondary)
+            }
             if layout.footerAxis == .horizontal { Spacer(minLength: 4) }
-            Text("\(summary.wordCount) 词")
+            Text("\(content.wordCount) 词")
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

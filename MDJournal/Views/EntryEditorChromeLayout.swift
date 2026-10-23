@@ -18,7 +18,7 @@ enum EntryEditorChromeLayout {
         if isCompactHeight(availableHeight) && !showsDetails {
             return min(52, max(0, availableHeight) * 0.22)
         }
-        let preferred: CGFloat = showsDetails ? 300 : (dynamicTypeSize.isAccessibilitySize ? 220 : 176)
+        let preferred: CGFloat = showsDetails ? 300 : (dynamicTypeSize.isAccessibilitySize ? 220 : 200)
         return min(preferred, max(0, availableHeight) * 0.38)
     }
 }

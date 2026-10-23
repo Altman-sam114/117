@@ -234,6 +234,7 @@ struct MarkdownPreviewView: View {
     let markdown: String
     var accent: Color = JournalTheme.accent
     var maxContentWidth: CGFloat = 720
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var updateModel: MarkdownPreviewUpdateModel
 
     init(
@@ -267,7 +268,11 @@ struct MarkdownPreviewView: View {
                         .padding(.top, 60)
                 } else if shouldUseSectionGroups {
                     ForEach(document.sectionGroups) { group in
-                        sectionGroupView(group, inlineCache: inlineCache)
+                        sectionGroupView(
+                            group,
+                            ordinal: group.order + (document.sectionGroups.first?.isIntro == true ? 0 : 1),
+                            inlineCache: inlineCache
+                        )
                     }
                 } else {
                     ForEach(document.blocks.indices, id: \.self) { index in
@@ -302,6 +307,7 @@ struct MarkdownPreviewView: View {
     @ViewBuilder
     private func sectionGroupView(
         _ group: MarkdownSectionGroup,
+        ordinal: Int,
         inlineCache: MarkdownPreviewInlineCache
     ) -> some View {
         if group.isIntro {
@@ -314,14 +320,15 @@ struct MarkdownPreviewView: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    Image(systemName: "number")
-                        .font(.caption.weight(.bold))
+                    Text(String(format: "%02d", ordinal))
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(accent)
+                        .accessibilityHidden(true)
 
                     Text(group.title)
-                        .font(.headline.weight(.bold))
+                        .font(.system(.title3, design: .serif).weight(.semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                 }
 
                 if group.blocks.isEmpty {

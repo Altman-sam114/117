@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.92
+      VERSION: v0.93
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
       PYTHONDONTWRITEBYTECODE: '1'
@@ -202,6 +202,11 @@ jobs:
               "review-library-320x900-light-history": (320, 900, "light", "large", "EntryListView / scrolled history"),
               "review-library-320x900-light-accessibility3": (320, 900, "light", "accessibility3", "EntryListView"),
               "review-statistics-1100x900-light": (1100, 900, "light", "large", "StatisticsDashboardView"),
+              "review-preview-390x720-light": (390, 720, "light", "large", "MarkdownPreviewView"),
+              "review-library-320x900-dark": (320, 900, "dark", "large", "EntryListView"),
+              "review-empty-390x720-light": (390, 720, "light", "large", "EmptyStateView"),
+              "review-statistics-390x900-light": (390, 900, "light", "large", "StatisticsDashboardView"),
+              "review-statistics-390x900-light-accessibility3": (390, 900, "light", "accessibility3", "StatisticsDashboardView"),
           }
           images = {}
           for test in manifest:

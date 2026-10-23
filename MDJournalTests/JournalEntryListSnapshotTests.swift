@@ -3,6 +3,66 @@ import SwiftUI
 @testable import MDJournal
 
 final class JournalEntryListSnapshotTests: XCTestCase {
+    func testRowContentConsumesCachedPresentationWithoutReadingBodyOrUpdatedTime() {
+        var entry = timelineEntry("  标题  ", "2026-10-22T12:00:00Z")
+        let presentation = JournalEntryBodyPresentation(body: "缓存摘要 only")
+        let original = JournalEntryRowContent(entry: entry, bodyPresentation: presentation)
+        XCTAssertEqual(original.title, "标题")
+        XCTAssertEqual(original.excerpt, presentation.excerpt)
+        XCTAssertEqual(original.wordCount, presentation.wordCount)
+        entry.body = String(repeating: "无需重新派生 ", count: 1000)
+        entry.updatedAt = entry.updatedAt.addingTimeInterval(60)
+        XCTAssertEqual(JournalEntryRowContent(entry: entry, bodyPresentation: presentation), original)
+    }
+
+    func testRowContentInvalidatesEveryDisplayedMetadataField() {
+        let entry = timelineEntry("原始标题", "2026-10-22T12:00:00Z")
+        let presentation = JournalEntryBodyPresentation(body: entry.body)
+        let original = JournalEntryRowContent(entry: entry, bodyPresentation: presentation)
+        let changes: [(inout JournalEntry) -> Void] = [
+            { $0.id = UUID() }, { $0.title = "新标题" },
+            { $0.createdAt = $0.createdAt.addingTimeInterval(86400) },
+            { $0.category = .travel }, { $0.mood = .happy }
+        ]
+        for change in changes {
+            var changed = entry
+            change(&changed)
+            XCTAssertNotEqual(JournalEntryRowContent(entry: changed, bodyPresentation: presentation), original)
+        }
+    }
+
+    func testRowContentDetectsVisibleExcerptAndWordCountButIgnoresHiddenTail() {
+        let entry = timelineEntry("标题", "2026-10-22T12:00:00Z")
+        let prefix = String(repeating: "前", count: 200)
+        let original = JournalEntryRowContent(entry: entry, bodyPresentation: .init(body: prefix + " alpha"))
+        XCTAssertEqual(original, JournalEntryRowContent(entry: entry, bodyPresentation: .init(body: prefix + " bravo")))
+        XCTAssertNotEqual(original, JournalEntryRowContent(entry: entry, bodyPresentation: .init(body: prefix + " more words")))
+        XCTAssertNotEqual(original, JournalEntryRowContent(entry: entry, bodyPresentation: .init(body: "新的摘要 alpha")))
+    }
+
+    @MainActor
+    func testEquatableRowIncludesSelectionWithoutDependingOnHiddenEntryFields() {
+        let entry = timelineEntry("标题", "2026-10-22T12:00:00Z")
+        let presentation = JournalEntryBodyPresentation(body: entry.body)
+        let row = EntryRowView(entry: entry, bodyPresentation: presentation)
+        var changed = entry
+        changed.updatedAt = entry.updatedAt.addingTimeInterval(1)
+        changed.body = "未展示的正文"
+        XCTAssertEqual(row, EntryRowView(entry: changed, bodyPresentation: presentation))
+        XCTAssertNotEqual(row, EntryRowView(entry: entry, bodyPresentation: presentation, isSelected: true))
+    }
+
+    func testFolioDateUsesInjectedCalendarTimeZoneAndLocale() {
+        let date = ISO8601DateFormatter().date(from: "2026-03-01T00:30:00Z")!
+        let locale = Locale(identifier: "en_US")
+        XCTAssertEqual(date.journalDayText(calendar: timelineCalendar(), locale: locale), "1")
+        XCTAssertEqual(date.journalWeekdayText(calendar: timelineCalendar(), locale: locale), "Sun")
+        let pacific = timelineCalendar(timeZone: "America/Los_Angeles")
+        XCTAssertEqual(date.journalDayText(calendar: pacific, locale: locale), "28")
+        XCTAssertEqual(date.journalWeekdayText(calendar: pacific, locale: locale), "Sat")
+        XCTAssertEqual(date.journalDayText(calendar: timelineCalendar(), locale: Locale(identifier: "zh_CN")), "1")
+    }
+
     func testTimelineGroupsSameMonthWithoutChangingVisibleOrder() {
         let entries = [
             timelineEntry("月底", "2026-10-30T12:00:00Z"),

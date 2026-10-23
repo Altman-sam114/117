@@ -43,6 +43,8 @@ struct MarkdownBodyTextViewSyncState {
 }
 
 struct MarkdownBodyTextView: UIViewRepresentable {
+    static let writingInsets = UIEdgeInsets(top: 20, left: JournalTheme.pageInset, bottom: 24, right: JournalTheme.pageInset)
+
     @Binding var text: String
     @Binding var selectedRange: NSRange
     @Binding var isFocused: Bool
@@ -65,7 +67,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         textView.adjustsFontForContentSizeCategory = true
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+        textView.textContainerInset = Self.writingInsets
+        textView.accessibilityLabel = "日记正文"
         textView.textContainer.lineFragmentPadding = 0
         textView.text = text
         textView.selectedRange = Self.clampedRange(selectedRange, in: text)

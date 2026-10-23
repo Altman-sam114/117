@@ -29,7 +29,7 @@ struct StatisticsDashboardView: View {
                     LazyVStack(alignment: .leading, spacing: 20) {
                         hero(isWideLayout: columns == 2, stats: stats)
                         LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: columns),
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 20, alignment: .topLeading), count: columns),
                             alignment: .leading,
                             spacing: 20
                         ) {
@@ -46,7 +46,7 @@ struct StatisticsDashboardView: View {
                 }
             }
             .background(dashboardBackground)
-            .navigationTitle("统计")
+            .navigationTitle("写作足迹")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if showsCloseButton {
@@ -64,13 +64,16 @@ struct StatisticsDashboardView: View {
     }
 
     private var dashboardBackground: some View {
-        JournalTheme.canvas.ignoresSafeArea()
+        JournalBackdrop().ignoresSafeArea()
     }
 
     private func hero(isWideLayout: Bool, stats: JournalStatistics) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 24) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
+                    Label("写作足迹", systemImage: "leaf")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(JournalTheme.accent)
                     Text("回看，也是一种记录。")
                         .font(.system(.title2, design: .serif).weight(.medium))
 
@@ -95,7 +98,7 @@ struct StatisticsDashboardView: View {
                 MetricTile(title: "最长连续", value: "\(stats.longestStreak) 天", systemImage: "trophy", tint: JournalTheme.accent)
             }
         }
-        .padding(16)
+        .padding(24)
         .journalSurface()
     }
 
@@ -242,22 +245,21 @@ private struct MetricTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: systemImage)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(tint)
-
-            Text(value)
-                .font(.title3.weight(.bold))
-                .fixedSize(horizontal: false, vertical: true)
-                .monospacedDigit()
-
-            Text(title)
+            Label(title, systemImage: systemImage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.largeTitle, design: .serif).weight(.medium))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+                .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 10))
+        .padding(.leading, 14)
+        .padding(.vertical, 6)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(JournalTheme.separator).frame(width: 1)
+        }
     }
 }
 
@@ -328,7 +330,7 @@ private struct SevenDayBarChart: View {
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(JournalTheme.inset)
+                    .fill(JournalTheme.inset.opacity(0.45))
                     .frame(height: SevenDayBarChartLayoutContract.plotHeight)
 
                 RoundedRectangle(cornerRadius: 5)
@@ -344,7 +346,7 @@ private struct SevenDayBarChart: View {
     }
 
     private func barHeight(for words: Int) -> CGFloat {
-        guard words > 0 else { return 8 }
+        guard words > 0 else { return 2 }
         return max(
             12,
             CGFloat(words) / CGFloat(maxWords) * SevenDayBarChartLayoutContract.plotHeight
@@ -385,7 +387,7 @@ private struct DistributionRow: View {
                         .frame(width: proxy.size.width * ratio)
                 }
             }
-            .frame(height: 8)
+            .frame(height: 5)
         }
     }
 

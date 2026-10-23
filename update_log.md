@@ -11,10 +11,10 @@
 
 ## 当前状态
 
-- 当前任务 v0.92：恢复可追溯云端基线；遵照2026-10-23用户要求不开子智能体。先验收本轮，再进入v0.93 UI重构；不进行无限循环。
+- 当前任务 v0.93：v0.92云端基线已恢复并下载复判通过，进入纸本UI与高效写作重构；遵照2026-10-23用户要求不开子智能体，不进行无限循环。
 - v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
-- 当前阶段：`v0.92` 修复云端测试阻塞；v0.91 Mac内部包仍不等于完整发布验收。
+- 当前阶段：`v0.93` 原生界面重构；v0.92完整CI通过，Mac仍是未公证内部包，不等于公开发布验收。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
 - 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 实现验证 HEAD 云端 artifact 为 212 项（新增 7 项同步状态/接线测试），已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
@@ -24,7 +24,18 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.92 / 恢复可追溯云端基线（待新云端结果）
+### v0.93 / 纸本界面与高效写作（待云端验收）
+
+日期：2026-10-23。
+
+- 原生界面重构覆盖资料库引导/新建与日期页码行、标题优先纸面、统一24pt正文边距、手机写作菜单、编号阅读小节、顶对齐统计与无嵌套大数字、纸本空态和轻渐变；沿用暖白/墨绿及深色/高对比语义颜色。
+- 行只保存可见标量投影并显式Equatable，避免输入时对不变行的无关渲染；比较不含body/sections/updatedAt。缓存派生、Store、JSON、IME/UTF16/焦点和Markdown语义不改。最近编辑时间仅展开详情时格式化；“仅在本机”不冒充已落盘。
+- 新增7项确定性测试，预期257项；保留原身份/选区/焦点回归及全部250项，界面矩阵11扩16。没有实测帧率/分配/真实Mac输入的虚假声明。
+- 关键文件：Theme、List/Row、Editor/ChromeLayout、BodyTextView创建布局、Preview展示、Statistics/EmptyState、DateFormatters、相关测试、workflow与版本化prompt；README/test/flow/flowchart同步。
+- 本机仅轻量检查，新SHA的完整构建、XCTest、16图和Mac包需自己的云端artifact，未预填通过。正式签名、公证、App Store工具链资格、真实Mac/IME/VoiceOver及性能仍须专项验收。
+- 实际轻量检查退出0：应用/测试Swift parse、project plist、8/8纯Python fixture、workflow YAML与11个run块bash语法/2个Python heredoc及Python源码AST、全部asset JSON、257个XCTest声明和16图矩阵一致性、git diff --check。未本机build/XCTest/simctl/App。
+
+### v0.92 / 恢复可追溯云端基线（云端通过）
 
 日期：2026-10-23。
 
@@ -34,6 +45,7 @@
 - 关键文件：`.github/workflows/ci-results.yml`、`script/ci_simulator.py`、`script/tests/test_ci_simulator.py`、版本化prompt及README/test/flow/flowchart。
 - 本机仅轻量检查；完整构建/测试/图片/Mac包待新SHA自己的artifact，不预填通过。下一轮UI重构只有验收通过后开始。旧失败历史保留；正式签名、公证、真实Mac输入与性能仍不在本轮通过声明内。
 - 实际轻量检查全部退出0：`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v`（8/8）、Ruby YAML解析、11个workflow run块`bash -n`与2个Python heredoc/全部Python源码`ast.parse`、应用与测试Swift `swiftc -parse -parse-as-library`、project `plutil -lint`、`git diff --check`。未本机build/XCTest/simctl/App。
+- 提交4bb89aed1e57937b16c81f4d7bee78fb7062b6d9已推到同一origin/main；原URL内嵌旧凭证失败后，以现有gh授权和同仓库HTTPS显式推送，未更改全局凭证或远端目标。run39883823991/attempt1六阶段success，250/250测试、11图、四份xcresult；artifact `mdjournal-ci-v0.92-main-4bb89ae-run39883823991-attempt1`（ID12471084848，5522446bytes，SHA256 4812e8d87098a7c7f1c3dbef13a35da8882be50d03bcbb994a53c518baf27e42）。当前线程下载到`/private/tmp/mdjournal-c-review-39883823991/`并核对600个未加密文件、CRC、fresh extract与gh下载逐文件SHA256、JUnit/manifest/log、11图逐张和Mac包；Mac另以只读解压/签名/双架构/权限脚本复判通过，不启动App、不标独立C。8分20秒完成，解除上一轮同因启动阻塞，允许进入v0.93。
 
 ### v0.91 / 高效写作与 Mac 验收包（构建完成，测试阻塞）
 

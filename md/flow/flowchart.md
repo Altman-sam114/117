@@ -1,5 +1,23 @@
 # 项目流程图
 
+## 纸本界面与行渲染（v0.93）
+
+```mermaid
+flowchart LR
+  Store["Store正文投影 + entry元数据"] --> Row["可见标量RowContent / 不持有全文与小节数组"]
+  Row --> Equal["Equatable：显示内容与选中状态"]
+  Environment["字号 / Calendar时区 / Locale"] --> Folio["日期页码 / 辅助字号垂直行"]
+  Equal --> Folio
+  Theme["纸本 / 墨绿 / 衬线 / 轻渐变"] --> Library["引导 + 新建 + 分类 + 年月Section"]
+  Theme --> Editor["标题优先 / 24pt对齐 / 38%头部 / 固定输入节点"]
+  Editor --> Preview["编号小节 / 原latest-wins快照"]
+  Theme --> Stats["大数字 / 去嵌套指标 / 网格顶对齐 / 空态"]
+  Library --> CI["257项预期XCTest / 16张生产图 / universal Mac包"]
+  Editor --> CI
+  Stats --> CI
+  CI --> Review["最新SHA云端artifact / 当前线程串行复判"]
+```
+
 ## 当前云端恢复策略（v0.92）
 
 ```mermaid
