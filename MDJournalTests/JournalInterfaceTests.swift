@@ -6,6 +6,7 @@ import XCTest
 final class JournalInterfaceTests: XCTestCase {
     @MainActor
     func testCompactProductionNavigationLinkOpensPopsAndReopensTheSameEntry() async throws {
+        executionTimeAllowance = 60
         let entries = Array(reviewEntries().prefix(2))
         let fixture = try makeNavigationStore(entries: entries)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -52,6 +53,7 @@ final class JournalInterfaceTests: XCTestCase {
 
     @MainActor
     func testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID() async throws {
+        executionTimeAllowance = 60
         let entries = Array(reviewEntries().prefix(2))
         let fixture = try makeNavigationStore(entries: entries)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -98,6 +100,7 @@ final class JournalInterfaceTests: XCTestCase {
 
     @MainActor
     func testProductionNavigationRepairsFilteredAndDeletedSelectionsAcrossSizeClasses() async throws {
+        executionTimeAllowance = 60
         let entries = Array(reviewEntries().prefix(2))
         let fixture = try makeNavigationStore(entries: entries)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -176,6 +179,7 @@ final class JournalInterfaceTests: XCTestCase {
 
     @MainActor
     func testProductionDoneAndWritingActionsCoordinateTitleAndBodyFirstResponders() async throws {
+        executionTimeAllowance = 60
         let entry = reviewEntries()[0]
         var interaction: JournalEditorInteraction?
         let controller = UIHostingController(rootView: EntryEditorView(

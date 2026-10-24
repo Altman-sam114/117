@@ -6,7 +6,7 @@
 flowchart TD
   App["MDJournalApp / 共享 Store、订阅、应用锁"] --> Gate["JournalPrivacyGate / 窗口级隐私遮罩"]
   Gate --> Content["ContentView / 唯一选中、筛选、sheet"]
-  Content --> Compact["手机 compact / NavigationStack + UUID path"]
+  Content --> Compact["手机 compact / NavigationStack + UUID path / 列表无原生selection回写"]
   Content --> Regular["iPad regular、Catalyst / NavigationSplitView"]
   Compact --> Library["年月资料库 / NavigationLink / 新建 / 设置"]
   Regular --> Library

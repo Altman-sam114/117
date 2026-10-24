@@ -8,7 +8,7 @@ v0.95 按用户最新要求分模块并行：手机导航/编辑与性能、设�
 
 `MDJournalApp` 创建共享的 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。主窗口以及 Catalyst 统计窗口均经过 `JournalPrivacyGate` 并注入同一权益/应用锁对象；App 回到活跃态刷新订阅权益。没有日记服务器或登录账号。
 
-`ContentView` 拥有 selectedEntryID、搜索、分类与 sheet。手机 compact 使用 NavigationStack，单元素 UUID path 由唯一选中项和 presentation 标志派生；首次展示资料库，点 NavigationLink 才进入对应日记。系统返回只收起详情，保留有效选择，能够再次打开同篇。常规宽度和 Catalyst 使用 NavigationSplitView。
+`ContentView` 拥有 selectedEntryID、搜索、分类与 sheet。手机 compact 使用 NavigationStack，单元素 UUID path 由唯一选中项和 presentation 标志派生；首次展示资料库，点 NavigationLink 才进入对应日记。compact 列表不安装原生 selection 绑定，行高亮仍消费 selectedEntryID，避免列表 diff 的选择回写与导航路径竞争。系统返回只收起详情，保留有效选择，能够再次打开同篇。常规宽度和 Catalyst 使用 NavigationSplitView，继续保留原生列表 selection。
 
 新建经过 `JournalStore.createEntry() -> ID?`，失败不清筛选、不伪造 ID；成功后清搜索和分类并选中真实新 ID，compact 打开详情。筛选、删除及 Store 发布按当前可见日记修复 selection，空结果解除无效详情。相邻导航沿当前可见顺序，首尾不循环。
 

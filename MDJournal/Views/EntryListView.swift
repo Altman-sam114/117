@@ -38,6 +38,7 @@ struct EntryListView: View {
     var onShowSettings: () -> Void = {}
     var canCreate = true
     var readFailureMessage: String? = nil
+    var usesNativeSelection = true
 
     @State private var deletionConfirmation = JournalDeletionConfirmationState()
     @Environment(\.calendar) private var calendar
@@ -49,7 +50,8 @@ struct EntryListView: View {
             entries: snapshot.filteredEntries, calendar: calendar, locale: locale
         )
 
-        List(selection: $selection) {
+        // Compact stacks own navigation through their path, without a second list selection driver.
+        List(selection: usesNativeSelection ? $selection : nil) {
             Section {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewCard(overviewSnapshot)

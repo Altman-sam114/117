@@ -161,7 +161,8 @@ struct ContentView: View {
             onShowStatistics: showStatistics,
             onShowSettings: { presentedSheet = .settings },
             canCreate: store.canMutate,
-            readFailureMessage: store.readFailureMessage
+            readFailureMessage: store.readFailureMessage,
+            usesNativeSelection: !usesCompactNavigation
         )
     }
 

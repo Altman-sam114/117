@@ -34,7 +34,7 @@ bash -n script/package_macos.sh
 
 1. 静态检查与纯 Python fixtures。
 2. 读取可用设备 JSON，只在固定 runtime 中选一台已有 iPhone，Booted 优先，再 iPhone16；缺 runtime 或设备明确失败，不创建克隆、不回退别的系统。提前启动并记录 UDID/runtime/初始状态。
-3. 先独立 build-for-testing 上限 600 秒；同一 UDID bootstatus 上限 240 秒；串行 test-without-building 上限 720 秒，不借机删测试、跳过或缩减门槛。
+3. 先独立 build-for-testing 上限 600 秒；同一 UDID bootstatus 上限 240 秒；串行 test-without-building 上限 720 秒，不借机删测试、跳过或缩减门槛。启用 XCTest 进程外逐用例 watchdog，默认/最大 180 秒，四项生产导航/焦点 host 用例明确 60 秒，避免主线程循环阻止用例内等待超时后又耗尽整轮预算；超时仍计失败。
 4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。缺任何一图使工作流失败。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
