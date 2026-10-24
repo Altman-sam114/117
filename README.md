@@ -4,9 +4,11 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 ## 当前迭代（v0.94）
 
-2026-10-24，遵照用户最新要求不开子智能体。v0.92恢复云端后，v0.93纸本UI已通过实际构建与结果包复核：cc46e09 / run39885633937 / attempt1，257项测试、16图与universal Mac包完整性通过。逐张图片检查发现大字号新建文字截断、深色主按钮对比不足、统计装饰挤占文字，本轮v0.94定点修正并清理4条测试编译弃用警告。
+2026-10-24，遵照用户最新要求不开子智能体。v0.92恢复云端、v0.93纸本UI重构后，v0.94已修正逐图发现的大字号新建文字截断、深色主按钮对比不足、统计装饰挤占文字，并清理4条测试编译弃用警告。
 
-云端固定macos-15 arm64 / Xcode16.4 / iOS18.5与已有设备；提前启动后串行测试，缺设备明确失败。8项纯JSON fixture、257项XCTest和16图全部保留，现有颜色用例增加四种外观主按钮色对比至少4.5:1断言。v0.94仍须用自己的新SHA artifact核对；本机不运行完整构建、XCTest、模拟器或App。Mac内部包不代表满足App Store SDK、Developer ID或公证要求。
+实现提交`de710e1352dae2492289333c2f7e4948a37cd278` / run`40053762957` / attempt`1`已下载核对：257/257 XCTest、16图逐张、四份xcresult、6项JUnit、629个未加密文件digest/CRC/逐文件SHA256及Mac双架构Release包均通过，Swift源码编译警告为0。artifact为`mdjournal-ci-v0.94-main-de710e1-run40053762957-attempt1`；详细身份、哈希与范围见`update_log.md`。最终文档提交同样使用自己的云端artifact追溯，不复用实现提交的包。
+
+云端固定macos-15 arm64 / Xcode16.4 / iOS18.5与已有设备，提前启动后串行测试，缺设备明确失败。8项纯JSON fixture、257项XCTest和16图全部保留，现有颜色用例增加四种外观主按钮色对比至少4.5:1断言并实际通过。本机不运行完整构建、XCTest、模拟器或App。Mac内部包不代表满足App Store SDK、Developer ID或公证要求。
 
 ## 功能
 
@@ -53,7 +55,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，�
 
 1. 用 Xcode 打开 `MDJournal.xcodeproj`。
 2. 选择 `MDJournal` scheme。
-3. 选择 iPhone 模拟器或真机运行。
+3. 本机 iOS 验证只使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止新建或选择其他设备。默认自动验证使用云端。
 
 Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Catalyst)`，或直接运行项目内脚本：
 
@@ -63,15 +65,15 @@ Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Ca
 
 Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_run.sh`。脚本会停止旧的 `MDJournal` 进程、构建 Mac Catalyst Debug app，并启动最新构建产物；该入口用于人工本机开发，自动验收仍以 GitHub Actions 回传结果包为准。
 
-`MarkdownSnippetTests` 另覆盖 `EntryEditorFocusPolicy` 三种 compact 焦点动作；v0.81 云端基线为 `201 passed / 0 failed / 0 skipped`，v0.82 实现 HEAD 的列表快照复用 characterization 已在云端得到 `202 passed / 0 failed / 0 skipped`。对应未加密 artifact 为 `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249` bytes，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`）；docs-only HEAD 仍须用其自己的最新 artifact 重验。该纯 policy 测试、Swift parse 和云端 build 不证明真实 Mac first responder、Picker、VoiceOver、IME 或输入设备交互。
+测试覆盖与各版本证据见 `md/test/test.md` 和 `update_log.md`。菜单、Picker、IME、VoiceOver 与真实 Mac 输入设备仍需实际交互验收。
 
 ## 验证
 
-v0.89 起点 `c354f9c05924c2778e1023254740b9709a9ae012` 已由 Agent C 下载核对：run `38344640193` attempt `1`，四阶段 success、234 项测试通过、六张渲染图及结果包完整性通过。v0.90 最终修复 `7283b1e` / run `39806459795` attempt 1已由当前线程下载核对：245项测试、11张图、五阶段与588文件完整性通过。v0.91 新增5项有行为意义的测试与Mac包门槛，等待自己的最新SHA结果。
+v0.94实现 `de710e1` / run `40053762957` / attempt `1` 已复核257项XCTest、16图、双平台Debug与Mac universal Release。每个新提交仍按自身SHA/run/attempt核对，历史记录不代替当前结果。
 
-CI 在四个主阶段后独立导出并核对 11 张生产视图 PNG，包含两个完整宽屏 ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号与统计。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志，v0.91 JUnit 记录六个 workflow 摘要项（新增Mac Release包）；图片是云端 iOS SwiftUI 渲染，不代表真实 Mac 窗口、输入设备、IME 或 VoiceOver 交互。禁止在本机为此运行 App/模拟器/完整构建；人工以后要求本机 iOS 运行时，仅使用 UDID 以 `FAC4325D` 开头的现有唯一模拟器。
+CI 在四个主阶段后独立导出并核对16张生产视图PNG，包含完整宽屏ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号、阅读、统计与空态。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志；JUnit记录六个workflow摘要项，真实257项计数来自XCTest日志与xcresult。图片是云端iOS SwiftUI渲染，不代表真实Mac窗口、输入设备、IME或VoiceOver交互。
 
-v0.90 首轮 run `39801156079` 的 iOS/Catalyst build 成功，但 XCTest 进程在输出成功字符串后被 720 秒总限时终止，结果包缺少元数据，图片导出失败，因此不标记通过。云端测试现先用 120 秒上限等待选定 UDID 启动，再串行执行全部用例，保留 720 秒测试进程限制及所有回归/图片要求；新 SHA 须重新验收。
+云端固定macos-15/Xcode16.4/iOS18.5，选定已有设备后提前启动；build-for-testing独立600秒，同一UDID等待上限240秒，串行test-without-building上限720秒。缺runtime/设备明确失败，不创建克隆或退回其他runtime。
 
 默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
 
@@ -117,37 +119,30 @@ bash -n script/build_and_run.sh
 test -x script/build_and_run.sh
 ```
 
-当前已建立 `MDJournalTests` 单元测试 target，覆盖核心模型、正文 summary / metrics 派生一致性、词数单次扫描边界、`JournalEntryOverviewMetrics` 与旧词数/小节存在性 API 的换行、ASCII 空格/tab、非法 marker、空标题、EOF、连续 marker、emoji/组合字符和 fenced code 等价性、`###` 存在性快路径与完整提取的换行和空白边界等价性、列表派生快照、列表概览合法/非法小节聚合、`JournalEntrySelectionPolicy` 的可见保留/隐藏切首项/空结果 nil/筛选删除/新建匹配与隐藏规则、基于 `JournalEntryListSnapshot.filteredEntries` 的非循环较新/较早日记导航及其菜单快捷键全局唯一性、Markdown 解析、Markdown 预览 latest-wins 防抖策略、统计及七日趋势 Dynamic Type 布局契约、编辑器头部契约、`819/820/1119/1120/1440pt` 与普通/全部 Accessibility 字号矩阵、跨阈值及命令状态策略、Markdown 快捷片段与输入规则，以及 `JournalStore` 的 production JSON 字节策略、actor revision 门控/幂等/失败重试、手动 debounce、MainActor 非阻塞、flush 等待与追赶、无 mutation flush、create/delete 在途写入边界、Store 生命周期、错误仲裁及按需排序。v0.75 云端最终结果为 `189 passed / 0 failed / 0 skipped`；v0.76 新增 6 项、最终文档 HEAD 云端结果为 `195 passed / 0 failed / 0 skipped`，完整 build/XCTest/app 只以 GitHub Actions 未加密 artifact 为准，本机未运行。纯 policy 测试、布局契约和预览策略测试不等价于真实 List selection/detail 时序、筛选输入时序、菜单 disabled 视觉、Dynamic Type、VoiceOver、输入设备交互、Instruments 分配、真实 Mac 长文帧率或后台挂起/强杀验证。需要本机尝试 XCTest 时使用：
+`MDJournalTests` 覆盖模型兼容解码、正文派生/缓存失效、搜索筛选与选择修复、相邻导航、Markdown解析/插入/回车/缩进、UTF-16与桥接同步、预览防抖与inline cache、布局与输入控件身份、语义颜色对比，以及Store的actor revision/原子JSON/错误仲裁/flush。完整构建和XCTest默认在云端执行；真实Mac交互、IME、VoiceOver、性能及后台强杀行为仍需专项验收。仅在人工明确要求本机XCTest时，先设置既有设备的完整UDID并使用：
 
 ```sh
+case "${MDJOURNAL_SIMULATOR_UDID:-}" in
+  FAC4325D-*) ;;
+  *) printf '%s\n' '请先设置 FAC4325D 前缀的既有完整模拟器 UDID' >&2; exit 1 ;;
+esac
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
   -project MDJournal.xcodeproj \
   -scheme MDJournal \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination "platform=iOS Simulator,id=$MDJOURNAL_SIMULATOR_UDID" \
   -derivedDataPath /private/tmp/mdjournal-derived-data \
   CODE_SIGNING_ALLOWED=NO \
   test
 ```
 
-除非人工明确要求，本机不默认跑完整构建；Agent B 提交后 push 到 `origin/main`，由 `MD Journal CI Results` workflow 执行 generic iOS Debug build、Mac Catalyst Debug build 和 XCTest，并上传未加密结果包。结果包中的 `junit.xml` 会显式记录 `tests`、`failures`、`errors` 和 `skipped`，供 Agent C 机器复判。人工明确要求本机 iOS build 时使用：
+人工明确要求本机iOS build时使用同一UDID校验与destination，把最后的`test`换为`build`。默认仍为main直推触发云端generic iOS/Catalyst Debug、XCTest、图片导出与Mac Release，上传未加密包；JUnit显式记录`tests/failures/errors/skipped`。
 
-```sh
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project MDJournal.xcodeproj \
-  -scheme MDJournal \
-  -configuration Debug \
-  -destination generic/platform=iOS \
-  -derivedDataPath /private/tmp/mdjournal-derived-data \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
-
-当前环境的 CoreSimulator 服务不可用，因此未启动 iOS 模拟器做交互运行验证。
+本轮没有启动本机模拟器或App，未重新探测CoreSimulator服务状态。
 
 v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的阶段一云端结果为 `205/205 passed`，static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均成功；最终 docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1` 的未加密 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对：static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest `205/205 passed`，481/481 ZIP entries 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。阶段一 artifact 仍仅证明阶段一 HEAD；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
 
-本轮由独立 Agent C 下载最新 origin/main 对应 v0.90 artifact，核对 commitSha、run/attempt、四个主阶段、独立图片导出、测试与 11 张渲染附件；历史 artifact 只作为各自版本证据，不复用为新 SHA 的验收结果。
+用户本轮禁止子智能体：由当前线程串行核对最新origin/main的commitSha、run/attempt、manifest/JUnit/log/四份xcresult、16图与Mac包，明确没有独立Agent C。历史artifact只作为各自版本证据。
 
 ## 协作与云端验证
 
@@ -251,8 +246,4 @@ v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesR
 - 2026-06-28：建立多 Agent 迭代文档体系，新增 `AGENT.md`、`update_log.md`、`md/prompt/`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`；README 改为指向标准入口。已验证指定文档存在、`git diff --check` 通过、`plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过；本轮只改文档，未重跑 Xcode 构建。
 - 2026-06-27：补充 `agent.md` 作为后续 Codex 系统提示词和项目维护规范；README 同步记录横屏、响应式布局、验证命令和后续维护要求。已验证 `plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过，`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过；本次仅改文档，未重跑 Xcode 构建。
 
-云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
-
-最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。
-
-当前交付状态：9af6efa/run39827664416/attempt1的iOS/Catalyst Debug与universal Mac Release构建成功；整体CI为FAIL，模拟器启动超过240秒，最新250项及11图没有执行/生成。连续同类启动阻塞触发AGENTS停止重跑条件。Mac ZIP由当前线程以修正后的otool -arch all脚本作本地只读核对，双架构/图标/版本/签名/解压内容和权限通过，报告明确local-read-only-review；不是CI或独立C通过。桌面内部包MDJournal-v0.91-Mac-9af6efa.zip，未公证、未启动App。最后已通过的完整UI基线仍为v0.90的245项/11图。恢复可用的云端模拟器后仍需对新的main完整重验，不能称发布验收完成。
+云端失败和修复历史详见`update_log.md`：v0.91在Intel/Xcode26.2迁移启动超时，v0.92恢复macos-15/Xcode16.4/iOS18.5后已通过完整验证。当前状态见本文开头及版本日志，不把旧失败、旧包或旧截图作为当前交付。

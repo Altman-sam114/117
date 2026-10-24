@@ -11,20 +11,20 @@
 
 ## 当前状态
 
-- 当前任务 v0.94：v0.93纸本UI云端技术验证与结果包核对通过，收尾逐图发现的按钮对比/换行和辅助字号统计问题；遵照用户最后要求不开子智能体，不进行无限循环。
+- 当前任务 v0.94：云端编译恢复、纸本UI重构及逐图收尾已完成实现并下载复核，257项/16图与Mac包通过；最终文档提交也按自己的SHA复核。遵照用户最后要求不开子智能体，不进行无限循环。
 - v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
-- 当前阶段：`v0.94` 界面验收收尾；v0.93完整CI通过，Mac仍是未公证内部包，不等于公开发布验收。
+- 当前阶段：`v0.94` 界面验收收尾；实现de710e1/run40053762957/attempt1完整CI与结果包核对通过，Mac仍是未公证内部包，不等于公开发布验收。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 实现验证 HEAD 云端 artifact 为 212 项（新增 7 项同步状态/接线测试），已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
+- 当前测试基线：257项XCTest（含22项JournalStoreTests）、8项纯Python设备fixture、16张生产图、iOS/Catalyst Debug与universal Mac Release。v0.94实现de710e1/run40053762957/attempt1已通过当前线程串行下载复核；Swift源码编译警告0。历史版本数量与独立C证据保留在各版本条目，不代表当前SHA。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
-- 当前已知限制：CoreSimulator 服务在当前环境不可用，尚未做模拟器交互验证。
+- 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.94 / 界面验收收尾（待云端验收）
+### v0.94 / 界面验收收尾（实现云端通过）
 
 日期：2026-10-24。
 
@@ -32,8 +32,11 @@
 - 资料库新建按钮改独立图标与可换行全文，辅助字号隐藏Mac快捷键提示；新增JournalOnAccent四外观颜色并显式用于资料库/空库/详情空态主按钮，修复深色浅绿底白字低对比。统计辅助字号隐藏装饰图标，文字占满宽度。
 - 扩展已有语义颜色用例，断言实际UIColor在浅/深和普通/高对比下的主按钮色对比至少4.5:1；保留257项和16图。四处预览测试显式parseDocument参数，清理Swift弃用警告，不改解析/调度/断言。
 - 关键文件：JournalTheme、JournalOnAccent.colorset、EntryListView、EmptyStateView、StatisticsDashboardView、JournalInterfaceTests、MarkdownPreviewTests、workflow VERSION和版本化prompt；README/test/flow/flowchart同步。
-- 本机只轻量检查；新SHA的构建、XCTest、16图与Mac包须重新云端验证并下载核对，尚不预填通过。不改持久化/缓存/IME/UTF16/焦点/部署版本/第三方依赖；正式签名、公证、真实Mac输入与性能仍未完成。
-- 实际轻量检查全部退出0：应用与测试`swiftc -parse -parse-as-library`、project `plutil -lint`、8/8纯Python设备fixture、workflow YAML/11个run块bash语法/2个Python heredoc及全部Python AST、8份asset JSON、257个XCTest声明/16图矩阵一致性、`git diff --check`。四格资源色对比独立计算为7.24/8.91/10.17/13.06:1；实际UIColor解析断言待云端执行。本机没有build/XCTest/simctl/App。
+- 本机只轻量检查，不改持久化/缓存/IME/UTF16/焦点/部署版本/第三方依赖；正式签名、公证、真实Mac输入与性能仍未完成。
+- 实际轻量检查全部退出0：应用与测试`swiftc -parse -parse-as-library`、project `plutil -lint`、8/8纯Python设备fixture、workflow YAML/11个run块bash语法/2个Python heredoc及全部Python AST、8份asset JSON、257个XCTest声明/16图矩阵一致性、`git diff --check`。四格资源色对比独立计算为7.24/8.91/10.17/13.06:1，实际UIColor解析断言随后在云端通过。本机没有build/XCTest/simctl/App。
+- 实现提交`de710e1352dae2492289333c2f7e4948a37cd278`已推origin/main；run`40053762957`/attempt`1`六阶段success，257/257 XCTest、四份xcresult实际请求阶段succeeded、6项JUnit为0失败/错误/跳过，实际UIColor对比断言通过，Swift源码编译警告0。artifact `mdjournal-ci-v0.94-main-de710e1-run40053762957-attempt1`（ID12544597517，9227178bytes，SHA256 1eb659a02e1913eb441344a4aa8ebb01cd759b0890807534fd5b4fafd4357ab4）。当前线程下载至`/private/tmp/mdjournal-c-review-40053762957/review-g9xxqd2q/`核对629个未加密文件、digest/CRC/独立解压与gh下载逐文件SHA256、manifest/JUnit/log/xcresult；16图逐张确认三处视觉问题已修正，输入身份和选区回归继续通过，不标独立Agent C。
+- Mac `MDJournal-v0.94-mac-universal-de710e1.zip`（1608580bytes，SHA256 68d2e07e19e8c1d54baa1c8e742f23418dae8c7059d4e3f26d2698df3db31411）为Release 1.0/build201.1、最低macOS13.0、arm64+x86_64。另以本地只读解压核对平台6、图标、ad-hoc签名、完整内容/权限与原CI清单一致，未启动App、未Developer ID签名/公证。CI仍有未使用AppIntents与上游Actions运行时提示，不称所有工具输出无warning。
+- 收尾文档同步当前通过状态，修正README/test旧版本失败文案、本机默认测试触发及按名称选模拟器的旧示例；所有本机iOS示例要求FAC4325D前缀的既有完整UDID。本文记录的是实现SHA证据，最终文档提交也按自身SHA/run/attempt重新下载复核，不复用此artifact；完成交付后停止本轮有限迭代。
 
 ### v0.93 / 纸本界面与高效写作（云端通过，视觉问题在v0.94收尾）
 

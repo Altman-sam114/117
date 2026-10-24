@@ -26,7 +26,7 @@ flowchart LR
   Theme --> Editor["标题优先 / 24pt对齐 / 38%头部 / 固定输入节点"]
   Editor --> Preview["编号小节 / 原latest-wins快照"]
   Theme --> Stats["大数字 / 去嵌套指标 / 网格顶对齐 / 空态"]
-  Library --> CI["257项预期XCTest / 16张生产图 / universal Mac包"]
+  Library --> CI["257项XCTest / 16张生产图 / universal Mac包"]
   Editor --> CI
   Stats --> CI
   CI --> Review["最新SHA云端artifact / 当前线程串行复判"]

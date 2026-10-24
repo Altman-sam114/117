@@ -2,9 +2,11 @@
 
 ## v0.94 当前验证要求
 
+实现`de710e1352dae2492289333c2f7e4948a37cd278` / run`40053762957` / attempt`1`已由当前线程下载复核通过：257/257 XCTest、四份xcresult实际请求阶段succeeded、6项JUnit为0失败/错误/跳过，Swift源码编译警告0；16图逐张确认三处展示问题修正。artifact `mdjournal-ci-v0.94-main-de710e1-run40053762957-attempt1`（ID12544597517，9227178bytes，SHA256 1eb659a02e1913eb441344a4aa8ebb01cd759b0890807534fd5b4fafd4357ab4），629个未加密文件CRC/独立解压/逐文件SHA256均通过。Mac build201.1、双架构/签名/图标/版本/内容与权限另核通过，未启动App。此记录对应实现提交，最终文档提交也按自身artifact复核，不预填未来run。
+
 v0.93实现cc46e09 / run39885633937 / attempt1已由当前线程重新登录下载复核：manifest、6项JUnit、四份xcresult、257/257 XCTest、16图及629个未加密文件digest/CRC/独立解压逐文件SHA256通过。Mac Release包另核双架构、平台、图标、200.1版本、ad-hoc签名与全部内容/权限，未启动App。16图逐张检查发现的主按钮与辅助字号问题在v0.94修正，不能把技术构建通过当作公开发布完成。
 
-本轮保留257项和16图，不删测试或图片。扩展已有`testSemanticColorsArePackagedForEveryAppearance`：新增JournalOnAccent资源解析，并对浅/深 × 普通/高对比四格实际UIColor计算sRGB相对亮度，断言主按钮前背景对比至少4.5:1；不是屏幕像素测量或VoiceOver验收。查看新图确认大字号新建全文、深色主按钮墨色文字和大字号统计全宽文字。四条测试编译弃用警告应消失；工具链AppIntents未依赖提示不伪装成应用Swift警告。
+本轮保留257项和16图，不删测试或图片。扩展已有`testSemanticColorsArePackagedForEveryAppearance`：新增JournalOnAccent资源解析，并对浅/深 × 普通/高对比四格实际UIColor计算sRGB相对亮度，主按钮前背景对比至少4.5:1断言已在云端通过；不是屏幕像素测量或VoiceOver验收。新图已确认大字号新建全文、深色主按钮墨色文字和大字号统计全宽文字。四条测试编译弃用警告已消失；工具链AppIntents未依赖提示不伪装成应用Swift警告。
 
 本机只做diff/Swift parse/plist/JSON/YAML/脚本语法与8项设备选择fixture，云端保持iOS/Catalyst Debug、完整串行XCTest、16图和universal Mac Release。新同SHA/run/attempt的artifact重新下载、核对manifest/JUnit/log/四份xcresult、每图及Mac包，最终文档提交也核对自己的run。不开子智能体，C职责由当前线程串行执行。
 
@@ -226,13 +228,13 @@ python3 -m json.tool path/to/file.json >/dev/null
 
 - 返回 0。
 
-### 1.6 本机 XCTest 尝试
+### 1.6 仅人工要求的本机 XCTest
 
-触发条件：
+以下改动需要云端完整XCTest；只有人工明确要求本机测试/构建/模拟器时才在本机执行：
 
 - 新增或修改 `MDJournalTests`。
 - 修改 `JournalEntry`、`JournalSection`、`MarkdownBlockParser`、`JournalStatistics`、`JournalEntryListSnapshot`、`JournalListOverviewSnapshot`、`MarkdownSnippet`、`MarkdownSnippetInsertion`、`MarkdownLineContinuation`、`MarkdownLineIndentation` 或 `EditorWritingCommand` 等已有 XCTest 覆盖的核心规则。
-- 修改 `MarkdownBodyTextView`、正文输入 traits、Tab / Shift-Tab 行缩进、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，至少尝试本机 XCTest；CoreSimulator 不可用时记录错误并以 CI artifact 为准。
+- 修改 `MarkdownBodyTextView`、正文输入 traits、Tab / Shift-Tab 行缩进、`EntryEditorView.insertSnippet(_:)` 或正文选区/焦点同步路径时，保留云端输入回归；没有人工本机授权时不调用本机模拟器。
 - 若人工明确要求不跑本机构建、运行或测试，则跳过本机 XCTest 尝试，并在交付中说明最终只采用 GitHub Actions artifact。
 - 修改 `JournalStore` 加载、创建、更新、删除、保存、排序、节流或 flush 行为。
 - 修改 Xcode scheme、target 或 CI test 命令。
@@ -240,11 +242,15 @@ python3 -m json.tool path/to/file.json >/dev/null
 命令：
 
 ```sh
+case "${MDJOURNAL_SIMULATOR_UDID:-}" in
+  FAC4325D-*) ;;
+  *) printf '%s\n' '请先设置 FAC4325D 前缀的既有完整模拟器 UDID' >&2; exit 1 ;;
+esac
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
   -project MDJournal.xcodeproj \
   -scheme MDJournal \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination "platform=iOS Simulator,id=$MDJOURNAL_SIMULATOR_UDID" \
   -derivedDataPath /private/tmp/mdjournal-derived-data \
   CODE_SIGNING_ALLOWED=NO \
   test
@@ -253,7 +259,7 @@ python3 -m json.tool path/to/file.json >/dev/null
 当前基线：
 
 - 可用 Xcode/CoreSimulator 环境下应以 `** TEST SUCCEEDED **` 结束。
-- 若当前机器没有 `iPhone 16`，先用 `xcrun simctl list devices available` 查找可用 iPhone simulator。
+- 本机只能使用UDID以`FAC4325D`开头的唯一既有模拟器；缺少完整UDID或设备不可用时明确记录，不创建或选择其他设备。云端设备不受本机UDID限制。
 - 若 Xcode 或 CoreSimulator 不可用，必须记录关键错误；最终仍以 GitHub Actions artifact 为准。
 
 ## 2. 云端重验证
@@ -429,7 +435,8 @@ Agent C 必须先具备 GitHub CLI 权限：
 
 ```sh
 gh run list --branch main --workflow "MD Journal CI Results" --limit 5
-gh run download <run_id> --dir /private/tmp/mdjournal-c-review-<run_id>
+gh run download "${MDJOURNAL_REVIEW_RUN_ID:?先填写待验收的run id}" \
+  --dir "/private/tmp/mdjournal-c-review-${MDJOURNAL_REVIEW_RUN_ID}"
 ```
 
 Agent C 必须核对：
@@ -525,7 +532,7 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 
 - 当前仓库已有 `MDJournalTests` 单元测试基线。
 - 自动化重验证由 `MD Journal CI Results` workflow 承担，包含静态检查、generic iOS Debug build、Mac Catalyst Debug build 和 XCTest。
-- CI job 限时 25 分钟；XCTest 优先解析可用 `iPhone 16`（否则较新 iOS runtime 的 iPhone），并使用 `-destination-timeout 60` 与 720 秒 alarm，避免模拟器挂起阻塞结果包上传。
+- CI job限时25分钟；固定iOS18.5的已有iPhone，同runtime Booted优先，其次iPhone16，不回退其他runtime。提前启动同一设备，编译600秒、bootstatus240秒、串行测试720秒，避免模拟器挂起阻塞结果包上传。
 
 ## 7. 规则
 
@@ -550,7 +557,7 @@ Full 适用于重要里程碑、数据迁移、大范围重构、新增测试 ta
 - 下载后应检查目录大小：
 
 ```sh
-du -sh /private/tmp/<project>-review-<run_id>/
+du -sh "/private/tmp/mdjournal-c-review-${MDJOURNAL_REVIEW_RUN_ID:?先填写待验收的run id}/"
 ```
 
 - 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
@@ -559,8 +566,4 @@ du -sh /private/tmp/<project>-review-<run_id>/
 ### v0.89 高度切换输入身份
 `testTitleInputIdentitySurvivesCompactHeightTransition` 在云端 UIHostingController 内按 720→320→720pt 调整高度，断言同一个标题 UIKit 输入控件保留；不等价于真实键盘弹出、first responder、IME 或触控测试。详情按钮最小交互区为 44×44pt。
 
-云端v0.91修复执行策略：固定macos-15-intel与DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer，所有工具经xcrun；build-for-testing独立600秒、设备启动120秒、test-without-building720秒，保留250项与11图。Release明确-O、关闭coverage；持久化新断言对照生产JSON字节，保持ISO-8601秒精度兼容。首轮39816940970为FAIL，新SHA结果待核。
-
-最新v0.91云端策略修复：优先复用Booted设备；首次数据迁移等待改240秒（541db73在120秒仍迁移，未启动测试），测试执行仍720秒。Release使用coverage构建设置，移除只允许testing动作的-enableCodeCoverage参数。39823883450是FAIL，新提交仍需完整验证。
-
-当前交付状态：9af6efa/run39827664416/attempt1的iOS/Catalyst Debug与universal Mac Release构建成功；整体CI为FAIL，模拟器启动超过240秒，最新250项及11图没有执行/生成。连续同类启动阻塞触发AGENTS停止重跑条件。Mac ZIP由当前线程以修正后的otool -arch all脚本作本地只读核对，双架构/图标/版本/签名/解压内容和权限通过，报告明确local-read-only-review；不是CI或独立C通过。桌面内部包MDJournal-v0.91-Mac-9af6efa.zip，未公证、未启动App。最后已通过的完整UI基线仍为v0.90的245项/11图。恢复可用的云端模拟器后仍需对新的main完整重验，不能称发布验收完成。
+v0.91冷启动失败的commit/run/artifact及只读Mac包核对证据保留在`update_log.md`；v0.92恢复固定工具链后已通过完整验证。当前基线见本文顶部，不再将旧失败写成当前状态。
