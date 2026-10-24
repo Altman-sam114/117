@@ -17,14 +17,14 @@
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前测试基线：257项XCTest（含22项JournalStoreTests）、8项纯Python设备fixture、16张生产图、iOS/Catalyst Debug与universal Mac Release。v0.94实现de710e1/run40053762957/attempt1已通过当前线程串行下载复核；Swift源码编译警告0。历史版本数量与独立C证据保留在各版本条目，不代表当前SHA。
+- 当前回归目标：301项XCTest、15项纯Pythonfixture、25张生产图、iOS/Catalyst Debug与universal Mac Release，另有现代设备Release archive。最近完整功能包8d74296/run40072912770/attempt1为301实际完成、297通过、4失败；未放行。v0.94的257项/16图仅为已通过历史基线，不能替代当前SHA。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.95 / iOS 发布候选并行集成（实现完成，云端待核）
+### v0.95 / iOS 发布候选并行集成（功能已集成，回归收敛中）
 
 日期：2026-10-24。
 
@@ -60,6 +60,10 @@
 - 本次逐图先核设置/隐私/锁及3张Pro和compact资料库8图；实际商品价格、可购买/不可购买内容、辅助字号与锁遮罩均显示。仅发现UIKit解锁按钮沿用系统蓝色，已接入动态JournalAccent主题，44pt点击区和认证边界保持，不为此新增镜像实现的测试；最终仍需新SHA自己的完整25图。手机夹具补强未删生产快捷键或编辑逻辑；StoreKit reader追踪仍调用真实生产SDK。
 - 0ff云系统日志还确认测试配置前App自动查询Sandbox目录，会话建立时切到XcodeTest且有并行交易同步；cancel配置reset/clear已返回，之后才进入catalog/初始权益链，不能把它说成已执行invalidSignature购买。已在App接线中仅对DEBUG XCTest宿主关闭全局订阅自动启动/前台刷新，让各交易测试拥有会话；显式真实Store、自动监听用例与全部301项保留，普通DEBUG与Release仍自动启动。不预称该环境隔离已消除daemon停滞，仍待新SHA云端实测。
 - 本次10文件整合本机轻检均退出0：全应用Swift DEBUG分支和测试parse、三plist、15/15纯Pythonfixture、workflow YAML/14shell/3Python heredoc与脚本AST/bash、9资源JSON（含实际storekit）、58源注册、301项/25图、git diff --check。未做本机build/XCTest/App/模拟器；普通与DEBUG语法检查不代替云端类型检查和交易/交互运行。
+- `8d742963a43c27de1263fcec1f0390222acd7789`已推main，run`40072912770`/attempt`1`整体失败。功能artifact `mdjournal-ci-v0.95-main-8d74296-run40072912770-attempt1`（ID12551419575，151933568bytes，SHA256 e912ab3fea838452c1a83aee37de412585f60ad7eca1307cec271633fa1113cf）2037文件的双下载、身份、未加密、CRC与逐文件哈希通过；xcresult与日志一致为301实际完成/297通过/4失败/0跳过。25图矩阵导出成功，但compact详情图是转场中间帧，不能标视觉通过；其余23图与已审图字节相同，变化的主题锁图已核。NavLink打开/pop/重开、Done/预览/真实焦点、退款及自动交易监听已通过，订阅不再watchdog。四失败分别是宿主虚拟AX未物化、强改iPhone窗口宽度后同步布局超时、签名注入使购买API普通报错、批准后冷启查询未等传播；不能把普通错误或未授权时到期空过算覆盖。
+- 同run现代artifact `mdjournal-ios-release-v0.95-main-8d742963a43c27de1263fcec1f0390222acd7789-run40072912770-attempt1`（ID12552201509，2472949bytes，SHA256 bd14a77dc111dc5765d8adbcceaa8a1f7444a81eb37a73c5386f0c6b9775a65f）独立严格核验通过：13外层文件/25内ZIP条目/11个archive文件，实际iPhoneOS26.2/Xcode2620(17C52)/arm64/iOS16.0/1.0(build210.1)，最终App的两链接和两商品ID正确、URL均200、无测试storekit；JUnit1/0/0/0、Archive succeeded且源码/构建警告0。仍unsigned未上传，不能代替失败功能包放行。
+- 下一轮仅修测试夹具和证据：空态保留全部数据/导航/创建/持久化断言，增加真实高分辨率截图和第一方Vision中文OCR；宽窄改包含式hosting画布和原生窗口，调度异步布局并隔离合成画布安全区；compact详情截图与重开离场前等待真实转场结束和全宽。订阅先确认真实购买授权，再核latest/currentEntitlements的精确unverified/invalidSignature并由生产reader撤权；冷启动先等真实授权才到期。未更改生产Store、伪造交易或删减301项/25图；签名用例不声称Product.purchase未验证文案分支已端到端执行。新SHA仍需自己的完整云端验证。
+- 本次7文件补丁轻检退出0：全应用DEBUG/测试Swift parse、三plist、15/15纯Pythonfixture、workflow YAML/14个bash块/3个Python heredoc、脚本AST/bash、9份资源JSON、58个Swift注册、301项声明及git diff --check；API只读交叉核对完成。未本机build/XCTest/App/模拟器，下一提交按自身SHA重新验收。
 
 ### v0.94 / 界面验收收尾（实现云端通过）
 

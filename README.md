@@ -40,11 +40,13 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-功能回归固定 macos-15 / Xcode 16.4 / iOS 18.5，使用一个已存在的云端 iPhone，提前启动后先串行执行全部 301 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复，保持与实际 App 相同的单窗口拓扑；失败时保留宿主采样和可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
+功能回归固定 macos-15 / Xcode 16.4 / iOS 18.5，使用一个已存在的云端 iPhone，提前启动后先串行执行全部 301 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；宽窄切换使用包含式测试画布，保留系统窗口的原生尺寸。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。失败时保留宿主采样和可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
 
 验收需要下载最新同 SHA/run/attempt 的两个未加密 artifact，核对 manifest、JUnit、日志、xcresult、PNG、ZIP digest/CRC/逐文件哈希及 archive SDK/架构/资源。实际计数和结果见 [测试规范](md/test/test.md) 与 [更新日志](update_log.md)。StoreKitTest 是本地商店配置测试，不能冒充 Apple Sandbox 或真实付费交易。
 
 DEBUG 的 XCTest 宿主不自动查询订阅，防止测试配置建立前的 Sandbox 查询与本地 StoreKit 会话竞争；每个交易测试仍显式创建真实订阅 Store 和会话，自动 transaction listener 也单独实测。普通开发启动和 Release 保持自动加载、监听和回前台刷新。
+
+签名失败回归先完成真实购买，再要求 StoreKit 的 latest/currentEntitlements 返回未验证交易及精确签名错误，由生产权益读取器拒绝；这不等同于购买 API 的未验证文案分支已执行。冷启动批准、退款与到期等待真实状态传播后才断言。最新已核对提交 `8d74296` 的 301 项测试为 297 通过、4 失败，25 图已导出但详情图捕获转场中间帧，尚未通过完整验收；后续修补必须重新云端执行。
 
 本机 iOS 编译/运行必须人工明确要求，而且只能使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止创建或选择其他设备。云端不受此限制。Mac 人工开发入口为 `./script/build_and_run.sh`；本轮未启动本机 App 或模拟器。
 

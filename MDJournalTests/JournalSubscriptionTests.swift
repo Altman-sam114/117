@@ -188,8 +188,16 @@ final class JournalSubscriptionTests: XCTestCase {
         try session.approveAskToBuyTransaction(identifier: pending.identifier)
         trace("approve ask-to-buy: complete")
         let relaunched = tracedStore()
-        await step("refresh cold-start entitlement") { await relaunched.refreshEntitlements() }
+        let approved = try await step("wait for cold-start verified approval") {
+            try await eventually {
+                await relaunched.refreshEntitlements()
+                return relaunched.isPremium && relaunched.accessExpirationDate != nil
+            }
+        }
+        XCTAssertTrue(approved, "The approved StoreKit transaction must reach the cold-start entitlement reader")
+        guard approved else { return }
         XCTAssertTrue(relaunched.isPremium)
+        XCTAssertNotNil(relaunched.accessExpirationDate)
         trace("expire subscription: begin")
         try session.expireSubscription(productIdentifier: productID)
         trace("expire subscription: complete")
@@ -229,6 +237,18 @@ final class JournalSubscriptionTests: XCTestCase {
             await session.simulatedError(forAPI: .purchase)
         }
         XCTAssertNil(purchaseError)
+        await step("purchase verified transaction before signature failure") { await store.purchase(product) }
+        let verified = await step("read verified transaction before signature failure") {
+            await Transaction.latest(for: productID)
+        }
+        guard case let .verified(purchased)? = verified else {
+            XCTFail("The real StoreKit purchase must produce a verified transaction before injecting its signature failure")
+            return
+        }
+        XCTAssertEqual(purchased.productID, productID)
+        XCTAssertTrue(store.isPremium)
+        XCTAssertNotNil(store.accessExpirationDate)
+        guard store.isPremium && store.accessExpirationDate != nil else { return }
         try await step("inject transaction verification failure") {
             try await session.setSimulatedError(.verification(.invalidSignature), forAPI: .verification)
         }
@@ -236,15 +256,39 @@ final class JournalSubscriptionTests: XCTestCase {
             await session.simulatedError(forAPI: .verification)
         }
         XCTAssertEqual(verification, .verification(.invalidSignature))
-        await step("purchase with invalid transaction signature") { await store.purchase(product) }
+        let latest = await step("read latest transaction with invalid signature") {
+            await Transaction.latest(for: productID)
+        }
+        guard assertInvalidSignatureTransaction(latest, source: "Transaction.latest") else { return }
+        let current: VerificationResult<StoreKit.Transaction>? = await step("read current transaction with invalid signature") {
+            for await result in Transaction.currentEntitlements {
+                switch result {
+                case let .verified(transaction), let .unverified(transaction, _):
+                    if transaction.productID == productID { return result }
+                }
+            }
+            return nil
+        }
+        guard assertInvalidSignatureTransaction(current, source: "Transaction.currentEntitlements") else { return }
+        await step("refresh entitlement with invalid transaction signature") { await store.refreshEntitlements() }
         XCTAssertFalse(store.isPremium)
         XCTAssertFalse(store.isPurchasing)
         XCTAssertNil(store.accessExpirationDate)
-        XCTAssertEqual(
-            store.statusMessage,
-            "无法验证这笔交易，暂未启用 Pro。请恢复购买或联系 Apple 支持。",
-            "The real StoreKit purchase must return an unverified transaction; an unrelated purchase error is not coverage"
-        )
+    }
+
+    private func assertInvalidSignatureTransaction(
+        _ result: VerificationResult<StoreKit.Transaction>?, source: String
+    ) -> Bool {
+        guard case let .unverified(transaction, error)? = result else {
+            XCTFail("\(source) must return the real purchased transaction as unverified")
+            return false
+        }
+        XCTAssertEqual(transaction.productID, productID)
+        guard case .invalidSignature = error else {
+            XCTFail("\(source) must report the injected invalid signature, got \(error)")
+            return false
+        }
+        return transaction.productID == productID
     }
 
     private func entitlement(

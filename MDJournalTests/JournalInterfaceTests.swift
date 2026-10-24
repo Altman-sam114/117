@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Vision
 import XCTest
 @testable import MDJournal
 
@@ -13,11 +14,13 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: ContentView(store: fixture.store)
             .environment(\.horizontalSizeClass, .compact))
         let size = CGSize(width: 390, height: 844)
-        let (_, restoreWindow) = try makeWindow(controller: controller, size: size)
+        let (window, restoreWindow) = try makeWindow(controller: controller, size: size)
         defer { restoreWindow() }
         try await waitForHost("Compact ContentView must show its library first") {
             self.navigationController(in: controller)?.viewControllers.count == 1
         }
+        let navigation = try XCTUnwrap(navigationController(in: controller))
+        try await waitForSettledNavigation(navigation, in: window)
         XCTAssertNil(bodyInput(in: controller.view, text: entries[0].body))
         try attachHostImage(controller.view, name: "content-390x844-compact-library", size: size)
 
@@ -29,8 +32,8 @@ final class JournalInterfaceTests: XCTestCase {
             self.titleInput(in: controller.view, title: entries[0].title) != nil
                 && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
+        try await waitForSettledNavigation(navigation, in: window)
         try attachHostImage(controller.view, name: "content-390x844-compact-detail", size: size)
-        let navigation = try XCTUnwrap(navigationController(in: controller))
         XCTAssertFalse(navigation.navigationBar.isHidden)
         XCTAssertFalse(try XCTUnwrap(navigation.topViewController).navigationItem.hidesBackButton)
         navigation.popViewController(animated: false)
@@ -38,11 +41,13 @@ final class JournalInterfaceTests: XCTestCase {
             navigation.viewControllers.count == 1
                 && self.bodyInput(in: controller.view, text: entries[0].body) == nil
         }
+        try await waitForSettledNavigation(navigation, in: window)
         try await activateFirstProductionEntry(in: controller.view)
         try await waitForHost("The same selected row must remain openable after pop") {
             navigation.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        try await waitForSettledNavigation(navigation, in: window)
         XCTAssertEqual(fixture.store.entries, entries)
         XCTAssertEqual(fixture.store.revision, 0, "Navigation must not mutate persisted journals")
     }
@@ -91,9 +96,11 @@ final class JournalInterfaceTests: XCTestCase {
         _ = hasVisibleAccessibilityIdentifier(
             "journal.library.filtered-empty", in: filteredCollection, reportsDiagnostics: true
         )
-        try await waitForHost("The filtered empty-result title must be accessible and visible") {
-            self.hasVisibleAccessibilityIdentifier("journal.library.filtered-empty", in: filteredCollection)
-        }
+        let visibleText = try await recognizeFilteredEmptyRegression(in: controller.view)
+        XCTAssertTrue(
+            visibleText.joined().contains("没有符合条件的日记"),
+            "The rendered filtered empty result must show its title; recognized text: \(visibleText)"
+        )
         XCTAssertTrue(actions.compactPath.wrappedValue.isEmpty, "Filtering must not push a detail")
         XCTAssertEqual(navigationController(in: controller)?.viewControllers.count, 1)
 
@@ -135,8 +142,15 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: NavigationHostRoot(
             store: fixture.store, configuration: configuration, observer: { interaction = $0 }
         ).environment(\.calendar, Calendar(identifier: .gregorian)))
+        if #available(iOS 16.4, *) {
+            // The synthetic canvas is the available test area, independent of its parent viewport.
+            controller.safeAreaRegions = []
+        }
+        let canvas = NavigationHostCanvasController(
+            content: controller, size: CGSize(width: 390, height: 844)
+        )
         let (window, restoreWindow) = try makeWindow(
-            controller: controller, size: CGSize(width: 390, height: 844)
+            controller: canvas, size: CGSize(width: 390, height: 844), keepsSceneGeometry: true
         )
         defer { restoreWindow() }
         try await waitForHost("Production navigation actions must be installed") { interaction != nil }
@@ -159,34 +173,33 @@ final class JournalInterfaceTests: XCTestCase {
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .regular
         }
-        print("Navigation regression: regular traits returned; resizing window")
-        window.frame.size = CGSize(width: 1360, height: 860)
-        controller.view.frame = window.bounds
-        print("Navigation regression: window=\(window.frame), scene=\(String(describing: window.windowScene?.coordinateSpace.bounds)); laying out regular view")
+        print("Navigation regression: regular traits returned; resizing the contained canvas")
+        canvas.updateContentSize(CGSize(width: 1360, height: 860))
+        print("Navigation regression: window=\(window.frame), scene=\(String(describing: window.windowScene?.coordinateSpace.bounds)), canvas=\(controller.view.frame); scheduling regular layout")
         controller.view.setNeedsLayout()
-        controller.view.layoutIfNeeded()
-        print("Navigation regression: regular layout returned; awaiting split controller")
+        print("Navigation regression: regular layout scheduled; awaiting split controller")
         try await waitForHost("Regular ContentView must install its native split view controller") {
             self.splitController(in: controller) != nil
         }
         try await waitForHost("Regular ContentView must retain the current journal in its split view") {
             self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        XCTAssertEqual(controller.view.bounds.size, CGSize(width: 1360, height: 860))
+        XCTAssertEqual(window.frame, try XCTUnwrap(window.windowScene).coordinateSpace.bounds)
         print("Navigation regression: regular editor visible; setting compact configuration")
         configuration.sizeClass = .compact
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
         }
-        window.frame.size = CGSize(width: 390, height: 844)
-        controller.view.frame = window.bounds
-        print("Navigation regression: compact traits and frame returned; laying out compact view")
+        canvas.updateContentSize(CGSize(width: 390, height: 844))
+        print("Navigation regression: compact traits and canvas returned; scheduling compact layout")
         controller.view.setNeedsLayout()
-        controller.view.layoutIfNeeded()
-        print("Navigation regression: compact layout returned; awaiting retained destination")
+        print("Navigation regression: compact layout scheduled; awaiting retained destination")
         try await waitForHost("Returning to compact width must retain the selected destination") {
             self.navigationController(in: controller)?.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        XCTAssertEqual(controller.view.bounds.size, CGSize(width: 390, height: 844))
         XCTAssertEqual(fixture.store.revision, 0)
 
         actions.searchText.wrappedValue = "a search that matches no journal"
@@ -310,8 +323,8 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
-    private func makeWindow<Content: View>(
-        controller: UIHostingController<Content>, size: CGSize
+    private func makeWindow(
+        controller: UIViewController, size: CGSize, keepsSceneGeometry: Bool = false
     ) throws -> (window: UIWindow, restore: @MainActor () -> Void) {
         let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -329,7 +342,7 @@ final class JournalInterfaceTests: XCTestCase {
         // Keep only one active SwiftUI root publishing focused values into the foreground scene.
         print("Interface host: detaching the original app root")
         window.rootViewController = nil
-        window.frame = CGRect(origin: .zero, size: size)
+        if !keepsSceneGeometry { window.frame = CGRect(origin: .zero, size: size) }
         window.overrideUserInterfaceStyle = .light
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
@@ -370,6 +383,53 @@ final class JournalInterfaceTests: XCTestCase {
         }
         XCTFail(message)
         throw NSError(domain: "JournalInterfaceHost", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    @MainActor
+    private func waitForSettledNavigation(_ navigation: UINavigationController, in window: UIWindow) async throws {
+        var previous: NavigationLayoutSample?
+        var stableSamples = 0
+        var lastState = "The top controller is not yet attached"
+        defer { print("Navigation transition regression: \(lastState), stableSamples=\(stableSamples)") }
+        try await waitForHost("The native navigation transition must finish with a stable, full-width destination") {
+            guard navigation.transitionCoordinator == nil,
+                  let top = navigation.topViewController,
+                  top.transitionCoordinator == nil,
+                  navigation.visibleViewController === top,
+                  top.isViewLoaded,
+                  top.view.window === window,
+                  !top.view.isHidden,
+                  top.view.alpha > 0.99,
+                  let parent = top.view.superview
+            else {
+                previous = nil
+                stableSamples = 0
+                lastState = "The native navigation transition is active or its top view is not visible"
+                return false
+            }
+            let frame = top.view.convert(top.view.bounds, to: window)
+            let displayedFrame = top.view.layer.presentation().map {
+                parent.convert($0.frame, to: window)
+            } ?? frame
+            lastState = "top=\(frame), displayed=\(displayedFrame), window=\(window.bounds)"
+            let tolerance: CGFloat = 0.5
+            guard frame.intersects(window.bounds), displayedFrame.intersects(window.bounds),
+                  abs(frame.minX - window.bounds.minX) <= tolerance,
+                  abs(frame.width - window.bounds.width) <= tolerance,
+                  abs(displayedFrame.minX - window.bounds.minX) <= tolerance,
+                  abs(displayedFrame.width - window.bounds.width) <= tolerance
+            else {
+                previous = nil
+                stableSamples = 0
+                return false
+            }
+            let sample = NavigationLayoutSample(
+                top: ObjectIdentifier(top), frame: frame, bounds: top.view.bounds, displayedFrame: displayedFrame
+            )
+            stableSamples = sample == previous ? stableSamples + 1 : 1
+            previous = sample
+            return stableSamples >= 3
+        }
     }
 
     @MainActor
@@ -485,6 +545,33 @@ final class JournalInterfaceTests: XCTestCase {
         attachment.name = "review-\(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    @MainActor
+    private func recognizeFilteredEmptyRegression(in view: UIView) async throws -> [String] {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = max(2, view.window?.screen.scale ?? UIScreen.main.scale)
+        let renderer = UIGraphicsImageRenderer(size: view.bounds.size, format: format)
+        var didDraw = false
+        let image = renderer.image { _ in
+            didDraw = view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
+        XCTAssertTrue(didDraw, "The filtered library must render its real hierarchy")
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "regression-compact-filtered-empty"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let data = try XCTUnwrap(image.pngData())
+        // SwiftUI's virtual accessibility elements need not be materialized in a unit-test host.
+        let text = try await Task.detached(priority: .userInitiated) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = ["zh-Hans", "en-US"]
+            try VNImageRequestHandler(data: data, options: [:]).perform([request])
+            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+        }.value
+        print("Compact create regression: visible filtered title OCR=\(text)")
+        return text
     }
 
     func testNarrowTitleGetsThirdLineWhileWideAndAccessibilityPoliciesRemainExplicit() {
@@ -915,6 +1002,54 @@ final class JournalInterfaceTests: XCTestCase {
             if let scrollView = scrollableList(in: child) { return scrollView }
         }
         return nil
+    }
+}
+
+private struct NavigationLayoutSample: Equatable {
+    let top: ObjectIdentifier
+    let frame: CGRect
+    let bounds: CGRect
+    let displayedFrame: CGRect
+}
+
+@MainActor
+private final class NavigationHostCanvasController: UIViewController {
+    private let content: UIViewController
+    private var contentSize: CGSize
+
+    init(content: UIViewController, size: CGSize) {
+        self.content = content
+        contentSize = size
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.clipsToBounds = true
+        addChild(content)
+        view.addSubview(content.view)
+        content.didMove(toParent: self)
+        updateContentSize(contentSize)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateContentSize(contentSize)
+    }
+
+    func updateContentSize(_ size: CGSize) {
+        contentSize = size
+        guard isViewLoaded else { return }
+        // Exercise wide layouts without resizing an iPhone scene's native window.
+        let frame = CGRect(origin: .zero, size: size)
+        if content.view.frame != frame {
+            content.view.frame = frame
+            content.view.setNeedsLayout()
+        }
     }
 }
 
