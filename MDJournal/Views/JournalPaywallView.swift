@@ -46,7 +46,7 @@ struct JournalPaywallView: View {
                         Text("订阅方案暂不可用").font(.headline)
                         Text("请检查网络并稍后重试。只有取得 App Store 的真实商品与价格后才能购买。")
                             .font(.footnote).foregroundStyle(.secondary)
-                        Button("重新获取方案") { Task { await subscriptions.loadProducts() } }
+                        Button("重新获取方案") { Task { await subscriptions.loadProducts(forceRefresh: true) } }
                             .frame(minHeight: 44)
                     }
                 } else {
@@ -99,6 +99,7 @@ struct JournalPaywallView: View {
             .frame(maxWidth: 680, alignment: .leading).frame(maxWidth: .infinity)
         }
         .background { JournalBackdrop().ignoresSafeArea() }
+        .tint(JournalTheme.accent)
         .navigationTitle("Pro 订阅").navigationBarTitleDisplayMode(.inline)
         .task { await subscriptions.loadProducts() }
         .onChange(of: scenePhase) { phase in

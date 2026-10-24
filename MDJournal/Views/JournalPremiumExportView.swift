@@ -77,6 +77,7 @@ struct JournalPremiumExportView: View {
         }
         .scrollContentBackground(.hidden)
         .background { JournalBackdrop().ignoresSafeArea() }
+        .tint(JournalTheme.accent)
         .navigationTitle("日记集导出").navigationBarTitleDisplayMode(.inline)
         .fileExporter(
             isPresented: $isExporting, document: document, contentType: format.contentType,

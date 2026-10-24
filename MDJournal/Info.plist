@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>JournalPrivacyPolicyURL</key>
+    <string>https://github.com/Altman-sam114/117/blob/main/docs/privacy.md</string>
+    <key>JournalSupportURL</key>
+    <string>https://github.com/Altman-sam114/117/blob/main/docs/support.md</string>
+    <key>JournalSubscriptionProductIDs</key>
+    <array>
+        <string>com.codex.mdjournal.pro.monthly</string>
+        <string>com.codex.mdjournal.pro.yearly</string>
+    </array>
+</dict>
+</plist>

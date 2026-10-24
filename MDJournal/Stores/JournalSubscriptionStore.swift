@@ -32,9 +32,14 @@ struct JournalSubscriptionCurrentEntitlements: Sendable {
     let subscriptionGroupIDs: Set<String>
 }
 
+struct JournalSubscriptionGroupEntitlements: Sendable {
+    let activeEntitlements: [JournalSubscriptionEntitlement]
+    let inactiveProductIDs: Set<String>
+}
+
 protocol JournalSubscriptionEntitlementReading: Sendable {
     func currentEntitlements(for productIDs: Set<String>) async -> JournalSubscriptionCurrentEntitlements
-    func graceEntitlements(for groupID: String) async -> [JournalSubscriptionEntitlement]
+    func groupEntitlements(for groupID: String) async -> JournalSubscriptionGroupEntitlements
 }
 
 struct JournalStoreKitEntitlementReader: JournalSubscriptionEntitlementReading {
@@ -51,19 +56,28 @@ struct JournalStoreKitEntitlementReader: JournalSubscriptionEntitlementReading {
         return JournalSubscriptionCurrentEntitlements(entitlements: entitlements, subscriptionGroupIDs: groups)
     }
 
-    func graceEntitlements(for groupID: String) async -> [JournalSubscriptionEntitlement] {
-        guard let statuses = try? await Product.SubscriptionInfo.status(for: groupID) else { return [] }
-        return statuses.compactMap { status in
-            // Both signatures must verify before a grace period extends an expired transaction.
-            guard status.state == .inGracePeriod,
-                  case let .verified(transaction) = status.transaction,
-                  case let .verified(renewal) = status.renewalInfo,
-                  transaction.productType == .autoRenewable,
-                  transaction.subscriptionGroupID == groupID else { return nil }
-            var candidate = Self.entitlement(from: transaction)
-            candidate.gracePeriodExpirationDate = renewal.gracePeriodExpirationDate
-            return candidate
+    func groupEntitlements(for groupID: String) async -> JournalSubscriptionGroupEntitlements {
+        guard let statuses = try? await Product.SubscriptionInfo.status(for: groupID) else {
+            return JournalSubscriptionGroupEntitlements(activeEntitlements: [], inactiveProductIDs: [])
         }
+        var active: [JournalSubscriptionEntitlement] = []
+        var inactive: Set<String> = []
+        for status in statuses {
+            guard case let .verified(transaction) = status.transaction,
+                  transaction.productType == .autoRenewable,
+                  transaction.subscriptionGroupID == groupID else { continue }
+            var candidate = Self.entitlement(from: transaction)
+            if status.state == .subscribed {
+                active.append(candidate)
+            } else if status.state == .inGracePeriod,
+                      case let .verified(renewal) = status.renewalInfo {
+                candidate.gracePeriodExpirationDate = renewal.gracePeriodExpirationDate
+                active.append(candidate)
+            } else {
+                inactive.insert(transaction.productID)
+            }
+        }
+        return JournalSubscriptionGroupEntitlements(activeEntitlements: active, inactiveProductIDs: inactive)
     }
 
     private static func entitlement(from transaction: Transaction) -> JournalSubscriptionEntitlement {
@@ -86,8 +100,10 @@ final class JournalSubscriptionStore: ObservableObject {
 
     let productIDs: Set<String>
     private let entitlementReader: any JournalSubscriptionEntitlementReading
+    private var hasLoadedProducts = false
     private var updatesTask: Task<Void, Never>?
     private var startupTask: Task<Void, Never>?
+    private var productTask: Task<Void, Never>?
     private var expirationTask: Task<Void, Never>?
     private var refreshGeneration = 0
 
@@ -115,6 +131,8 @@ final class JournalSubscriptionStore: ObservableObject {
         }
         startupTask = Task { [weak self] in
             await self?.refreshEntitlements()
+        }
+        productTask = Task { [weak self] in
             await self?.loadProducts()
         }
     }
@@ -122,23 +140,25 @@ final class JournalSubscriptionStore: ObservableObject {
     deinit {
         updatesTask?.cancel()
         startupTask?.cancel()
+        productTask?.cancel()
         expirationTask?.cancel()
     }
 
-    func loadProducts() async {
-        guard !isLoadingProducts else { return }
+    func loadProducts(forceRefresh: Bool = false) async {
+        guard !isLoadingProducts, forceRefresh || !hasLoadedProducts else { return }
         isLoadingProducts = true
-        defer { isLoadingProducts = false }
         do {
             products = try await Product.products(for: productIDs)
                 .filter { $0.type == .autoRenewable && Self.supportedPeriod($0) }
                 .sorted { ($0.subscription?.subscriptionPeriod.unit == .month ? 0 : 1)
                     < ($1.subscription?.subscriptionPeriod.unit == .month ? 0 : 1) }
             statusMessage = products.isEmpty ? "暂时无法取得订阅方案，请稍后重试。" : nil
-            await refreshEntitlements()
         } catch {
             statusMessage = "无法连接 App Store：\(error.localizedDescription)"
         }
+        hasLoadedProducts = true
+        isLoadingProducts = false
+        await refreshEntitlements()
     }
 
     func purchase(_ product: Product) async {
@@ -198,7 +218,10 @@ final class JournalSubscriptionStore: ObservableObject {
         // Current verified transactions identify groups even when the product catalog is unavailable.
         let groups = current.subscriptionGroupIDs.union(products.compactMap { $0.subscription?.subscriptionGroupID })
         for group in groups {
-            candidates.append(contentsOf: await entitlementReader.graceEntitlements(for: group))
+            let state = await entitlementReader.groupEntitlements(for: group)
+            // A terminal status for a verified transaction overrides the older cached entitlement.
+            candidates.removeAll { state.inactiveProductIDs.contains($0.productID) }
+            candidates.append(contentsOf: state.activeEntitlements)
         }
         guard generation == refreshGeneration, !Task.isCancelled else { return }
         let now = Date()

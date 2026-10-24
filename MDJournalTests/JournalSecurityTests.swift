@@ -181,10 +181,15 @@ final class JournalSecurityTests: XCTestCase {
         await store.unlock()
         let host = UIHostingController(rootView: JournalPrivacyGate { Text("私密正文") }
             .environmentObject(store).environment(\.scenePhase, .active))
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let window = try makeForegroundWindow(size: CGSize(width: 390, height: 844))
+        let previousKeyWindow = window.windowScene?.windows.first(where: \.isKeyWindow)
         window.rootViewController = host
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; window.rootViewController = nil }
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         host.view.layoutIfNeeded()
         let sheet = UIViewController()
         sheet.view.backgroundColor = .systemBackground
@@ -245,11 +250,16 @@ final class JournalSecurityTests: XCTestCase {
             .environment(\.dynamicTypeSize, typeSize)
             .environment(\.colorScheme, dark ? .dark : .light))
         host.overrideUserInterfaceStyle = dark ? .dark : .light
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        let window = try makeForegroundWindow(size: size)
+        let previousKeyWindow = window.windowScene?.windows.first(where: \.isKeyWindow)
         window.overrideUserInterfaceStyle = dark ? .dark : .light
         window.rootViewController = host
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; window.rootViewController = nil }
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         host.view.frame = window.bounds
         host.view.layoutIfNeeded()
         try await Task.sleep(for: .milliseconds(150))
@@ -274,12 +284,23 @@ final class JournalSecurityTests: XCTestCase {
         let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
-        XCTAssertTrue(didDraw)
+        XCTAssertTrue(didDraw, "The foreground window must render its content and any sheet privacy cover")
         XCTAssertEqual(image.size, size)
         let attachment = XCTAttachment(image: image)
         attachment.name = "review-\(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func makeForegroundWindow(size: CGSize) throws -> UIWindow {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive },
+            "Window snapshots require the test host's foreground scene"
+        )
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        return window
     }
 
     private func makeEntry() -> JournalEntry {

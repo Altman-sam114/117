@@ -71,7 +71,7 @@ flowchart TD
   Safety --> Integrate
   Pro --> Integrate
   Integrate --> Regression["Xcode16.4/iOS18.5 / 全量XCTest / 25图 / iOS与Mac构建"]
-  Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 不用模拟器"]
+  Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult"]
   Archive --> Results
   Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 逐图与交易核验"]

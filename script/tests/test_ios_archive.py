@@ -31,6 +31,9 @@ class IOSArchiveTests(unittest.TestCase):
             "MinimumOSVersion": "16.0", "DTXcode": "2620", "DTSDKName": "iphoneos26.2",
             "DTXcodeBuild": "17C52", "NSFaceIDUsageDescription": "Unlock local journals",
             "ITSAppUsesNonExemptEncryption": False,
+            "JournalPrivacyPolicyURL": "https://example.com/privacy",
+            "JournalSupportURL": "https://example.com/support",
+            "JournalSubscriptionProductIDs": ["test.journal.pro.monthly", "test.journal.pro.yearly"],
             "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
         }
         self.privacy = {
@@ -76,6 +79,29 @@ class IOSArchiveTests(unittest.TestCase):
         self.info["UIFileSharingEnabled"] = True
         with self.assertRaisesRegex(ValueError, "file sharing"):
             self.verify()
+
+    def test_rejects_missing_or_invalid_public_urls_in_the_built_app(self):
+        for key in ("JournalPrivacyPolicyURL", "JournalSupportURL"):
+            original = self.info[key]
+            for value in (None, "http://example.com/policy", "https:///policy", "https://user:secret@example.com/policy"):
+                with self.subTest(key=key, value=value):
+                    if value is None:
+                        self.info.pop(key, None)
+                    else:
+                        self.info[key] = value
+                    with self.assertRaisesRegex(ValueError, key):
+                        self.verify()
+            self.info[key] = original
+
+    def test_rejects_missing_or_duplicate_subscription_product_ids(self):
+        for value in (None, [], ["one"], ["same", "same"], ["one", ""], ["one", 2]):
+            with self.subTest(value=value):
+                if value is None:
+                    self.info.pop("JournalSubscriptionProductIDs", None)
+                else:
+                    self.info["JournalSubscriptionProductIDs"] = value
+                with self.assertRaisesRegex(ValueError, "subscription product IDs"):
+                    self.verify()
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@
 - iOS 日记文件显式使用系统首次解锁后可访问的文件保护。保留用户数据的系统备份；隐私说明明确 iCloud 设备备份可能包含日记，应用没有自行进行日记云同步。
 - 原生 StoreKit 2 月度/年度 Pro 订阅，仅接受已验证且有效的白名单订阅，处理待批准、取消、恢复、到期、退款撤销与有限宽限期。价格来自真实 App Store 商品；没有商品时明确不可购买。
 - Pro 增加按日期和分类筛选的批量 Markdown 与分页 PDF 导出。基础编辑、预览、统计、单篇分享与 JSON 备份免费，订阅到期不锁住日记。
-- 本地隐私页、公开隐私/支持文档、Apple 标准 EULA、Face ID 用途说明与 PrivacyInfo.xcprivacy 已接线。没有广告、跟踪或第三方分析 SDK。
+- 本地隐私页、公开隐私/支持文档、Apple 标准 EULA、Face ID 用途说明与 PrivacyInfo.xcprivacy 已接线。公开链接与商品 ID 由显式 `MDJournal/Info.plist` 提供，云端检查最终 App 中的实际值。没有广告、跟踪或第三方分析 SDK。
 
 ## 数据与核心结构
 

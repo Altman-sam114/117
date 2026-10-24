@@ -36,7 +36,7 @@ JournalAppLockStore 默认关闭，偏好只存本应用 UserDefaults。启用�
 
 JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；回活跃状态按实际锁态解除或提供认证。JSON 保存与遮罩独立，未增加第二份日记状态。
 
-隐私页和公开政策说明本机存储、系统备份、主动导出、可选应用锁、Apple 支付和删除边界。PrivacyInfo.xcprivacy 声明不跟踪、不收集，UserDefaults 为本应用偏好使用 CA92.1。Info.plist 包含 Face ID 说明、隐私/支持 HTTPS 链接，关闭文档共享，声明只使用系统豁免加密。
+隐私页和公开政策说明本机存储、系统备份、主动导出、可选应用锁、Apple 支付和删除边界。PrivacyInfo.xcprivacy 声明不跟踪、不收集，UserDefaults 为本应用偏好使用 CA92.1。Debug/Release 均将显式 MDJournal/Info.plist 中的公开 HTTPS 链接与订阅商品 ID 合并进最终 App，其他系统键继续生成；archive verifier 检查最终值，不能只凭工程设置判断接线成功。最终 Info 包含 Face ID 说明，关闭文档共享，声明只使用系统豁免加密。
 
 ## 编辑与预览
 
@@ -56,7 +56,7 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；日期和分类�
 
 main push 同时触发：
 
-1. macos-15/Xcode16.4/iOS18.5：13 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行 XCTest、25 图导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode16.4/iOS18.5：15 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行 XCTest、25 图导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。

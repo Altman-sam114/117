@@ -58,6 +58,9 @@ jobs:
             echo "## plutil -lint MDJournal.xcodeproj/project.pbxproj"
             plutil -lint MDJournal.xcodeproj/project.pbxproj
             echo
+            echo "## App Info and privacy manifest"
+            plutil -lint MDJournal/Info.plist MDJournal/PrivacyInfo.xcprivacy
+            echo
             echo "## xcrun swiftc -parse"
             swift_files=$(git ls-files 'MDJournal/*.swift' 'MDJournal/**/*.swift')
             xcrun swiftc -parse -parse-as-library $swift_files
@@ -122,6 +125,7 @@ jobs:
               xcrun simctl bootstatus "$device_id" -b
             echo
             # Bound simulator boot/test so a hung destination cannot block the result package forever.
+            test_status=0
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
               xcrun xcodebuild \
               -project MDJournal.xcodeproj \
@@ -135,11 +139,12 @@ jobs:
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
-              test-without-building
+              test-without-building || test_status=$?
             xcrun xcresulttool get test-results summary \
               --path "$RESULT_DIR/MDJournalTests.xcresult" > "$RESULT_DIR/xctest-summary.json"
             python3 script/verify_xctest_summary.py "$RESULT_DIR/xctest-summary.json" MDJournalTests \
-              > "$RESULT_DIR/xctest-verification.json"
+              > "$RESULT_DIR/xctest-verification.json" || test_status=$?
+            exit "$test_status"
           } 2>&1 | tee "$RESULT_DIR/xctest.log"
 
       - name: Export and verify interface review images
@@ -170,7 +175,7 @@ jobs:
               "review-settings-390x844-light-accessibility3": (390, 844, "light", "accessibility3", "JournalSettingsView"),
               "review-privacy-390x844-light": (390, 844, "light", "large", "JournalPrivacyView"),
               "review-lock-390x844-dark-presented-sheet": (390, 844, "dark", "large", "JournalPrivacyGate / window shield above presented sheet"),
-              "review-pro-paywall-390x844-light": (390, 844, "light", "large", "JournalPaywallView / StoreKitTest verified purchase"),
+              "review-pro-paywall-390x844-light": (390, 844, "light", "large", "JournalPaywallView / StoreKitTest product catalog before purchase"),
               "review-pro-export-390x844-light-verified": (390, 844, "light", "large", "JournalPremiumExportView / StoreKitTest verified entitlement"),
               "review-pro-unavailable-390x844-light-accessibility3": (390, 844, "light", "accessibility3", "JournalPaywallView / unavailable products"),
               "review-content-1360x860-light-regular": (1360, 860, "light", "large", "ContentView / iOS regular width"),

@@ -16,6 +16,7 @@
 git status --short --branch
 git diff --check
 plutil -lint MDJournal.xcodeproj/project.pbxproj
+plutil -lint MDJournal/Info.plist
 plutil -lint MDJournal/PrivacyInfo.xcprivacy
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournalTests)
@@ -25,7 +26,7 @@ bash -n script/archive_ios_release.sh
 bash -n script/package_macos.sh
 ```
 
-工作流还需逐 run 块 `bash -n`、所有内嵌 Python 与脚本 `ast.parse`；所有颜色/图标 JSON、StoreKit 配置 JSON 与资源注册检查。Swift parse 仅验证语法，不是类型检查。纯 Python 当前 13 项：8 项固定 runtime/已有设备选择，加 5 项 iOS archive 元数据/SDK/平台/隐私拒绝条件 fixture，不启动系统服务。
+工作流还需逐 run 块 `bash -n`、所有内嵌 Python 与脚本 `ast.parse`；所有颜色/图标 JSON、StoreKit 配置 JSON 与资源注册检查。Swift parse 仅验证语法，不是类型检查。纯 Python 当前 15 项：8 项固定 runtime/已有设备选择，加 7 项 iOS archive 元数据/SDK/平台/隐私/公开链接/商品 ID 拒绝条件 fixture，不启动系统服务。
 
 ## 云端功能 job
 
@@ -37,7 +38,9 @@ bash -n script/package_macos.sh
 4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。缺任何一图使工作流失败。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
-测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。结果包含四份 xcresult、阶段日志、failure summary、设备选择与未加密 artifact。
+测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。
+
+若测试执行已生成可读 xcresult，即使 xcodebuild 返回失败，也先保存 `xctest-summary.json` 再使阶段失败，便于准确区分失败用例数与断言记录数；源声明数、实际执行数和零跳过终门保持。模拟器准备或测试进程中断导致 xcresult 不完整时，日志中的实际错误仍使阶段失败。
 
 ## 关键回归及证据边界
 
@@ -55,7 +58,7 @@ bash -n script/package_macos.sh
 
 保留原 16 图：完整 regular ContentView 1360×860 和 1120×720、双栏 1440×900、手机编辑 390×720 浅/深色与辅助字号、844×320 低高度、320×900 资料库浅/深色/历史滚动/辅助字号、1100×900 与手机 390×900 统计、390×720 预览与空态。
 
-新增均 390×844：compact 完整资料库、真实打开后的 detail；设置浅色与 accessibility3；隐私页；真实 presented sheet 之上的深色锁；StoreKit 真实商品/verified 购买的 Pro 方案页、有效 Pro 导出页；无商品 accessibility3。最后一张滚动到 fallback，以便检查实际不可购及恢复入口。图片仅证明对应云端 iOS 渲染，不代表真机、Mac 窗口或 VoiceOver。
+新增均 390×844：compact 完整资料库、真实打开后的 detail；设置浅色与 accessibility3；隐私页；真实 presented sheet 之上的深色锁；StoreKit 真实商品的 Pro 方案页、verified 有效 Pro 导出页；无商品 accessibility3。方案图在加载完成后、购买前截取，最后一张滚动到 fallback，以便检查实际不可购及恢复入口。图片仅证明对应云端 iOS 渲染，不代表真机、Mac 窗口或 VoiceOver。
 
 ## 独立现代 SDK 发布 job
 
@@ -65,7 +68,7 @@ bash -n script/package_macos.sh
 bash script/archive_ios_release.sh "$GITHUB_WORKSPACE/ios-release-results"
 ```
 
-只对 `generic/platform=iOS` 构建 Release archive，SWIFT_OPTIMIZATION_LEVEL=-O、run number/attempt build number、CODE_SIGNING_ALLOWED=NO，不启动或选择模拟器。脚本验证实际 Mach-O arm64、iOS device 平台、SDK >=26、Info 中的 Xcode/SDK、iOS16 deployment target、图标/Assets、PrivacyInfo UserDefaults CA92.1、不跟踪/收集、Face ID 用途及系统豁免加密声明、私有目录未开放文件共享；记录每个 archive 文件 SHA256 与 ZIP SHA256。
+只对 `generic/platform=iOS` 构建 Release archive，SWIFT_OPTIMIZATION_LEVEL=-O、run number/attempt build number、CODE_SIGNING_ALLOWED=NO，不启动或选择模拟器。脚本验证实际 Mach-O arm64、iOS device 平台、SDK >=26、Info 中的 Xcode/SDK、iOS16 deployment target、图标/Assets、PrivacyInfo UserDefaults CA92.1、不跟踪/收集、Face ID 用途及系统豁免加密声明、私有目录未开放文件共享，以及最终 App 中的两项公开 HTTPS 链接和两项不同商品 ID；记录每个 archive 文件 SHA256 与 ZIP SHA256。
 
 结果为 `MDJournal-iOS-unsigned.xcarchive.zip`、release xcresult、日志、manifest、JUnit 和 failure summary。Manifest 明确 unsigned、未执行上传，不能把结构验证当作签名或商店审核。正式发布还需要真实开发者团队和 Distribution/provisioning；详见 docs/app-store-release.md。
 

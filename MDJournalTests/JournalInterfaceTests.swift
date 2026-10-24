@@ -12,8 +12,12 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: ContentView(store: fixture.store)
             .environment(\.horizontalSizeClass, .compact))
         let size = CGSize(width: 390, height: 844)
-        let window = makeWindow(controller: controller, size: size)
-        defer { window.isHidden = true; window.rootViewController = nil }
+        let (window, previousKeyWindow) = try makeWindow(controller: controller, size: size)
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         try await waitForHost("Compact ContentView must show its library first") {
             self.navigationController(in: controller)?.viewControllers.count == 1
         }
@@ -23,7 +27,9 @@ final class JournalInterfaceTests: XCTestCase {
         try await activateFirstProductionEntry(in: controller.view)
         try await waitForHost("A production NavigationLink must push the selected editor") {
             self.navigationController(in: controller)?.viewControllers.count == 2
-                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        try await waitForHost("The pushed editor must contain the selected journal's title and body") {
+            self.titleInput(in: controller.view, title: entries[0].title) != nil
                 && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
         try attachHostImage(controller.view, name: "content-390x844-compact-detail", size: size)
@@ -53,8 +59,14 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: ContentView(
             store: fixture.store, interactionObserver: { interaction = $0 }
         ).environment(\.horizontalSizeClass, .compact))
-        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
-        defer { window.isHidden = true; window.rootViewController = nil }
+        let (window, previousKeyWindow) = try makeWindow(
+            controller: controller, size: CGSize(width: 390, height: 844)
+        )
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         try await waitForHost("Production ContentView must publish its installed actions") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
         actions.searchText.wrappedValue = "a search that matches no journal"
@@ -94,8 +106,14 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: NavigationHostRoot(
             store: fixture.store, configuration: configuration, observer: { interaction = $0 }
         ))
-        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
-        defer { window.isHidden = true; window.rootViewController = nil }
+        let (window, previousKeyWindow) = try makeWindow(
+            controller: controller, size: CGSize(width: 390, height: 844)
+        )
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         try await waitForHost("Production navigation actions must be installed") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
         actions.compactPath.wrappedValue = [entries[0].id]
@@ -104,15 +122,27 @@ final class JournalInterfaceTests: XCTestCase {
         }
 
         configuration.sizeClass = .regular
+        if #available(iOS 17.0, *) {
+            controller.traitOverrides.horizontalSizeClass = .regular
+        }
         window.frame.size = CGSize(width: 1360, height: 860)
         controller.view.frame = window.bounds
-        try await waitForHost("Regular ContentView must retain the current journal in its split view") {
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        try await waitForHost("Regular ContentView must install its native split view controller") {
             self.splitController(in: controller) != nil
-                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        try await waitForHost("Regular ContentView must retain the current journal in its split view") {
+            self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
         configuration.sizeClass = .compact
+        if #available(iOS 17.0, *) {
+            controller.traitOverrides.horizontalSizeClass = .compact
+        }
         window.frame.size = CGSize(width: 390, height: 844)
         controller.view.frame = window.bounds
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
         try await waitForHost("Returning to compact width must retain the selected destination") {
             self.navigationController(in: controller)?.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
@@ -152,8 +182,14 @@ final class JournalInterfaceTests: XCTestCase {
             entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
             interactionObserver: { interaction = $0 }
         ))
-        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
-        defer { window.isHidden = true; window.rootViewController = nil }
+        let (window, previousKeyWindow) = try makeWindow(
+            controller: controller, size: CGSize(width: 390, height: 844)
+        )
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
         try await waitForHost("The production title, body and keyboard actions must exist") {
             interaction != nil && self.titleInput(in: controller.view, title: entry.title) != nil
                 && self.bodyInput(in: controller.view, text: entry.body) != nil
@@ -190,7 +226,9 @@ final class JournalInterfaceTests: XCTestCase {
         actions.enterPreview()
         try await waitForHost("Preview must release both input responders") {
             !title.isFirstResponder && !body.isFirstResponder
-                && self.bodyInput(in: controller.view, text: entry.body) == nil
+        }
+        try await waitForHost("Compact preview must remove the editing text view") {
+            self.bodyInput(in: controller.view, text: entry.body) == nil
         }
         actions.returnToEdit()
         try await waitForHost("Picker-style return to edit must preserve the unfocused state") {
@@ -230,14 +268,27 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
-    private func makeWindow<Content: View>(controller: UIHostingController<Content>, size: CGSize) -> UIWindow {
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+    private func makeWindow<Content: View>(
+        controller: UIHostingController<Content>, size: CGSize
+    ) throws -> (window: UIWindow, previousKeyWindow: UIWindow?) {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive },
+            "Navigation and responder tests require the test host's foreground scene"
+        )
+        let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        window.overrideUserInterfaceStyle = .light
+        if #available(iOS 17.0, *) {
+            controller.traitOverrides.horizontalSizeClass = .compact
+        }
         window.rootViewController = controller
         window.makeKeyAndVisible()
         controller.view.frame = window.bounds
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
-        return window
+        return (window, previousKeyWindow)
     }
 
     @MainActor
@@ -289,8 +340,9 @@ final class JournalInterfaceTests: XCTestCase {
         collection.layoutIfNeeded()
         collection.selectItem(at: indexPath, animated: false, scrollPosition: [])
         let delegate = try XCTUnwrap(collection.delegate)
-        XCTAssertTrue(delegate.responds(to: #selector(UICollectionViewDelegate.collectionView(_:didSelectItemAt:))))
-        delegate.collectionView?(collection, didSelectItemAt: indexPath)
+        let primaryAction = #selector(UICollectionViewDelegate.collectionView(_:performPrimaryActionForItemAt:))
+        XCTAssertTrue(delegate.responds(to: primaryAction), "A production list row must expose its primary action")
+        delegate.collectionView?(collection, performPrimaryActionForItemAt: indexPath)
     }
 
     @MainActor

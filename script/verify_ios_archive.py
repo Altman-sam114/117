@@ -9,6 +9,7 @@ import plistlib
 import re
 import subprocess
 import sys
+from urllib.parse import urlsplit
 
 
 def verify_archive(archive, output):
@@ -46,6 +47,18 @@ def verify_archive(archive, output):
         raise ValueError("System-only encryption export declaration is missing")
     if info.get("UIFileSharingEnabled", False):
         raise ValueError("The private journal directory must not be exposed by file sharing")
+    public_urls = {}
+    for key in ("JournalPrivacyPolicyURL", "JournalSupportURL"):
+        value = info.get(key)
+        url = urlsplit(value) if isinstance(value, str) else None
+        if url is None or url.scheme != "https" or not url.hostname or url.username or url.password:
+            raise ValueError(f"Archive is missing a valid public HTTPS {key}")
+        public_urls[key] = value
+    product_ids = info.get("JournalSubscriptionProductIDs")
+    if not isinstance(product_ids, list) or len(product_ids) != 2 or any(
+        not isinstance(value, str) or not value or value.strip() != value for value in product_ids
+    ) or len(set(product_ids)) != 2:
+        raise ValueError("Archive must include the two distinct configured subscription product IDs")
     if privacy.get("NSPrivacyTracking") is not False or privacy.get("NSPrivacyCollectedDataTypes") != []:
         raise ValueError("Privacy manifest must describe the actual no-tracking, no-collection behavior")
     reasons = privacy.get("NSPrivacyAccessedAPITypes", [])
@@ -85,6 +98,8 @@ def verify_archive(archive, output):
         "architectures": architectures,
         "privacyManifest": privacy,
         "faceIDUsageDescription": info["NSFaceIDUsageDescription"],
+        "publicURLs": public_urls,
+        "subscriptionProductIDs": product_ids,
         "files": files,
     }
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

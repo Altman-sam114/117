@@ -42,6 +42,12 @@
 
 - 第二轮85fb7ec/run40065704141/attempt1现代设备archive已独立下载通过：artifact12548953625（2463324bytes，digest fbfab529af34d8017f33f81125216e01755bf82f3f99d5a5608d71f2bd30dd00），实际iphoneos26.2/Xcode2620/arm64/build205.1，13外层文件与嵌套设备archive全部11文件哈希/CRC/未加密通过，JUnit1/0/0/0、Archive xcresult succeeded，仍unsigned未上传。功能明确失败于JournalSubscriptionTests:252 lazy closure缺显式self，TEST BUILD FAILED，301项与25图均未执行；不使用wrapper step conclusion冒充通过。仅修辅助函数捕获语义，另优化CI为先全测/25图再两平台构建，失败时跳过重复构建但最终六阶段全success门槛不变。下一SHA仍须两个自己的包。
 
+- 追加修复`2cd328e8131ec7b474b00267f4776269915f6288`已推origin/main，run`40066534128`/attempt`1`。最新现代archive已按该SHA独立下载核验：artifact `mdjournal-ios-release-v0.95-main-2cd328e8131ec7b474b00267f4776269915f6288-run40066534128-attempt1`（ID12549104689，2463284bytes，SHA256 f5af2e9418855c953380f272d2b6c5f499439789e3fb1222ee31c443f5ebc59b），13外层文件、25条内ZIP项目、11个archive文件的身份/digest/CRC/未加密/独立解压/逐文件哈希及只读verifier均通过。JUnit1/0/0/0，Archive xcresult build/action succeeded，构建错误与警告0；实际iPhoneOS26.2/Xcode2620(17C52)/arm64/iOS16.0/1.0(build206.1)，Release无测试商品配置。内设备archive ZIP 2438127bytes，SHA256 b0cc54c5078aaa5cf0349c59800ceec0121cfea9dfb0081353bb6dad9fa1e9e9。缓存`/private/tmp/mdjournal-c-review-40066534128/`；仍unsigned、未上传。
+- 同run功能明确失败：301项实际执行，6个用例失败、12条失败记录（其中3条wait throw的unexpected）；新增手机host导航/预览/regular切换、安全window渲染、订阅到期与自动启动时序暴露问题，compact详情图缺失，不能放行。本轮按所属模块追加诊断修复，全部301项和25图要求保留。工作流同时改为可读xcresult在失败时也保存真实summary，仍保留执行失败状态和六阶段全success终门；订阅页图片说明更正为购买前真实catalog，导出页才是verified权益。
+- 该失败包已下载核对：artifact12548929306，86036845bytes，SHA256 50139eb0370cbe74cec4b8455e4b26d4c4e836738be7bc665a5d4c05156bf546，1710个ZIP文件的身份/未加密/CRC/独立解压与gh下载逐hash通过；raw实际为295pass+6failed，24张图、只含已执行的测试xcresult，其他三个构建按规则跳过。此包的7项有界派生测试通过，159190 Character/325830 UTF8字节/40小节的Debug同步模型基准，旧路径3次中位253.091708ms，新路径49.3695ms，结果等价；不代表整轮通过、真机帧率或输入延迟。
+- 逐图和归档实物另发现原自动Info忽略两项自定义INFOPLIST_KEY，实际缺隐私/支持链接，导致订阅页禁购；先前archive仅通过旧结构门槛，不能当可售配置通过。已新增显式MDJournal/Info.plist，Debug/Release合并公开URL和两商品ID，并增加实际Bundle断言与archive拒绝条件；新版只读verifier确实拒绝2cd328e实物，15项Pythonfixtures通过。手机/安全host改接现有前台UIWindowScene、恢复keywindow、同步UIKit size class、触发List真实主动作，保留原导航/焦点/遮罩断言；订阅生产初始化并行商品与权益刷新，目录去重及加载状态只覆盖商品请求，verified终态覆盖旧缓存，原测试补回归。所有新增修复须以新SHA自己的完整结果重新验收。
+- 本次追加修复轻检全部退出0：全应用与全测试Swift parse，project/Info/PrivacyInfo三个plist，15/15纯Pythonfixtures，workflow YAML/14个bash run块/3个Python heredoc和脚本AST，asset/StoreKit JSON，源文件注册、301项声明和25图矩阵，git diff --check。原始实物缺URL的拒绝回归已实际运行。未本机完整build、XCTest、App、simctl；下一提交继续云端全测及现代archive，不复用旧结果。
+
 ### v0.94 / 界面验收收尾（实现云端通过）
 
 日期：2026-10-24。

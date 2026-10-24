@@ -48,10 +48,19 @@ final class JournalSubscriptionTests: XCTestCase {
 
     @MainActor
     func testNewStoreDoesNotTrustStoredOrDebugPremiumFlags() {
-        let store = JournalSubscriptionStore(productIDs: [productID], startsAutomatically: false)
+        let store = JournalSubscriptionStore(startsAutomatically: false)
         XCTAssertFalse(store.isPremium)
         XCTAssertNil(store.accessExpirationDate)
         XCTAssertTrue(store.products.isEmpty)
+        for key in ["JournalPrivacyPolicyURL", "JournalSupportURL"] {
+            let value = Bundle.main.object(forInfoDictionaryKey: key) as? String
+            let url = value.flatMap(URL.init(string:))
+            XCTAssertEqual(url?.scheme, "https", "The shipped app must include a valid \(key)")
+            XCTAssertNotNil(url?.host)
+        }
+        let configured = Bundle.main.object(forInfoDictionaryKey: "JournalSubscriptionProductIDs") as? [String]
+        XCTAssertEqual(Set(configured ?? []), JournalSubscriptionStore.defaultProductIDs)
+        XCTAssertEqual(store.productIDs, JournalSubscriptionStore.defaultProductIDs)
     }
 
     @MainActor
@@ -73,6 +82,10 @@ final class JournalSubscriptionTests: XCTestCase {
         await store.refreshEntitlements()
         XCTAssertFalse(store.isPremium)
         XCTAssertNil(store.accessExpirationDate)
+        let staleFuture = entitlement(expiration: Date().addingTimeInterval(3600))
+        await reader.setExpiredStatusWithStaleTransaction(staleFuture)
+        await store.refreshEntitlements()
+        XCTAssertFalse(store.isPremium, "An expired group status must override a cached transaction with an old future expiry")
     }
 
     @MainActor
@@ -110,7 +123,8 @@ final class JournalSubscriptionTests: XCTestCase {
         XCTAssertEqual(JournalSubscriptionStore.periodTitle(for: product), "每月")
         try await render(
             JournalPaywallView().environmentObject(store),
-            name: "review-pro-paywall-390x844-light"
+            name: "review-pro-paywall-390x844-light",
+            isReady: { !store.isLoadingProducts && store.products.count == 2 }
         )
         await store.purchase(product)
         XCTAssertTrue(store.isPremium)
@@ -120,7 +134,8 @@ final class JournalSubscriptionTests: XCTestCase {
                 JournalEntry(title: "河边散步", body: "### 今天的片刻\n风把树叶吹得很轻。", category: .daily),
                 JournalEntry(title: "留下一个念头", body: "### 值得记住\n认真完成手边的小事。", category: .inspiration)
             ]).environmentObject(store),
-            name: "review-pro-export-390x844-light-verified"
+            name: "review-pro-export-390x844-light-verified",
+            isReady: { store.isPremium }
         )
         await store.restorePurchases()
         XCTAssertTrue(store.isPremium)
@@ -133,7 +148,7 @@ final class JournalSubscriptionTests: XCTestCase {
         try await render(
             JournalPaywallView().environmentObject(unavailable),
             name: "review-pro-unavailable-390x844-light-accessibility3", typeSize: .accessibility3,
-            scrollOffset: 700
+            scrollOffset: 700, isReady: { !unavailable.isLoadingProducts && unavailable.products.isEmpty }
         )
     }
 
@@ -155,8 +170,11 @@ final class JournalSubscriptionTests: XCTestCase {
         await relaunched.refreshEntitlements()
         XCTAssertTrue(relaunched.isPremium)
         try session.expireSubscription(productIdentifier: productID)
-        await relaunched.refreshEntitlements()
-        XCTAssertFalse(relaunched.isPremium)
+        let expired = try await eventually {
+            await relaunched.refreshEntitlements()
+            return !relaunched.isPremium
+        }
+        XCTAssertTrue(expired, "The expired StoreKit subscription must lose access after status propagation")
     }
 
     @MainActor
@@ -198,23 +216,27 @@ final class JournalSubscriptionTests: XCTestCase {
     }
 
     @MainActor
-    private func eventually(_ condition: () -> Bool) async throws -> Bool {
-        for _ in 0..<80 {
-            if condition() { return true }
+    private func eventually(_ condition: () async -> Bool) async throws -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(30))
+        while clock.now < deadline {
+            if await condition() { return true }
             try await Task.sleep(for: .milliseconds(100))
         }
-        return condition()
+        return await condition()
     }
 
     @MainActor
     private func render<Content: View>(
-        _ content: Content, name: String, typeSize: DynamicTypeSize = .large, scrollOffset: CGFloat? = nil
+        _ content: Content, name: String, typeSize: DynamicTypeSize = .large, scrollOffset: CGFloat? = nil,
+        isReady: () -> Bool = { true }
     ) async throws {
         let size = CGSize(width: 390, height: 844)
         let controller = UIHostingController(rootView: NavigationStack { content }
             .environment(\.colorScheme, .light)
             .environment(\.dynamicTypeSize, typeSize)
-            .environment(\.locale, Locale(identifier: "zh_CN")))
+            .environment(\.locale, Locale(identifier: "zh_CN"))
+            .tint(JournalTheme.accent))
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = controller
         window.isHidden = false
@@ -223,6 +245,8 @@ final class JournalSubscriptionTests: XCTestCase {
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
         try await Task.sleep(for: .milliseconds(200))
+        let ready = try await eventually { isReady() }
+        XCTAssertTrue(ready, "Review images must capture the resolved StoreKit state")
         controller.view.layoutIfNeeded()
         if let scrollOffset {
             let scrollView = try XCTUnwrap(scrollableContent(in: controller.view))
@@ -254,8 +278,9 @@ final class JournalSubscriptionTests: XCTestCase {
 }
 
 private actor CatalogUnavailableEntitlementReader: JournalSubscriptionEntitlementReading {
-    let expired: JournalSubscriptionEntitlement
+    private var expired: JournalSubscriptionEntitlement
     private var grace: JournalSubscriptionEntitlement
+    private var isTerminal = false
     private(set) var requestedGroups: [String] = []
 
     init(expired: JournalSubscriptionEntitlement, grace: JournalSubscriptionEntitlement) {
@@ -267,10 +292,18 @@ private actor CatalogUnavailableEntitlementReader: JournalSubscriptionEntitlemen
         JournalSubscriptionCurrentEntitlements(entitlements: [expired], subscriptionGroupIDs: ["verified-group"])
     }
 
-    func graceEntitlements(for groupID: String) -> [JournalSubscriptionEntitlement] {
+    func groupEntitlements(for groupID: String) -> JournalSubscriptionGroupEntitlements {
         requestedGroups.append(groupID)
-        return groupID == "verified-group" ? [grace] : []
+        return JournalSubscriptionGroupEntitlements(
+            activeEntitlements: groupID == "verified-group" && !isTerminal ? [grace] : [],
+            inactiveProductIDs: isTerminal ? [expired.productID] : []
+        )
     }
 
     func expireGrace() { grace.gracePeriodExpirationDate = Date().addingTimeInterval(-1) }
+
+    func setExpiredStatusWithStaleTransaction(_ transaction: JournalSubscriptionEntitlement) {
+        expired = transaction
+        isTerminal = true
+    }
 }

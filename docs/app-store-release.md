@@ -17,7 +17,7 @@
 | 支持 URL | https://github.com/Altman-sam114/117/blob/main/docs/support.md |
 | 使用条款 | https://www.apple.com/legal/internet-services/itunes/dev/stdeula/ |
 
-Bundle ID 必须在开发者团队中注册且与 App Store Connect 的 App 记录一致。如已有上架记录，应使用其实际 Bundle ID；不要为绕过冲突新建另一个 App 来替换它。商品 ID 必须与真实商店商品一致。更改商品可通过 Info.plist 的 JournalSubscriptionProductIDs 字符串数组配置，不要在界面硬编码价格或折扣。
+Bundle ID 必须在开发者团队中注册且与 App Store Connect 的 App 记录一致。如已有上架记录，应使用其实际 Bundle ID；不要为绕过冲突新建另一个 App 来替换它。商品 ID 必须与真实商店商品一致。更改商品和公开链接请编辑显式 `MDJournal/Info.plist`，其中 JournalSubscriptionProductIDs 为字符串数组；Debug/Release 合并此文件，发布检查核对实际 App 的键值。不要只添加自定义 INFOPLIST_KEY 构建设置，也不要在界面硬编码价格或折扣。
 
 ## 开发者账号中的必要配置
 
