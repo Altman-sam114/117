@@ -13,12 +13,8 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: ContentView(store: fixture.store)
             .environment(\.horizontalSizeClass, .compact))
         let size = CGSize(width: 390, height: 844)
-        let (window, previousKeyWindow) = try makeWindow(controller: controller, size: size)
-        defer {
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKeyWindow?.makeKey()
-        }
+        let (_, restoreWindow) = try makeWindow(controller: controller, size: size)
+        defer { restoreWindow() }
         try await waitForHost("Compact ContentView must show its library first") {
             self.navigationController(in: controller)?.viewControllers.count == 1
         }
@@ -54,31 +50,51 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     func testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID() async throws {
         executionTimeAllowance = 60
+        print("Compact create regression: mounting the production library")
         let entries = Array(reviewEntries().prefix(2))
         let fixture = try makeNavigationStore(entries: entries)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
         var interaction: JournalContentInteraction?
         let controller = UIHostingController(rootView: ContentView(
-            store: fixture.store, interactionObserver: { interaction = $0 }
-        ).environment(\.horizontalSizeClass, .compact))
-        let (window, previousKeyWindow) = try makeWindow(
+            store: fixture.store, interactionObserver: {
+                print("Compact create regression: production onAppear actions installed")
+                interaction = $0
+            }
+        )
+            .environment(\.horizontalSizeClass, .compact)
+            .environment(\.calendar, Calendar(identifier: .gregorian)))
+        print("Compact create regression: installing the host window")
+        let (_, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
         )
-        defer {
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKeyWindow?.makeKey()
-        }
+        print("Compact create regression: host mounted; awaiting its production rows")
+        defer { restoreWindow() }
         try await waitForHost("Production ContentView must publish its installed actions") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
-        actions.searchText.wrappedValue = "a search that matches no journal"
-        actions.selectedCategory.wrappedValue = .travel
-        try await waitForHost("Filtering must not push a detail") {
-            actions.compactPath.wrappedValue.isEmpty
+        try await waitForHost("The production library must first render both journal rows") {
+            guard let collection = self.collectionView(in: controller.view) else { return false }
+            return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
                 && self.navigationController(in: controller)?.viewControllers.count == 1
         }
+        print("Compact create regression: both rows rendered; applying blocking filters")
+        let blockingSearch = "a search that matches no journal"
+        actions.searchText.wrappedValue = blockingSearch
+        actions.selectedCategory.wrappedValue = .travel
+        try await waitForHost("Blocking filters must render a visible empty result without pushing a detail") {
+            guard let collection = self.collectionView(in: controller.view) else { return false }
+            return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 1
+                && self.hasVisibleAccessibilityIdentifier("journal.library.filtered-empty", in: collection)
+                && actions.searchText.wrappedValue == blockingSearch
+                && actions.selectedCategory.wrappedValue == .travel
+                && actions.compactPath.wrappedValue.isEmpty
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        XCTAssertEqual(actions.searchText.wrappedValue, blockingSearch)
+        XCTAssertEqual(actions.selectedCategory.wrappedValue, .travel)
 
+        print("Compact create regression: filtered empty result visible; invoking production create")
         actions.createEntry()
+        print("Compact create regression: production create returned; waiting for its editor")
         try await waitForHost("The production create action must open a new journal") {
             fixture.store.entries.count == entries.count + 1
                 && self.navigationController(in: controller)?.viewControllers.count == 2
@@ -90,6 +106,7 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertNil(actions.selectedCategory.wrappedValue)
         XCTAssertNotNil(titleInput(in: controller.view, title: created.title))
         XCTAssertNotNil(bodyInput(in: controller.view, text: created.body))
+        print("Compact create regression: new editor visible; verifying persistence")
         await fixture.store.flushPendingSave()
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -109,14 +126,10 @@ final class JournalInterfaceTests: XCTestCase {
         let controller = UIHostingController(rootView: NavigationHostRoot(
             store: fixture.store, configuration: configuration, observer: { interaction = $0 }
         ))
-        let (window, previousKeyWindow) = try makeWindow(
+        let (window, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
         )
-        defer {
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKeyWindow?.makeKey()
-        }
+        defer { restoreWindow() }
         try await waitForHost("Production navigation actions must be installed") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
         actions.compactPath.wrappedValue = [entries[0].id]
@@ -186,14 +199,10 @@ final class JournalInterfaceTests: XCTestCase {
             entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
             interactionObserver: { interaction = $0 }
         ))
-        let (window, previousKeyWindow) = try makeWindow(
+        let (_, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
         )
-        defer {
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKeyWindow?.makeKey()
-        }
+        defer { restoreWindow() }
         try await waitForHost("The production title, body and keyboard actions must exist") {
             interaction != nil && self.titleInput(in: controller.view, title: entry.title) != nil
                 && self.bodyInput(in: controller.view, text: entry.body) != nil
@@ -274,25 +283,54 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     private func makeWindow<Content: View>(
         controller: UIHostingController<Content>, size: CGSize
-    ) throws -> (window: UIWindow, previousKeyWindow: UIWindow?) {
+    ) throws -> (window: UIWindow, restore: @MainActor () -> Void) {
         let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
                 .first { $0.activationState == .foregroundActive },
             "Navigation and responder tests require the test host's foreground scene"
         )
-        let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
-        let window = UIWindow(windowScene: scene)
+        let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow }, "A foreground key window must exist")
+        let originalRoot = window.rootViewController
+        let originalFrame = window.frame
+        let originalBounds = window.bounds
+        let originalStyle = window.overrideUserInterfaceStyle
+        let wasHidden = window.isHidden
+        let wasKeyWindow = window.isKeyWindow
+
+        // Keep only one active SwiftUI root publishing focused values into the foreground scene.
+        print("Interface host: detaching the original app root")
+        window.rootViewController = nil
         window.frame = CGRect(origin: .zero, size: size)
         window.overrideUserInterfaceStyle = .light
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
         }
+        print("Interface host: installing the fixture root")
         window.rootViewController = controller
+        print("Interface host: making the existing window key and visible")
         window.makeKeyAndVisible()
         controller.view.frame = window.bounds
         controller.view.setNeedsLayout()
+        print("Interface host: laying out the fixture root")
         controller.view.layoutIfNeeded()
-        return (window, previousKeyWindow)
+        print("Interface host: fixture layout returned")
+
+        return (window, {
+            print("Interface host: restoring the original app root")
+            controller.dismiss(animated: false)
+            window.endEditing(true)
+            window.rootViewController = nil
+            window.overrideUserInterfaceStyle = originalStyle
+            window.frame = originalFrame
+            window.bounds = originalBounds
+            window.rootViewController = originalRoot
+            window.isHidden = wasHidden
+            if wasKeyWindow { window.makeKey() }
+            window.layoutIfNeeded()
+            originalRoot?.view.setNeedsLayout()
+            originalRoot?.view.layoutIfNeeded()
+            print("Interface host: original window restored")
+        })
     }
 
     @MainActor
@@ -330,6 +368,44 @@ final class JournalInterfaceTests: XCTestCase {
             if let collection = collectionView(in: child) { return collection }
         }
         return nil
+    }
+
+    @MainActor
+    private func hasVisibleAccessibilityIdentifier(_ identifier: String, in view: UIView) -> Bool {
+        guard let window = view.window else { return false }
+        let visibleFrame = window.convert(window.bounds, to: nil)
+        var visited: Set<ObjectIdentifier> = []
+
+        @MainActor
+        func contains(_ object: NSObject) -> Bool {
+            guard visited.count < 512, visited.insert(ObjectIdentifier(object)).inserted else { return false }
+            if let childView = object as? UIView,
+               childView.isHidden || childView.alpha <= 0.01 || childView.window == nil {
+                return false
+            }
+            if let element = object as? UIAccessibilityIdentification,
+               element.accessibilityIdentifier == identifier,
+               object.accessibilityFrame.intersects(visibleFrame) {
+                return true
+            }
+            if let elements = object.accessibilityElements {
+                for case let element as NSObject in elements where contains(element) { return true }
+            } else {
+                let count = object.accessibilityElementCount()
+                if count > 0 && count < 1_024 {
+                    for index in 0..<count {
+                        if let element = object.accessibilityElement(at: index) as? NSObject,
+                           contains(element) { return true }
+                    }
+                }
+            }
+            if let childView = object as? UIView {
+                for child in childView.subviews where contains(child) { return true }
+            }
+            return false
+        }
+
+        return contains(view)
     }
 
     @MainActor

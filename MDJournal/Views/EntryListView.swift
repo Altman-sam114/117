@@ -278,6 +278,9 @@ struct EntryListView: View {
 
             Text(listSnapshot.isCollectionEmpty ? "还没有日记" : "没有符合条件的日记")
                 .font(.headline)
+                .accessibilityIdentifier(
+                    listSnapshot.isCollectionEmpty ? "journal.library.empty" : "journal.library.filtered-empty"
+                )
 
             if listSnapshot.isCollectionEmpty {
                 Button(action: onCreate) {

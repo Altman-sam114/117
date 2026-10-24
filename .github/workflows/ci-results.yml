@@ -143,6 +143,19 @@ jobs:
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
               test-without-building || test_status=$?
+            if [[ "$test_status" -ne 0 ]]; then
+              # Preserve a stuck host's stack before runner cleanup, even if xcresult did not finish.
+              while IFS= read -r host_pid; do
+                [[ -n "$host_pid" ]] || continue
+                /usr/bin/perl -e 'alarm shift; exec @ARGV' 15 \
+                  /usr/bin/sample "$host_pid" 3 \
+                  -file "$RESULT_DIR/xctest-host-${host_pid}.sample.txt" || true
+              done < <(/usr/bin/pgrep -x MDJournal || true)
+              /usr/bin/perl -e 'alarm shift; exec @ARGV' 30 \
+                xcrun xcresulttool export diagnostics \
+                --path "$RESULT_DIR/MDJournalTests.xcresult" \
+                --output-path "$RESULT_DIR/xctest-diagnostics" || true
+            fi
             xcrun xcresulttool get test-results summary \
               --path "$RESULT_DIR/MDJournalTests.xcresult" > "$RESULT_DIR/xctest-summary.json"
             python3 script/verify_xctest_summary.py "$RESULT_DIR/xctest-summary.json" MDJournalTests \

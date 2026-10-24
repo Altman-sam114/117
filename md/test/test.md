@@ -38,14 +38,14 @@ bash -n script/package_macos.sh
 4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。缺任何一图使工作流失败。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
-测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。
+测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
 
 若测试执行已生成可读 xcresult，即使 xcodebuild 返回失败，也先保存 `xctest-summary.json` 再使阶段失败，便于准确区分失败用例数与断言记录数；源声明数、实际执行数和零跳过终门保持。模拟器准备或测试进程中断导致 xcresult 不完整时，日志中的实际错误仍使阶段失败。
 
 ## 关键回归及证据边界
 
 - 模型/Markdown：保留分类和心情兼容解码、ISO-8601、Foundation 换行、### 小节、fenced code 旧规则、词数、解析、inline cache、防抖、UTF-16、片段/回车/缩进和输入 traits 全部基线。
-- 手机：真实 ContentView compact host，通过 List 实际 delegate 激活 NavigationLink，查看系统导航栈与真实标题/正文，系统 pop 后同篇重开；筛选中新建清筛选并打开真实新 ID；删除/筛选及 compact/regular 转换修复选择。它是 UIKit host/delegate 证据，不声称物理触屏或交互返回手势实测。
+- 手机：真实 ContentView compact host 临时借用既有前台 key window，更换根控制器并在结束时完整恢复，避免原 App 与测试内容在同一 scene 同时发布两套 focusedSceneValue。此夹具隔离不等于已证实旧超时根因。通过 List 实际 delegate 激活 NavigationLink，查看系统导航栈与真实标题/正文，系统 pop 后同篇重开；新建用例先等待初始两行，再等待搜索和分类确实显示有语义标识的空结果，最后调用生产新建动作、核对清筛选/新 ID/持久化，阶段输出区分挂载、筛选和动作。删除/筛选及 compact/regular 转换仍修复选择。它是 UIKit host/delegate 证据，不声称物理触屏或交互返回手势实测。
 - 焦点：生产标题/正文真实 becomeFirstResponder 后使用与按钮相同的生产 action，断言完成、预览与写作命令的实际 responder 和内容/选区；保留标题高度变化及正文单/双栏身份测试。不是中文输入法完整实测。
 - 有界派生：逐字段与旧 JournalEntryBodySummary 截断路径对照，覆盖 CR/LF/CRLF/Unicode newline、任务标记任意位置、空白、组合字符/emoji/区域指示符、fenced code、长内容和确定性混合输入。旧纯入口保留；新路径不物化全文摘要或小节 Markdown。
 - 性能附件：`performance-bounded-body-derivation` 记录同一约 160k 字符/40 小节 Debug 正文，旧/新各 3 次 ContinuousClock 毫秒和中位数，先断言完整投影等价；不设不稳定耗时阈值，不把它当 UI 帧率、真实输入延迟或分配测量。

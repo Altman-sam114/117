@@ -70,9 +70,9 @@ flowchart TD
   Mobile --> Integrate["主线程工程集成 / main直推"]
   Safety --> Integrate
   Pro --> Integrate
-  Integrate --> Regression["Xcode16.4/iOS18.5 / 全量XCTest / 25图 / iOS与Mac构建"]
+  Integrate --> Regression["Xcode16.4/iOS18.5 / 301项XCTest / 单窗生产host / 25图 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
-  Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult"]
+  Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results
   Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 逐图与交易核验"]
   Review --> Gate{"通过？"}

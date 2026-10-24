@@ -56,7 +56,7 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；日期和分类�
 
 main push 同时触发：
 
-1. macos-15/Xcode16.4/iOS18.5：15 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行 XCTest、25 图导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode16.4/iOS18.5：15 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行全部 301 项 XCTest、25 图导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复，避免同 scene 的两套 App/夹具焦点发布图；新建回归先确认真实筛选空态再执行动作。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
