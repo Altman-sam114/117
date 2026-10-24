@@ -22,18 +22,25 @@ final class JournalInterfaceTests: XCTestCase {
         let navigation = try XCTUnwrap(navigationController(in: controller))
         try await waitForSettledNavigation(navigation, in: window)
         XCTAssertNil(bodyInput(in: controller.view, text: entries[0].body))
+        traceCompactNavigation("library capture begin")
         try attachHostImage(controller.view, name: "content-390x844-compact-library", size: size)
+        traceCompactNavigation("library capture end; activation begin")
 
         try await activateFirstProductionEntry(in: controller.view)
+        traceCompactNavigation("activation end; push wait begin")
         try await waitForHost("A production NavigationLink must push the selected editor") {
             self.navigationController(in: controller)?.viewControllers.count == 2
         }
+        traceCompactNavigation("push wait end; inputs wait begin")
         try await waitForHost("The pushed editor must contain the selected journal's title and body") {
             self.titleInput(in: controller.view, title: entries[0].title) != nil
                 && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
+        traceCompactNavigation("inputs wait end; destination settled wait begin")
         try await waitForSettledNavigation(navigation, in: window)
+        traceCompactNavigation("destination settled wait end; detail capture begin")
         try attachHostImage(controller.view, name: "content-390x844-compact-detail", size: size)
+        traceCompactNavigation("detail capture end")
         XCTAssertFalse(navigation.navigationBar.isHidden)
         XCTAssertFalse(try XCTUnwrap(navigation.topViewController).navigationItem.hidesBackButton)
         navigation.popViewController(animated: false)
@@ -50,6 +57,39 @@ final class JournalInterfaceTests: XCTestCase {
         try await waitForSettledNavigation(navigation, in: window)
         XCTAssertEqual(fixture.store.entries, entries)
         XCTAssertEqual(fixture.store.revision, 0, "Navigation must not mutate persisted journals")
+
+        let scene = try XCTUnwrap(window.windowScene)
+        let nativeBounds = scene.coordinateSpace.bounds
+        let nativeSize = CGSize(width: 393, height: 852)
+        XCTAssertEqual(nativeBounds.size, nativeSize, "Capture requires the actual configured iPhone scene")
+        XCTAssertEqual(window.screen.scale, 3, "Capture requires the actual configured iPhone display scale")
+        guard nativeBounds.size == nativeSize, window.screen.scale == 3 else { return }
+        window.frame = nativeBounds
+        window.setNeedsLayout()
+        controller.view.setNeedsLayout()
+        try await waitForHost("The iPhone destination must fill its restored native scene") {
+            window.frame == nativeBounds && window.bounds.size == nativeSize
+                && controller.view.bounds.size == nativeSize
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+                && self.bodyInput(in: controller.view, text: entries[0].body) != nil
+        }
+        try await waitForSettledNavigation(navigation, in: window)
+        try attachNativeAppStoreImage(
+            window, name: "appstore-iphone-detail-1179x2556", pointSize: nativeSize,
+            pixelSize: CGSize(width: 1179, height: 2556)
+        )
+        navigation.popViewController(animated: false)
+        try await waitForHost("The native iPhone library must show its production rows after system pop") {
+            guard let collection = self.collectionView(in: controller.view) else { return false }
+            return navigation.viewControllers.count == 1
+                && self.bodyInput(in: controller.view, text: entries[0].body) == nil
+                && collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
+        }
+        try await waitForSettledNavigation(navigation, in: window)
+        try attachNativeAppStoreImage(
+            window, name: "appstore-iphone-library-1179x2556", pointSize: nativeSize,
+            pixelSize: CGSize(width: 1179, height: 2556)
+        )
     }
 
     @MainActor
@@ -69,7 +109,7 @@ final class JournalInterfaceTests: XCTestCase {
             .environment(\.horizontalSizeClass, .compact)
             .environment(\.calendar, Calendar(identifier: .gregorian)))
         print("Compact create regression: installing the host window")
-        let (_, restoreWindow) = try makeWindow(
+        let (window, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
         )
         print("Compact create regression: host mounted; awaiting its production rows")
@@ -129,6 +169,13 @@ final class JournalInterfaceTests: XCTestCase {
         let saved = try decoder.decode([JournalEntry].self, from: Data(contentsOf: fixture.storageURL))
         XCTAssertEqual(saved.first?.id, created.id)
         XCTAssertEqual(saved.count, entries.count + 1)
+        print("Compact create regression: persistence verified; awaiting native navigation cleanup")
+        let navigation = try XCTUnwrap(navigationController(in: controller))
+        try await waitForSettledNavigation(navigation, in: window)
+        XCTAssertEqual(navigation.viewControllers.count, 2)
+        XCTAssertNotNil(titleInput(in: controller.view, title: created.title))
+        XCTAssertNotNil(bodyInput(in: controller.view, text: created.body))
+        print("Compact create regression: cleanup complete; native push settled before root restoration")
     }
 
     @MainActor
@@ -153,6 +200,15 @@ final class JournalInterfaceTests: XCTestCase {
             controller: canvas, size: CGSize(width: 390, height: 844), keepsSceneGeometry: true
         )
         defer { restoreWindow() }
+
+        @MainActor
+        func settleCompact(_ stage: String) async throws {
+            traceCompactNavigation("size-class host \(stage): settled wait begin")
+            let navigation = try XCTUnwrap(navigationController(in: controller))
+            try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
+            traceCompactNavigation("size-class host \(stage): settled complete")
+        }
+
         try await waitForHost("Production navigation actions must be installed") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
         try await waitForHost("The compact library must render both rows before selecting a journal") {
@@ -160,13 +216,16 @@ final class JournalInterfaceTests: XCTestCase {
             return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
                 && self.navigationController(in: controller)?.viewControllers.count == 1
         }
+        try await settleCompact("initial library")
         print("Navigation regression: setting the initial compact destination")
         actions.compactPath.wrappedValue = [entries[0].id]
         print("Navigation regression: initial destination setter returned; awaiting the editor")
         try await waitForHost("A bound compact destination must show the real editor") {
-            self.bodyInput(in: controller.view, text: entries[0].body) != nil
+            self.navigationController(in: controller)?.viewControllers.count == 2
+                && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
-        print("Navigation regression: compact editor visible; setting regular configuration")
+        try await settleCompact("initial compact push")
+        print("Navigation regression: compact editor settled; setting regular configuration")
 
         configuration.sizeClass = .regular
         print("Navigation regression: regular configuration returned; setting UIKit traits")
@@ -186,7 +245,11 @@ final class JournalInterfaceTests: XCTestCase {
         }
         XCTAssertEqual(controller.view.bounds.size, CGSize(width: 1360, height: 860))
         XCTAssertEqual(window.frame, try XCTUnwrap(window.windowScene).coordinateSpace.bounds)
-        print("Navigation regression: regular editor visible; setting compact configuration")
+        traceCompactNavigation("size-class host regular split: settled wait begin")
+        let split = try XCTUnwrap(splitController(in: controller))
+        try await waitForSettledSplit(split, in: window, viewport: controller.view)
+        traceCompactNavigation("size-class host regular split: settled complete")
+        print("Navigation regression: regular editor settled; setting compact configuration")
         configuration.sizeClass = .compact
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
@@ -199,6 +262,7 @@ final class JournalInterfaceTests: XCTestCase {
             self.navigationController(in: controller)?.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        try await settleCompact("return to compact")
         XCTAssertEqual(controller.view.bounds.size, CGSize(width: 390, height: 844))
         XCTAssertEqual(fixture.store.revision, 0)
 
@@ -207,24 +271,35 @@ final class JournalInterfaceTests: XCTestCase {
             actions.compactPath.wrappedValue.isEmpty
                 && self.navigationController(in: controller)?.viewControllers.count == 1
         }
+        try await settleCompact("filtered result pop")
         actions.searchText.wrappedValue = ""
-        try await Task.sleep(for: .milliseconds(100))
+        try await waitForHost("Clearing the filter must render both journal rows without pushing") {
+            guard let collection = self.collectionView(in: controller.view) else { return false }
+            return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        try await settleCompact("cleared filter library")
         XCTAssertTrue(actions.compactPath.wrappedValue.isEmpty, "Selection repair must not push")
         actions.compactPath.wrappedValue = [entries[0].id]
         try await waitForHost("The original journal must be open before deletion") {
-            self.titleInput(in: controller.view, title: entries[0].title) != nil
+            self.navigationController(in: controller)?.viewControllers.count == 2
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        try await settleCompact("reopened journal")
         fixture.store.delete(entries[0])
         try await waitForHost("Deleting the current journal must repair to a visible remaining journal") {
             actions.compactPath.wrappedValue == [entries[1].id]
+                && self.navigationController(in: controller)?.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[1].title) != nil
         }
+        try await settleCompact("deleted current journal")
         fixture.store.delete(entries[1])
         try await waitForHost("Deleting the last journal must return to an empty library") {
             actions.compactPath.wrappedValue.isEmpty
                 && self.navigationController(in: controller)?.viewControllers.count == 1
         }
         await fixture.store.flushPendingSave()
+        try await settleCompact("deleted last journal cleanup")
     }
 
     @MainActor
@@ -385,51 +460,148 @@ final class JournalInterfaceTests: XCTestCase {
         throw NSError(domain: "JournalInterfaceHost", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
+    private func traceCompactNavigation(_ stage: String) {
+        FileHandle.standardOutput.write(Data("Compact navigation regression: \(stage)\n".utf8))
+    }
+
     @MainActor
-    private func waitForSettledNavigation(_ navigation: UINavigationController, in window: UIWindow) async throws {
+    private func waitForSettledNavigation(
+        _ navigation: UINavigationController, in window: UIWindow, viewport: UIView? = nil
+    ) async throws {
         var previous: NavigationLayoutSample?
         var stableSamples = 0
         var lastState = "The top controller is not yet attached"
         defer { print("Navigation transition regression: \(lastState), stableSamples=\(stableSamples)") }
         try await waitForHost("The native navigation transition must finish with a stable, full-width destination") {
-            guard navigation.transitionCoordinator == nil,
-                  let top = navigation.topViewController,
-                  top.transitionCoordinator == nil,
-                  navigation.visibleViewController === top,
-                  top.isViewLoaded,
-                  top.view.window === window,
-                  !top.view.isHidden,
-                  top.view.alpha > 0.99,
-                  let parent = top.view.superview
+            guard let sample = self.navigationLayoutSample(
+                navigation, in: window, viewport: viewport, diagnostic: &lastState
+            ) else {
+                previous = nil
+                stableSamples = 0
+                return false
+            }
+            stableSamples = sample == previous ? stableSamples + 1 : 1
+            previous = sample
+            return stableSamples >= 3
+        }
+    }
+
+    @MainActor
+    private func navigationLayoutSample(
+        _ navigation: UINavigationController, in window: UIWindow, viewport: UIView?, diagnostic: inout String
+    ) -> NavigationLayoutSample? {
+        if let viewport, viewport.window !== window {
+            diagnostic = "The requested navigation viewport is not attached to the host window"
+            return nil
+        }
+        guard navigation.transitionCoordinator == nil,
+              let top = navigation.topViewController,
+              top.transitionCoordinator == nil,
+              navigation.visibleViewController === top,
+              top.isViewLoaded,
+              top.view.window === window,
+              !top.view.isHidden,
+              top.view.alpha > 0.99,
+              let parent = top.view.superview
+        else {
+            diagnostic = "The native navigation transition is active or its top view is not visible"
+            return nil
+        }
+        let viewportFrame = viewport.map { $0.convert($0.bounds, to: window) } ?? window.bounds
+        let frame = top.view.convert(top.view.bounds, to: window)
+        let displayedFrame = top.view.layer.presentation().map {
+            parent.convert($0.frame, to: window)
+        } ?? frame
+        diagnostic = "top=\(frame), displayed=\(displayedFrame), viewport=\(viewportFrame), window=\(window.bounds)"
+        guard alignedWithViewport(frame, viewport: viewportFrame),
+              alignedWithViewport(displayedFrame, viewport: viewportFrame) else { return nil }
+        return NavigationLayoutSample(
+            top: ObjectIdentifier(top), frame: frame, bounds: top.view.bounds,
+            displayedFrame: displayedFrame, viewportFrame: viewportFrame
+        )
+    }
+
+    private func alignedWithViewport(_ frame: CGRect, viewport: CGRect) -> Bool {
+        let tolerance: CGFloat = 0.5
+        return frame.intersects(viewport)
+            && abs(frame.minX - viewport.minX) <= tolerance
+            && abs(frame.width - viewport.width) <= tolerance
+    }
+
+    @MainActor
+    private func waitForSettledSplit(
+        _ split: UISplitViewController, in window: UIWindow, viewport: UIView
+    ) async throws {
+        var previous: SplitLayoutSample?
+        var stableSamples = 0
+        var lastState = "The regular split view is not yet attached"
+        defer { print("Split transition regression: \(lastState), stableSamples=\(stableSamples)") }
+        try await waitForHost("The regular split view and its navigation columns must finish their transitions and layout") {
+            let navigations = self.navigationControllers(in: split)
+            guard split.transitionCoordinator == nil, !split.isCollapsed,
+                  split.isViewLoaded, split.view.window === window,
+                  !split.view.isHidden, split.view.alpha > 0.99,
+                  let parent = split.view.superview,
+                  !navigations.isEmpty,
+                  navigations.allSatisfy({
+                      $0.transitionCoordinator == nil && $0.topViewController?.transitionCoordinator == nil
+                  })
             else {
                 previous = nil
                 stableSamples = 0
-                lastState = "The native navigation transition is active or its top view is not visible"
+                lastState = "The split view is collapsed, detached or still transitioning with its columns"
                 return false
             }
-            let frame = top.view.convert(top.view.bounds, to: window)
-            let displayedFrame = top.view.layer.presentation().map {
+            let viewportFrame = viewport.convert(viewport.bounds, to: window)
+            let frame = split.view.convert(split.view.bounds, to: window)
+            let displayedFrame = split.view.layer.presentation().map {
                 parent.convert($0.frame, to: window)
             } ?? frame
-            lastState = "top=\(frame), displayed=\(displayedFrame), window=\(window.bounds)"
-            let tolerance: CGFloat = 0.5
-            guard frame.intersects(window.bounds), displayedFrame.intersects(window.bounds),
-                  abs(frame.minX - window.bounds.minX) <= tolerance,
-                  abs(frame.width - window.bounds.width) <= tolerance,
-                  abs(displayedFrame.minX - window.bounds.minX) <= tolerance,
-                  abs(displayedFrame.width - window.bounds.width) <= tolerance
-            else {
+            lastState = "split=\(frame), displayed=\(displayedFrame), viewport=\(viewportFrame)"
+            guard self.alignedWithViewport(frame, viewport: viewportFrame),
+                  self.alignedWithViewport(displayedFrame, viewport: viewportFrame) else {
                 previous = nil
                 stableSamples = 0
                 return false
             }
-            let sample = NavigationLayoutSample(
-                top: ObjectIdentifier(top), frame: frame, bounds: top.view.bounds, displayedFrame: displayedFrame
+            let visibleNavigations = navigations.filter {
+                $0.isViewLoaded && $0.view.window === window && !$0.view.isHidden && $0.view.alpha > 0.99
+                    && $0.view.convert($0.view.bounds, to: window).intersects(viewportFrame)
+            }
+            var columns: [NavigationLayoutSample] = []
+            for navigation in visibleNavigations {
+                var diagnostic = ""
+                guard let column = self.navigationLayoutSample(
+                    navigation, in: window, viewport: navigation.view, diagnostic: &diagnostic
+                ) else {
+                    previous = nil
+                    stableSamples = 0
+                    lastState += "; column=\(diagnostic)"
+                    return false
+                }
+                columns.append(column)
+            }
+            guard !columns.isEmpty else {
+                previous = nil
+                stableSamples = 0
+                lastState += "; no visible navigation columns"
+                return false
+            }
+            lastState += "; columns=\(columns)"
+            let sample = SplitLayoutSample(
+                frame: frame, bounds: split.view.bounds, displayedFrame: displayedFrame,
+                viewportFrame: viewportFrame, columns: columns
             )
             stableSamples = sample == previous ? stableSamples + 1 : 1
             previous = sample
             return stableSamples >= 3
         }
+    }
+
+    @MainActor
+    private func navigationControllers(in controller: UIViewController) -> [UINavigationController] {
+        let current = (controller as? UINavigationController).map { [$0] } ?? []
+        return current + controller.children.flatMap { navigationControllers(in: $0) }
     }
 
     @MainActor
@@ -515,19 +687,28 @@ final class JournalInterfaceTests: XCTestCase {
         }
         let collection = try XCTUnwrap(collectionView(in: view))
         let indexPath = IndexPath(item: 0, section: 1)
+        traceCompactNavigation("entry scroll begin")
         collection.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        traceCompactNavigation("entry scroll returned; collection layout begin")
         collection.layoutIfNeeded()
+        traceCompactNavigation("collection layout returned")
         let delegate = try XCTUnwrap(collection.delegate)
+        let navigation = view.window?.rootViewController.flatMap { navigationController(in: $0) }
+        traceCompactNavigation("shouldSelect begin; navigationCount=\(navigation?.viewControllers.count ?? 0)")
         let shouldSelect = delegate.collectionView?(collection, shouldSelectItemAt: indexPath) ?? true
+        traceCompactNavigation("shouldSelect returned \(shouldSelect); selectItem begin")
         XCTAssertTrue(shouldSelect, "The production journal row must allow selection")
         guard shouldSelect else { return }
         collection.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        traceCompactNavigation("selectItem returned; didSelect begin; navigationCount=\(navigation?.viewControllers.count ?? 0)")
         let didSelect = #selector(UICollectionViewDelegate.collectionView(_:didSelectItemAt:))
         XCTAssertTrue(delegate.responds(to: didSelect), "A production list row must handle selection")
         delegate.collectionView?(collection, didSelectItemAt: indexPath)
+        traceCompactNavigation("didSelect returned; primaryAction begin; navigationCount=\(navigation?.viewControllers.count ?? 0), transitioning=\(navigation?.transitionCoordinator != nil)")
         let primaryAction = #selector(UICollectionViewDelegate.collectionView(_:performPrimaryActionForItemAt:))
         XCTAssertTrue(delegate.responds(to: primaryAction), "A production list row must expose its primary action")
         delegate.collectionView?(collection, performPrimaryActionForItemAt: indexPath)
+        traceCompactNavigation("primaryAction returned; navigationCount=\(navigation?.viewControllers.count ?? 0), transitioning=\(navigation?.transitionCoordinator != nil)")
     }
 
     @MainActor
@@ -543,6 +724,37 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertTrue(didDraw, "Unable to render \(name)")
         let attachment = XCTAttachment(image: image)
         attachment.name = "review-\(name)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor
+    private func attachNativeAppStoreImage(
+        _ window: UIWindow, name: String, pointSize: CGSize, pixelSize: CGSize
+    ) throws {
+        let scene = try XCTUnwrap(window.windowScene)
+        XCTAssertEqual(window.frame, scene.coordinateSpace.bounds, "Capture must use the native scene frame")
+        XCTAssertEqual(window.bounds.size, pointSize)
+        XCTAssertEqual(window.screen.scale, 3)
+        XCTAssertEqual(window.bounds.width * window.screen.scale, pixelSize.width)
+        XCTAssertEqual(window.bounds.height * window.screen.scale, pixelSize.height)
+        guard window.frame == scene.coordinateSpace.bounds,
+              window.bounds.size == pointSize, window.screen.scale == 3 else { return }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = window.screen.scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: window.bounds.size, format: format)
+        var didDraw = false
+        let image = renderer.image { _ in
+            didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        XCTAssertTrue(didDraw, "Unable to render the native window for \(name)")
+        let pixels = try XCTUnwrap(image.cgImage)
+        XCTAssertEqual(image.size, pointSize)
+        XCTAssertEqual(pixels.width, Int(pixelSize.width))
+        XCTAssertEqual(pixels.height, Int(pixelSize.height))
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
     }
@@ -895,6 +1107,12 @@ final class JournalInterfaceTests: XCTestCase {
             name: "statistics-390x900-light-accessibility3", size: CGSize(width: 390, height: 900),
             typeSize: .accessibility3
         )
+        // This is a complete production-view canvas, not a screenshot from an iPad device.
+        try await render(
+            ContentView(store: store).environment(\.horizontalSizeClass, .regular),
+            name: "ipad-library-1366x1024", size: CGSize(width: 1366, height: 1024),
+            scale: 2, opaque: true, attachmentName: "appstore-ipad-library-2732x2048"
+        )
     }
 
     private var reviewCalendar: Calendar {
@@ -952,7 +1170,8 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     private func render<Content: View>(
         _ content: Content, name: String, size: CGSize,
-        dark: Bool = false, typeSize: DynamicTypeSize = .large, scrollToBottom: Bool = false
+        dark: Bool = false, typeSize: DynamicTypeSize = .large, scrollToBottom: Bool = false,
+        scale: CGFloat = 1, opaque: Bool = false, attachmentName: String? = nil
     ) async throws {
         let controller = UIHostingController(rootView: content
             .environment(\.colorScheme, dark ? .dark : .light)
@@ -978,8 +1197,11 @@ final class JournalInterfaceTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(150))
             controller.view.layoutIfNeeded()
         }
+        XCTAssertEqual(window.bounds.size, size, "The render window must retain the complete canvas")
+        XCTAssertEqual(controller.view.bounds.size, size, "The production host must fill the complete canvas")
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
+        format.scale = scale
+        format.opaque = opaque
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         var didDraw = false
         let image = renderer.image { _ in
@@ -987,8 +1209,11 @@ final class JournalInterfaceTests: XCTestCase {
         }
         XCTAssertTrue(didDraw, "Unable to render \(name)")
         XCTAssertEqual(image.size, size)
+        let pixels = try XCTUnwrap(image.cgImage)
+        XCTAssertEqual(pixels.width, Int(size.width * scale))
+        XCTAssertEqual(pixels.height, Int(size.height * scale))
         let attachment = XCTAttachment(image: image)
-        attachment.name = "review-\(name)"
+        attachment.name = attachmentName ?? "review-\(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
     }
@@ -1010,6 +1235,15 @@ private struct NavigationLayoutSample: Equatable {
     let frame: CGRect
     let bounds: CGRect
     let displayedFrame: CGRect
+    let viewportFrame: CGRect
+}
+
+private struct SplitLayoutSample: Equatable {
+    let frame: CGRect
+    let bounds: CGRect
+    let displayedFrame: CGRect
+    let viewportFrame: CGRect
+    let columns: [NavigationLayoutSample]
 }
 
 @MainActor

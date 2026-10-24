@@ -265,6 +265,9 @@ jobs:
           (export_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n")
           print(f"Verified {len(images)} production interface PNGs and preserved xcresult attachment mapping.")
           PY
+            python3 script/package_store_screenshots.py \
+              --attachments "$RESULT_DIR/interface-review" \
+              --output "$RESULT_DIR/app-store-screenshots"
           } 2>&1 | tee "$RESULT_DIR/interface-review-export.log"
 
       - name: Generic iOS Debug build
@@ -401,11 +404,12 @@ jobs:
               "interfaceReviewDirectoryPath": "ci-results/interface-review",
               "interfaceReviewIndexPath": "ci-results/interface-review/index.json",
               "interfaceReviewExportLogPath": "ci-results/interface-review-export.log",
+              "appStoreScreenshotsIndexPath": "ci-results/app-store-screenshots/index.json",
               "macReleaseOutcome": mac_release_outcome,
               "macReleaseManifestPath": "ci-results/mac-release-manifest.json",
               "macReleaseResultBundlePath": "ci-results/MDJournalMacRelease.xcresult",
               "macReleaseLogPath": "ci-results/mac-release.log",
-              "projectSpecificReports": ["ci-results/interface-review/index.json", "ci-results/mac-release-manifest.json"],
+              "projectSpecificReports": ["ci-results/interface-review/index.json", "ci-results/app-store-screenshots/index.json", "ci-results/mac-release-manifest.json"],
           }
           (result_dir / "ci-artifact-manifest.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",

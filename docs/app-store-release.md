@@ -32,6 +32,20 @@ Bundle ID 必须在开发者团队中注册且与 App Store Connect 的 App 记�
 
 Apple 自 2026-04-28 起要求上传使用 Xcode 26 或更新版本和 iOS 26 SDK：[官方要求](https://developer.apple.com/news/upcoming-requirements/)。CI 保留稳定的 Xcode 16.4/iOS 18.5 功能回归，并独立在 Xcode 26.2/iPhoneOS 26.2 上构建 Release 设备 archive；后者不启动模拟器。两项结果必须对应同一提交。
 
+## 商店图片
+
+功能 artifact 的 `app-store-screenshots/` 包含独立命名的三张无透明 PNG 和可追溯 index；只有该提交云端完成、下载核对并逐图确认后，才能选作提交素材：
+
+| 素材 | 像素 | 来源 |
+| --- | --- | --- |
+| iPhone 资料库 | 1179×2556 | 云端 iPhone 原生 393×852pt 窗口直接 3x 渲染 |
+| iPhone 日记详情 | 1179×2556 | 同一生产导航栈真实打开详情、转场稳定后直接 3x 渲染 |
+| iPad 完整界面 | 2732×2048 | 生产 ContentView regular 完整 1366×1024pt 画布直接 2x 渲染 |
+
+图片使用确定性演示日记，不含个人数据；不从旧图放大，不添加虚构商品价格或系统状态栏。iPad 素材是生产视图画布，不能作为 iPad 设备运行证据，上传前应在对应设备确认实际表现。原 25 张回归图单独保留。
+
+截至本轮核查，Apple 的 [截图规格](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/) 接受 iPhone Dynamic Island medium 的 1179×2556 或 1206×2622；支持 iPad 时另需 13 英寸截图，接受 2064×2752 或 2048×2732 及相应横向尺寸。最终按 App Store Connect 当前表单核对，图像无 alpha，尺寸合格仍需实际视觉审核。
+
 ## 商店文案草稿
 
 副标题：把日常，写成值得回看的文字

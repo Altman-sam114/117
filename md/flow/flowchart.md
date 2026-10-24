@@ -6,7 +6,7 @@
 flowchart TD
   App["MDJournalApp / 共享 Store、订阅、应用锁"] --> Gate["JournalPrivacyGate / 窗口级隐私遮罩"]
   Gate --> Content["ContentView / 唯一选中、筛选、sheet"]
-  Content --> Compact["手机 compact / NavigationStack + UUID path / 列表无原生selection回写"]
+  Content --> Compact["手机 compact / NavigationStack直接绑定State UUID数组 / 路径与选中同步 / 列表无原生selection回写"]
   Content --> Regular["iPad regular、Catalyst / NavigationSplitView"]
   Compact --> Library["年月资料库 / NavigationLink / 新建 / 设置"]
   Regular --> Library
@@ -74,7 +74,9 @@ flowchart TD
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results
-  Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 逐图与交易核验"]
+  Regression --> StoreImages["额外3张商店尺寸PNG / iPhone原生3x、iPad生产画布2x / 无alpha与来源摘要"]
+  StoreImages --> Results
+  Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 25图及3张素材与交易核验"]
   Review --> Gate{"通过？"}
   Gate -- "否" --> Fix["按具体失败追加修复 / 同因失败按规则停止"]
   Fix --> Integrate

@@ -8,7 +8,7 @@
 
 当前代码已加入以下功能，完整构建、交易测试、截图与现代 SDK archive 结果必须以本轮最新 SHA 对应结果包为准，不能使用 v0.94 的通过记录代替：
 
-- 手机以原生 NavigationStack 打开日记、返回和重开，导航路径独立于列表的原生选择；iPad 常规宽度及 Mac 保留分栏选择。新建成功后清除搜索与分类筛选，直接打开新日记。
+- 手机以原生 NavigationStack 直接绑定 UUID 状态数组，打开日记、返回和重开后同步有效选中项；路径独立于列表的原生选择，iPad 常规宽度及 Mac 保留分栏选择。新建成功后清除搜索与分类筛选，直接打开新日记。
 - 标题与正文统一处理完成、预览和写作命令的焦点；长标题、低高度、深色与辅助字号延续纸本布局。UTF-16 选区、中文组合输入和 Markdown 快捷输入边界保持。
 - 分享在实际传输时生成完整 Markdown；正文展示派生使用有限摘要，避免先物化整篇摘要与每个小节 Markdown。完整词数与小节识别仍需扫描正文，不宣称整体 O(1) 或未经测量的帧率。
 - 资料库设置入口提供免费完整 JSON 备份和安全合并导入。导入前校验并预览，只追加新 ID；冲突保留本地版本，过期预览需重新确认。
@@ -43,6 +43,8 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 功能回归固定 macos-15 / Xcode 16.4 / iOS 18.5，使用一个已存在的云端 iPhone，提前启动后先串行执行全部 301 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；宽窄切换使用包含式测试画布，保留系统窗口的原生尺寸。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。失败时保留宿主采样和可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
 
 验收需要下载最新同 SHA/run/attempt 的两个未加密 artifact，核对 manifest、JUnit、日志、xcresult、PNG、ZIP digest/CRC/逐文件哈希及 archive SDK/架构/资源。实际计数和结果见 [测试规范](md/test/test.md) 与 [更新日志](update_log.md)。StoreKitTest 是本地商店配置测试，不能冒充 Apple Sandbox 或真实付费交易。
+
+商店尺寸素材独立保存于功能包的 `app-store-screenshots/`，保留原 25 张审查图：iPhone 资料库与详情从云端原生窗口直接以 3x 渲染为 1179×2556；iPad 为生产 ContentView 的完整 1366×1024pt 画布，直接以 2x 渲染为 2732×2048。PNG 不从旧图放大，打包检查尺寸、无透明通道、完整性和来源摘要；iPad 画布不代表已在 iPad 设备运行，仍需逐图确认及发布前设备验收。
 
 DEBUG 的 XCTest 宿主不自动查询订阅，防止测试配置建立前的 Sandbox 查询与本地 StoreKit 会话竞争；每个交易测试仍显式创建真实订阅 Store 和会话，自动 transaction listener 也单独实测。普通开发启动和 Release 保持自动加载、监听和回前台刷新。
 

@@ -28,7 +28,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
     @State private var presentedSheet: Sheet?
-    @State private var isCompactDetailPresented = false
+    @State private var compactEntryPath: [JournalEntry.ID] = []
     #if DEBUG
     var interactionObserver: ((JournalContentInteraction) -> Void)? = nil
     #endif
@@ -38,7 +38,7 @@ struct ContentView: View {
 
         Group {
             if usesCompactNavigation {
-                NavigationStack(path: compactPath) {
+                NavigationStack(path: $compactEntryPath) {
                     entryList(using: listSnapshot)
                         .navigationDestination(for: JournalEntry.ID.self) { entryID in
                             detail(for: entryID, using: listSnapshot)
@@ -75,7 +75,7 @@ struct ContentView: View {
             selectInitialEntry()
             #if DEBUG
             interactionObserver?(JournalContentInteraction(
-                compactPath: compactPath, searchText: $searchText,
+                compactPath: $compactEntryPath, searchText: $searchText,
                 selectedCategory: $selectedCategory, createEntry: createEntry
             ))
             #endif
@@ -88,6 +88,18 @@ struct ContentView: View {
         }
         .onChange(of: selectedCategory) { _ in
             repairSelection()
+        }
+        .onChange(of: compactEntryPath) { path in
+            guard usesCompactNavigation, path == compactEntryPath, let entryID = path.last else { return }
+            guard makeListSnapshot().filteredEntries.contains(where: { $0.id == entryID }) else {
+                repairSelection()
+                return
+            }
+            if selectedEntryID != entryID { selectedEntryID = entryID }
+        }
+        .onChange(of: selectedEntryID) { entryID in
+            guard !usesCompactNavigation, entryID == selectedEntryID else { return }
+            synchronizePresentedEntry(with: entryID)
         }
         .onChange(of: scenePhase) { phase in
             if phase != .active {
@@ -125,27 +137,6 @@ struct ContentView: View {
         #else
         horizontalSizeClass == .compact
         #endif
-    }
-
-    private var compactPath: Binding<[JournalEntry.ID]> {
-        Binding(
-            get: {
-                guard isCompactDetailPresented, let selectedEntryID else { return [] }
-                return [selectedEntryID]
-            },
-            set: { path in
-                guard let entryID = path.last else {
-                    isCompactDetailPresented = false
-                    return
-                }
-                guard makeListSnapshot().filteredEntries.contains(where: { $0.id == entryID }) else {
-                    repairSelection()
-                    return
-                }
-                selectedEntryID = entryID
-                isCompactDetailPresented = true
-            }
-        )
     }
 
     private func entryList(using snapshot: JournalEntryListSnapshot) -> some View {
@@ -205,10 +196,10 @@ struct ContentView: View {
 
         return JournalEntryNavigationActions(
             selectNewer: newerID.map { destinationID in
-                { selectedEntryID = destinationID }
+                { selectEntry(destinationID) }
             },
             selectOlder: olderID.map { destinationID in
-                { selectedEntryID = destinationID }
+                { selectEntry(destinationID) }
             }
         )
     }
@@ -253,7 +244,7 @@ struct ContentView: View {
         searchText = ""
         selectedCategory = nil
         selectedEntryID = createdID
-        isCompactDetailPresented = true
+        compactEntryPath = [createdID]
     }
 
     private func showStatistics() {
@@ -274,12 +265,22 @@ struct ContentView: View {
     }
 
     private func repairSelection() {
+        let currentSelection = usesCompactNavigation ? (compactEntryPath.last ?? selectedEntryID) : selectedEntryID
         selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
-            currentSelection: selectedEntryID,
+            currentSelection: currentSelection,
             visibleEntries: makeListSnapshot().filteredEntries
         )
-        if selectedEntryID == nil {
-            isCompactDetailPresented = false
-        }
+        synchronizePresentedEntry(with: selectedEntryID)
+    }
+
+    private func synchronizePresentedEntry(with entryID: JournalEntry.ID?) {
+        guard !compactEntryPath.isEmpty else { return }
+        let path = entryID.map { [$0] } ?? []
+        if compactEntryPath != path { compactEntryPath = path }
+    }
+
+    private func selectEntry(_ entryID: JournalEntry.ID) {
+        selectedEntryID = entryID
+        synchronizePresentedEntry(with: entryID)
     }
 }

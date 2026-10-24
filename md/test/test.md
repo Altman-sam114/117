@@ -26,7 +26,7 @@ bash -n script/archive_ios_release.sh
 bash -n script/package_macos.sh
 ```
 
-工作流还需逐 run 块 `bash -n`、所有内嵌 Python 与脚本 `ast.parse`；所有颜色/图标 JSON、StoreKit 配置 JSON 与资源注册检查。Swift parse 仅验证语法，不是类型检查。纯 Python 当前 15 项：8 项固定 runtime/已有设备选择，加 7 项 iOS archive 元数据/SDK/平台/隐私/公开链接/商品 ID 拒绝条件 fixture，不启动系统服务。
+工作流还需逐 run 块 `bash -n`、所有内嵌 Python 与脚本 `ast.parse`；所有颜色/图标 JSON、StoreKit 配置 JSON 与资源注册检查。Swift parse 仅验证语法，不是类型检查。纯 Python 当前 31 项：8 项固定 runtime/已有设备选择、7 项 iOS archive 拒绝条件，以及 16 项商店素材路径/来源/PNG/透明度/完整性 fixture，不启动系统服务。
 
 ## 云端功能 job
 
@@ -35,7 +35,7 @@ bash -n script/package_macos.sh
 1. 静态检查与纯 Python fixtures。
 2. 读取可用设备 JSON，只在固定 runtime 中选一台已有 iPhone，Booted 优先，再 iPhone16；缺 runtime 或设备明确失败，不创建克隆、不回退别的系统。提前启动并记录 UDID/runtime/初始状态。
 3. 先独立 build-for-testing 上限 600 秒；同一 UDID bootstatus 上限 240 秒；串行 test-without-building 上限 720 秒，不借机删测试、跳过或缩减门槛。启用 XCTest 进程外逐用例 watchdog，默认/最大 180 秒，四项生产导航/焦点 host 用例明确 60 秒，避免主线程循环阻止用例内等待超时后又耗尽整轮预算；超时仍计失败。
-4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。缺任何一图使工作流失败。
+4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 301 项用例，不把附图算成新增测试。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
 测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
@@ -60,6 +60,12 @@ bash -n script/package_macos.sh
 保留原 16 图：完整 regular ContentView 1360×860 和 1120×720、双栏 1440×900、手机编辑 390×720 浅/深色与辅助字号、844×320 低高度、320×900 资料库浅/深色/历史滚动/辅助字号、1100×900 与手机 390×900 统计、390×720 预览与空态。
 
 新增均 390×844：compact 完整资料库、真实打开后的 detail；设置浅色与 accessibility3；隐私页；真实 presented sheet 之上的深色锁；StoreKit 真实商品的 Pro 方案页、verified 有效 Pro 导出页；无商品 accessibility3。方案图在加载完成后、购买前截取，最后一张滚动到 fallback，以便检查实际不可购及恢复入口。图片仅证明对应云端 iOS 渲染，不代表真机、Mac 窗口或 VoiceOver。
+
+## 3 张商店尺寸素材
+
+既有导航用例完成全部原断言后，恢复当前 iPhone scene 原生 393×852pt 窗口，核实屏幕 3x、转场和全宽稳定，直接渲染详情与 pop 后的资料库为 1179×2556。既有界面渲染用例另以 1366×1024pt 完整生产 ContentView regular 画布直接生成 2x 的 2732×2048 素材。原 25 图名称、像素和断言不变，额外图片不替代任何一张回归图。
+
+`script/package_store_screenshots.py` 从真实 xcresult 附件清单提取 `appstore-*`，复制原字节至 `app-store-screenshots/`，不改变像素。index 记录同 branch/SHA/run/attempt、测试来源、尺寸、SHA256、演示内容及未上传状态。iPhone 是原生云端窗口渲染，iPad 是完整生产视图画布，不能用后者声称 iPad 设备运行或旋转已验收。下载后须逐图检查，尺寸合格不代替视觉审核。官方可接受尺寸及上传边界见 [发布配置](../../docs/app-store-release.md)。
 
 ## 独立现代 SDK 发布 job
 
