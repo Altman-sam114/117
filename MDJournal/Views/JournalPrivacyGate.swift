@@ -104,6 +104,7 @@ private final class JournalShieldAnchor: UIView {
         messageLabel.textAlignment = .center
         messageLabel.numberOfLines = 0
         unlockButton.setTitle("解锁日记", for: .normal)
+        unlockButton.tintColor = UIColor(named: "JournalAccent") ?? .label
         unlockButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
         unlockButton.titleLabel?.adjustsFontForContentSizeCategory = true
         unlockButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true

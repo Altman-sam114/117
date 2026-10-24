@@ -4,7 +4,9 @@ import SwiftUI
 struct MDJournalApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = JournalStore()
-    @StateObject private var subscriptions = JournalSubscriptionStore()
+    @StateObject private var subscriptions = JournalSubscriptionStore(
+        startsAutomatically: !JournalApplicationRuntime.isUnitTestHost
+    )
     @StateObject private var appLock = JournalAppLockStore()
 
     var body: some Scene {
@@ -23,7 +25,7 @@ struct MDJournalApp: App {
             .environmentObject(subscriptions)
             .environmentObject(appLock)
             .onChange(of: scenePhase) { phase in
-                if phase == .active {
+                if phase == .active && !JournalApplicationRuntime.isUnitTestHost {
                     Task { await subscriptions.refreshEntitlements() }
                 }
             }
@@ -45,6 +47,20 @@ struct MDJournalApp: App {
         }
         #endif
     }
+}
+
+private enum JournalApplicationRuntime {
+    static let isUnitTestHost: Bool = {
+        #if DEBUG
+        // Each integration test owns its StoreKit session; the host must not query Sandbox first.
+        let isHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+        if isHost { print("StoreKit test host: automatic app subscription queries disabled") }
+        return isHost
+        #else
+        return false
+        #endif
+    }()
 }
 
 enum JournalSceneID {

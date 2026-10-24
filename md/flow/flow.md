@@ -8,6 +8,8 @@ v0.95 按用户最新要求分模块并行：手机导航/编辑与性能、设�
 
 `MDJournalApp` 创建共享的 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。主窗口以及 Catalyst 统计窗口均经过 `JournalPrivacyGate` 并注入同一权益/应用锁对象；App 回到活跃态刷新订阅权益。没有日记服务器或登录账号。
 
+仅 DEBUG 的 XCTest 宿主关闭全局订阅 Store 的自动查询和 scenePhase 刷新，避免本地测试会话建立前查询 Sandbox；交易测试仍显式使用真实 StoreKit Store、Product 和 transaction listener。普通开发启动与 Release 保持正常自动启动路径。
+
 `ContentView` 拥有 selectedEntryID、搜索、分类与 sheet。手机 compact 使用 NavigationStack，单元素 UUID path 由唯一选中项和 presentation 标志派生；首次展示资料库，点 NavigationLink 才进入对应日记。compact 列表不安装原生 selection 绑定，行高亮仍消费 selectedEntryID，避免列表 diff 的选择回写与导航路径竞争。系统返回只收起详情，保留有效选择，能够再次打开同篇。常规宽度和 Catalyst 使用 NavigationSplitView，继续保留原生列表 selection。
 
 新建经过 `JournalStore.createEntry() -> ID?`，失败不清筛选、不伪造 ID；成功后清搜索和分类并选中真实新 ID，compact 打开详情。筛选、删除及 Store 发布按当前可见日记修复 selection，空结果解除无效详情。相邻导航沿当前可见顺序，首尾不循环。
@@ -34,7 +36,7 @@ Store 是唯一集合修改入口：加载/创建构建正文展示投影，正�
 
 JournalAppLockStore 默认关闭，偏好只存本应用 UserDefaults。启用、关闭与解锁均通过 LAContext.deviceOwnerAuthentication，系统可选择 Face ID、Touch ID 或设备密码。应用不接收生物特征或设备密码。generation 防止后台或新请求后迟到的认证结果解锁；后台取消在途认证并锁定，inactive 只遮挡以免取消系统验证页。
 
-JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；回活跃状态按实际锁态解除或提供认证。JSON 保存与遮罩独立，未增加第二份日记状态。
+JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；回活跃状态按实际锁态解除或提供认证。遮罩的纸面和解锁按钮使用应用的动态主题色。JSON 保存与遮罩独立，未增加第二份日记状态。
 
 隐私页和公开政策说明本机存储、系统备份、主动导出、可选应用锁、Apple 支付和删除边界。PrivacyInfo.xcprivacy 声明不跟踪、不收集，UserDefaults 为本应用偏好使用 CA92.1。Debug/Release 均将显式 MDJournal/Info.plist 中的公开 HTTPS 链接与订阅商品 ID 合并进最终 App，其他系统键继续生成；archive verifier 检查最终值，不能只凭工程设置判断接线成功。最终 Info 包含 Face ID 说明，关闭文档共享，声明只使用系统豁免加密。
 

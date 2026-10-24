@@ -19,6 +19,7 @@ struct JournalMarkdownShareItem: Transferable {
 
 #if DEBUG
 struct JournalEditorInteraction {
+    let titleFocus: FocusState<Bool>.Binding
     let dismissKeyboard: () -> Void
     let focusBody: () -> Void
     let enterPreview: () -> Void
@@ -263,6 +264,7 @@ struct EntryEditorView: View {
                 workspaceState.updateLayout(layout)
                 #if DEBUG
                 interactionObserver?(JournalEditorInteraction(
+                    titleFocus: $titleFocused,
                     dismissKeyboard: dismissKeyboard,
                     focusBody: { perform(.focusBody, layout: layout) },
                     enterPreview: { perform(.selectMode(.preview), layout: layout) },

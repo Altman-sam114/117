@@ -80,17 +80,22 @@ final class JournalInterfaceTests: XCTestCase {
         let blockingSearch = "a search that matches no journal"
         actions.searchText.wrappedValue = blockingSearch
         actions.selectedCategory.wrappedValue = .travel
-        try await waitForHost("Blocking filters must render a visible empty result without pushing a detail") {
+        try await waitForHost("Blocking filters must replace both journal rows with one empty-result row") {
             guard let collection = self.collectionView(in: controller.view) else { return false }
             return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 1
-                && self.hasVisibleAccessibilityIdentifier("journal.library.filtered-empty", in: collection)
-                && actions.searchText.wrappedValue == blockingSearch
-                && actions.selectedCategory.wrappedValue == .travel
-                && actions.compactPath.wrappedValue.isEmpty
-                && self.navigationController(in: controller)?.viewControllers.count == 1
         }
+        print("Compact create regression: empty-result row rendered; search=\(actions.searchText.wrappedValue), category=\(String(describing: actions.selectedCategory.wrappedValue)), path=\(actions.compactPath.wrappedValue), navigationCount=\(self.navigationController(in: controller)?.viewControllers.count ?? 0)")
         XCTAssertEqual(actions.searchText.wrappedValue, blockingSearch)
         XCTAssertEqual(actions.selectedCategory.wrappedValue, .travel)
+        let filteredCollection = try XCTUnwrap(collectionView(in: controller.view))
+        _ = hasVisibleAccessibilityIdentifier(
+            "journal.library.filtered-empty", in: filteredCollection, reportsDiagnostics: true
+        )
+        try await waitForHost("The filtered empty-result title must be accessible and visible") {
+            self.hasVisibleAccessibilityIdentifier("journal.library.filtered-empty", in: filteredCollection)
+        }
+        XCTAssertTrue(actions.compactPath.wrappedValue.isEmpty, "Filtering must not push a detail")
+        XCTAssertEqual(navigationController(in: controller)?.viewControllers.count, 1)
 
         print("Compact create regression: filtered empty result visible; invoking production create")
         actions.createEntry()
@@ -100,6 +105,10 @@ final class JournalInterfaceTests: XCTestCase {
                 && self.navigationController(in: controller)?.viewControllers.count == 2
         }
         let created = try XCTUnwrap(fixture.store.entries.first)
+        try await waitForHost("The created destination must finish mounting its title and body inputs") {
+            self.titleInput(in: controller.view, title: created.title) != nil
+                && self.bodyInput(in: controller.view, text: created.body) != nil
+        }
         XCTAssertFalse(entries.contains { $0.id == created.id })
         XCTAssertEqual(actions.compactPath.wrappedValue, [created.id])
         XCTAssertEqual(actions.searchText.wrappedValue, "")
@@ -125,40 +134,55 @@ final class JournalInterfaceTests: XCTestCase {
         var interaction: JournalContentInteraction?
         let controller = UIHostingController(rootView: NavigationHostRoot(
             store: fixture.store, configuration: configuration, observer: { interaction = $0 }
-        ))
+        ).environment(\.calendar, Calendar(identifier: .gregorian)))
         let (window, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
         )
         defer { restoreWindow() }
         try await waitForHost("Production navigation actions must be installed") { interaction != nil }
         let actions = try XCTUnwrap(interaction)
+        try await waitForHost("The compact library must render both rows before selecting a journal") {
+            guard let collection = self.collectionView(in: controller.view) else { return false }
+            return collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        print("Navigation regression: setting the initial compact destination")
         actions.compactPath.wrappedValue = [entries[0].id]
+        print("Navigation regression: initial destination setter returned; awaiting the editor")
         try await waitForHost("A bound compact destination must show the real editor") {
             self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
+        print("Navigation regression: compact editor visible; setting regular configuration")
 
         configuration.sizeClass = .regular
+        print("Navigation regression: regular configuration returned; setting UIKit traits")
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .regular
         }
+        print("Navigation regression: regular traits returned; resizing window")
         window.frame.size = CGSize(width: 1360, height: 860)
         controller.view.frame = window.bounds
+        print("Navigation regression: window=\(window.frame), scene=\(String(describing: window.windowScene?.coordinateSpace.bounds)); laying out regular view")
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
+        print("Navigation regression: regular layout returned; awaiting split controller")
         try await waitForHost("Regular ContentView must install its native split view controller") {
             self.splitController(in: controller) != nil
         }
         try await waitForHost("Regular ContentView must retain the current journal in its split view") {
             self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
+        print("Navigation regression: regular editor visible; setting compact configuration")
         configuration.sizeClass = .compact
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
         }
         window.frame.size = CGSize(width: 390, height: 844)
         controller.view.frame = window.bounds
+        print("Navigation regression: compact traits and frame returned; laying out compact view")
         controller.view.setNeedsLayout()
         controller.view.layoutIfNeeded()
+        print("Navigation regression: compact layout returned; awaiting retained destination")
         try await waitForHost("Returning to compact width must retain the selected destination") {
             self.navigationController(in: controller)?.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
@@ -210,13 +234,16 @@ final class JournalInterfaceTests: XCTestCase {
         let actions = try XCTUnwrap(interaction)
         let title = try XCTUnwrap(titleInput(in: controller.view, title: entry.title))
         let body = try XCTUnwrap(bodyInput(in: controller.view, text: entry.body))
-        XCTAssertTrue(title.becomeFirstResponder())
-        try await Task.sleep(for: .milliseconds(100))
+        actions.titleFocus.wrappedValue = true
+        try await waitForHost("The production title FocusState must focus its native input") {
+            actions.titleFocus.wrappedValue && title.isFirstResponder
+        }
         XCTAssertTrue(title.isFirstResponder)
         actions.dismissKeyboard()
         try await waitForHost("The production Done action must dismiss the title keyboard") {
             !title.isFirstResponder && !body.isFirstResponder
         }
+        XCTAssertFalse(actions.titleFocus.wrappedValue)
         actions.focusBody()
         try await waitForHost("The production writing action must focus the body") { body.isFirstResponder }
         let selection = (entry.body as NSString).range(of: "河边")
@@ -230,8 +257,10 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(body.selectedRange, selection)
         XCTAssertEqual(body.text, entry.body)
 
-        XCTAssertTrue(title.becomeFirstResponder())
-        try await Task.sleep(for: .milliseconds(100))
+        actions.titleFocus.wrappedValue = true
+        try await waitForHost("The title must receive focus again before transferring to writing") {
+            actions.titleFocus.wrappedValue && title.isFirstResponder
+        }
         actions.focusBody()
         try await waitForHost("Writing from a focused title must transfer focus to the body") {
             body.isFirstResponder && !title.isFirstResponder
@@ -336,8 +365,8 @@ final class JournalInterfaceTests: XCTestCase {
     @MainActor
     private func waitForHost(_ message: String, condition: () -> Bool) async throws {
         for _ in 0..<80 {
-            if condition() { return }
             try await Task.sleep(for: .milliseconds(25))
+            if condition() { return }
         }
         XCTFail(message)
         throw NSError(domain: "JournalInterfaceHost", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
@@ -371,10 +400,13 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
-    private func hasVisibleAccessibilityIdentifier(_ identifier: String, in view: UIView) -> Bool {
+    private func hasVisibleAccessibilityIdentifier(
+        _ identifier: String, in view: UIView, reportsDiagnostics: Bool = false
+    ) -> Bool {
         guard let window = view.window else { return false }
         let visibleFrame = window.convert(window.bounds, to: nil)
         var visited: Set<ObjectIdentifier> = []
+        var identifiers: [String] = []
 
         @MainActor
         func contains(_ object: NSObject) -> Bool {
@@ -384,9 +416,12 @@ final class JournalInterfaceTests: XCTestCase {
                 return false
             }
             if let element = object as? UIAccessibilityIdentification,
-               element.accessibilityIdentifier == identifier,
-               object.accessibilityFrame.intersects(visibleFrame) {
-                return true
+               let value = element.accessibilityIdentifier {
+                if reportsDiagnostics { identifiers.append("\(value):\(object.accessibilityFrame)") }
+                if value == identifier, object.accessibilityFrame.intersects(visibleFrame) { return true }
+            }
+            if #available(iOS 17.0, *), let elements = object.automationElements {
+                for case let element as NSObject in elements where contains(element) { return true }
             }
             if let elements = object.accessibilityElements {
                 for case let element as NSObject in elements where contains(element) { return true }
@@ -405,7 +440,11 @@ final class JournalInterfaceTests: XCTestCase {
             return false
         }
 
-        return contains(view)
+        let found = contains(view)
+        if reportsDiagnostics {
+            print("Accessibility regression: target=\(identifier), visible=\(found), viewport=\(visibleFrame), visited=\(visited.count), identifiers=\(identifiers)")
+        }
+        return found
     }
 
     @MainActor
@@ -418,8 +457,14 @@ final class JournalInterfaceTests: XCTestCase {
         let indexPath = IndexPath(item: 0, section: 1)
         collection.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
         collection.layoutIfNeeded()
-        collection.selectItem(at: indexPath, animated: false, scrollPosition: [])
         let delegate = try XCTUnwrap(collection.delegate)
+        let shouldSelect = delegate.collectionView?(collection, shouldSelectItemAt: indexPath) ?? true
+        XCTAssertTrue(shouldSelect, "The production journal row must allow selection")
+        guard shouldSelect else { return }
+        collection.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        let didSelect = #selector(UICollectionViewDelegate.collectionView(_:didSelectItemAt:))
+        XCTAssertTrue(delegate.responds(to: didSelect), "A production list row must handle selection")
+        delegate.collectionView?(collection, didSelectItemAt: indexPath)
         let primaryAction = #selector(UICollectionViewDelegate.collectionView(_:performPrimaryActionForItemAt:))
         XCTAssertTrue(delegate.responds(to: primaryAction), "A production list row must expose its primary action")
         delegate.collectionView?(collection, performPrimaryActionForItemAt: indexPath)

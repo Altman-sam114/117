@@ -92,21 +92,31 @@ final class JournalSubscriptionTests: XCTestCase {
     func testStoreKitUpdatesAutomaticallyApplyApprovalAndRefund() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
-        defer { session.clearTransactions(); session.resetToDefaultState() }
+        defer { reset(session) }
         session.askToBuyEnabled = true
-        let store = JournalSubscriptionStore(startsAutomatically: true)
-        let loaded = try await eventually { store.products.count == 2 && !store.isLoadingProducts }
+        let store = tracedStore(startsAutomatically: true)
+        let loaded = try await step("wait for startup catalog") {
+            try await eventually { store.products.count == 2 && !store.isLoadingProducts }
+        }
         XCTAssertTrue(loaded, "The production startup task must load the StoreKit catalog")
         let product = try XCTUnwrap(store.products.first { $0.id == productID })
-        await store.purchase(product)
+        await step("purchase pending subscription") { await store.purchase(product) }
         XCTAssertFalse(store.isPremium)
         let pending = try XCTUnwrap(session.allTransactions().first { $0.pendingAskToBuyConfirmation })
+        trace("approve ask-to-buy: begin")
         try session.approveAskToBuyTransaction(identifier: pending.identifier)
-        let approved = try await eventually { store.isPremium }
+        trace("approve ask-to-buy: complete")
+        let approved = try await step("wait for verified approval update") {
+            try await eventually { store.isPremium }
+        }
         XCTAssertTrue(approved, "Transaction.updates must enable verified approved purchases without a manual refresh")
         let purchased = try XCTUnwrap(session.allTransactions().first { !$0.pendingAskToBuyConfirmation && $0.productIdentifier == productID })
+        trace("refund approved transaction: begin")
         try session.refundTransaction(identifier: purchased.identifier)
-        let revoked = try await eventually { !store.isPremium }
+        trace("refund approved transaction: complete")
+        let revoked = try await step("wait for revoked transaction update") {
+            try await eventually { !store.isPremium }
+        }
         XCTAssertTrue(revoked, "Transaction.updates must remove refunded access without a manual refresh")
     }
 
@@ -114,9 +124,9 @@ final class JournalSubscriptionTests: XCTestCase {
     func testStoreKitPurchaseRestoreAndRefundUseVerifiedTransactions() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
-        defer { session.clearTransactions(); session.resetToDefaultState() }
-        let store = JournalSubscriptionStore(startsAutomatically: false)
-        await store.loadProducts()
+        defer { reset(session) }
+        let store = tracedStore()
+        await step("load catalog and refresh entitlements") { await store.loadProducts() }
         XCTAssertEqual(store.products.count, 2)
         let product = try XCTUnwrap(store.products.first { $0.id == productID })
         XCTAssertFalse(product.displayPrice.isEmpty)
@@ -126,7 +136,7 @@ final class JournalSubscriptionTests: XCTestCase {
             name: "review-pro-paywall-390x844-light",
             isReady: { !store.isLoadingProducts && store.products.count == 2 }
         )
-        await store.purchase(product)
+        await step("purchase verified subscription") { await store.purchase(product) }
         XCTAssertTrue(store.isPremium)
         XCTAssertNotNil(store.accessExpirationDate)
         try await render(
@@ -137,12 +147,21 @@ final class JournalSubscriptionTests: XCTestCase {
             name: "review-pro-export-390x844-light-verified",
             isReady: { store.isPremium }
         )
-        await store.restorePurchases()
+        await step("restore verified subscription") { await store.restorePurchases() }
         XCTAssertTrue(store.isPremium)
         let transaction = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == productID })
+        trace("refund transaction: begin")
         try session.refundTransaction(identifier: transaction.identifier)
-        await store.refreshEntitlements()
+        trace("refund transaction: complete")
+        let revoked = try await step("wait for verified refund revocation") {
+            try await eventually {
+                await store.refreshEntitlements()
+                return !store.isPremium && store.accessExpirationDate == nil
+            }
+        }
+        XCTAssertTrue(revoked, "The refunded StoreKit transaction must lose verified access after status propagation")
         XCTAssertFalse(store.isPremium)
+        XCTAssertNil(store.accessExpirationDate)
         let unavailable = JournalSubscriptionStore(productIDs: [], startsAutomatically: false)
         await unavailable.loadProducts()
         try await render(
@@ -156,23 +175,29 @@ final class JournalSubscriptionTests: XCTestCase {
     func testStoreKitPendingApprovalColdStartAndExpiry() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
-        defer { session.clearTransactions(); session.resetToDefaultState() }
+        defer { reset(session) }
         session.askToBuyEnabled = true
-        let store = JournalSubscriptionStore(startsAutomatically: false)
-        await store.loadProducts()
+        let store = tracedStore()
+        await step("load catalog and refresh entitlements") { await store.loadProducts() }
         let product = try XCTUnwrap(store.products.first { $0.id == productID })
-        await store.purchase(product)
+        await step("purchase pending subscription") { await store.purchase(product) }
         XCTAssertFalse(store.isPremium)
         XCTAssertTrue(store.statusMessage?.contains("等待批准") == true)
         let pending = try XCTUnwrap(session.allTransactions().first { $0.pendingAskToBuyConfirmation })
+        trace("approve ask-to-buy: begin")
         try session.approveAskToBuyTransaction(identifier: pending.identifier)
-        let relaunched = JournalSubscriptionStore(startsAutomatically: false)
-        await relaunched.refreshEntitlements()
+        trace("approve ask-to-buy: complete")
+        let relaunched = tracedStore()
+        await step("refresh cold-start entitlement") { await relaunched.refreshEntitlements() }
         XCTAssertTrue(relaunched.isPremium)
+        trace("expire subscription: begin")
         try session.expireSubscription(productIdentifier: productID)
-        let expired = try await eventually {
-            await relaunched.refreshEntitlements()
-            return !relaunched.isPremium
+        trace("expire subscription: complete")
+        let expired = try await step("wait for expired subscription status") {
+            try await eventually {
+                await relaunched.refreshEntitlements()
+                return !relaunched.isPremium
+            }
         }
         XCTAssertTrue(expired, "The expired StoreKit subscription must lose access after status propagation")
     }
@@ -181,18 +206,45 @@ final class JournalSubscriptionTests: XCTestCase {
     func testStoreKitCancelledAndUnverifiedPurchasesDoNotUnlockPro() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
-        defer { session.clearTransactions(); session.resetToDefaultState() }
-        let store = JournalSubscriptionStore(startsAutomatically: false)
-        await store.loadProducts()
+        defer { reset(session) }
+        let store = tracedStore()
+        await step("load catalog and refresh entitlements") { await store.loadProducts() }
+        XCTAssertEqual(store.products.count, 2)
         let product = try XCTUnwrap(store.products.first { $0.id == productID })
-        try await session.setSimulatedError(.generic(.userCancelled), forAPI: .purchase)
-        await store.purchase(product)
+        try await step("inject purchase cancellation") {
+            try await session.setSimulatedError(.generic(.userCancelled), forAPI: .purchase)
+        }
+        let cancellation = await step("read purchase cancellation injection") {
+            await session.simulatedError(forAPI: .purchase)
+        }
+        XCTAssertEqual(cancellation, .generic(.userCancelled))
+        await step("purchase with cancellation") { await store.purchase(product) }
         XCTAssertFalse(store.isPremium)
-        try await session.setSimulatedError(nil, forAPI: .purchase)
-        try await session.setSimulatedError(.verification(.invalidSignature), forAPI: .verification)
-        await store.purchase(product)
+        XCTAssertFalse(store.isPurchasing)
+        XCTAssertNil(store.statusMessage, "A purchase error must not count as a successfully handled cancellation")
+        try await step("clear purchase cancellation injection") {
+            try await session.setSimulatedError(nil, forAPI: .purchase)
+        }
+        let purchaseError = await step("read cleared purchase injection") {
+            await session.simulatedError(forAPI: .purchase)
+        }
+        XCTAssertNil(purchaseError)
+        try await step("inject transaction verification failure") {
+            try await session.setSimulatedError(.verification(.invalidSignature), forAPI: .verification)
+        }
+        let verification = await step("read verification failure injection") {
+            await session.simulatedError(forAPI: .verification)
+        }
+        XCTAssertEqual(verification, .verification(.invalidSignature))
+        await step("purchase with invalid transaction signature") { await store.purchase(product) }
         XCTAssertFalse(store.isPremium)
+        XCTAssertFalse(store.isPurchasing)
         XCTAssertNil(store.accessExpirationDate)
+        XCTAssertEqual(
+            store.statusMessage,
+            "无法验证这笔交易，暂未启用 Pro。请恢复购买或联系 Apple 支持。",
+            "The real StoreKit purchase must return an unverified transaction; an unrelated purchase error is not coverage"
+        )
     }
 
     private func entitlement(
@@ -208,11 +260,58 @@ final class JournalSubscriptionTests: XCTestCase {
 
     private func session() throws -> SKTestSession {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "JournalSubscriptions", withExtension: "storekit"))
+        trace("create StoreKit test session: begin")
         let session = try SKTestSession(contentsOf: url)
+        trace("create StoreKit test session: complete")
+        trace("reset session defaults: begin")
         session.resetToDefaultState()
+        trace("reset session defaults: complete")
+        trace("disable purchase dialogs: begin")
         session.disableDialogs = true
+        trace("disable purchase dialogs: complete")
+        trace("clear initial transactions: begin")
         session.clearTransactions()
+        trace("clear initial transactions: complete")
+        trace("check initial session configuration: begin")
+        XCTAssertTrue(session.disableDialogs)
+        XCTAssertFalse(session.askToBuyEnabled)
+        XCTAssertFalse(session.interruptedPurchasesEnabled)
+        trace("check initial session configuration: complete")
         return session
+    }
+
+    private func reset(_ session: SKTestSession) {
+        trace("cleanup clear transactions: begin")
+        session.clearTransactions()
+        trace("cleanup clear transactions: complete")
+        trace("cleanup reset defaults: begin")
+        session.resetToDefaultState()
+        trace("cleanup reset defaults: complete")
+    }
+
+    @MainActor
+    private func tracedStore(startsAutomatically: Bool = false) -> JournalSubscriptionStore {
+        JournalSubscriptionStore(
+            startsAutomatically: startsAutomatically,
+            entitlementReader: TracedStoreKitEntitlementReader(testName: name)
+        )
+    }
+
+    @MainActor
+    private func step<Value>(_ label: String, _ operation: () async throws -> Value) async rethrows -> Value {
+        trace("\(label): begin")
+        do {
+            let value = try await operation()
+            trace("\(label): complete")
+            return value
+        } catch {
+            trace("\(label): failed: \(error)")
+            throw error
+        }
+    }
+
+    private func trace(_ phase: String) {
+        journalStoreKitTrace(testName: name, phase: phase)
     }
 
     @MainActor
@@ -231,6 +330,7 @@ final class JournalSubscriptionTests: XCTestCase {
         _ content: Content, name: String, typeSize: DynamicTypeSize = .large, scrollOffset: CGFloat? = nil,
         isReady: () -> Bool = { true }
     ) async throws {
+        trace("render \(name): begin")
         let size = CGSize(width: 390, height: 844)
         let controller = UIHostingController(rootView: NavigationStack { content }
             .environment(\.colorScheme, .light)
@@ -268,6 +368,7 @@ final class JournalSubscriptionTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+        trace("render \(name): complete")
     }
 
     @MainActor
@@ -275,6 +376,31 @@ final class JournalSubscriptionTests: XCTestCase {
         if let scroll = view as? UIScrollView, scroll.contentSize.height > scroll.bounds.height { return scroll }
         return view.subviews.lazy.compactMap { self.scrollableContent(in: $0) }.first
     }
+}
+
+private struct TracedStoreKitEntitlementReader: JournalSubscriptionEntitlementReading {
+    let testName: String
+    private let reader = JournalStoreKitEntitlementReader()
+
+    func currentEntitlements(for productIDs: Set<String>) async -> JournalSubscriptionCurrentEntitlements {
+        journalStoreKitTrace(testName: testName, phase: "Transaction.currentEntitlements: begin")
+        let result = await reader.currentEntitlements(for: productIDs)
+        journalStoreKitTrace(testName: testName, phase: "Transaction.currentEntitlements: complete, count=\(result.entitlements.count)")
+        return result
+    }
+
+    func groupEntitlements(for groupID: String) async -> JournalSubscriptionGroupEntitlements {
+        journalStoreKitTrace(testName: testName, phase: "Product.SubscriptionInfo.status: begin, group=\(groupID)")
+        let result = await reader.groupEntitlements(for: groupID)
+        journalStoreKitTrace(testName: testName, phase: "Product.SubscriptionInfo.status: complete, active=\(result.activeEntitlements.count), inactive=\(result.inactiveProductIDs.count)")
+        return result
+    }
+}
+
+private func journalStoreKitTrace(testName: String, phase: String) {
+    // Write immediately so a killed runner still leaves the last entered StoreKit phase.
+    let line = "[StoreKitTest pid=\(ProcessInfo.processInfo.processIdentifier)] \(testName): \(phase)\n"
+    FileHandle.standardOutput.write(Data(line.utf8))
 }
 
 private actor CatalogUnavailableEntitlementReader: JournalSubscriptionEntitlementReading {
