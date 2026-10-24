@@ -1,249 +1,63 @@
 # MD Journal
 
-MD Journal 是一个原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。目标是简洁、美观、快速写作，并能随时切换预览。
+原生 SwiftUI Markdown 日记，支持 iPhone、iPad 和 Mac Catalyst。纸本界面、墨绿强调色与中文写作工具让记录保持安静；日记保存在应用私有目录，不设账号或自建日记服务器。
 
-## 当前迭代（v0.94）
+## 当前交付：v0.95 iOS 发布候选
 
-2026-10-24，遵照用户最新要求不开子智能体。v0.92恢复云端、v0.93纸本UI重构后，v0.94已修正逐图发现的大字号新建文字截断、深色主按钮对比不足、统计装饰挤占文字，并清理4条测试编译弃用警告。
+本轮按用户最新指令由多个子智能体按模块并行实现，统一集成和云端验证。手机导航与写作、设置与数据保护、StoreKit 订阅与高级导出分别负责；不再把 A→B→C 串行交接作为开工前提。此前版本的串行验收记录保留在 `update_log.md`。
 
-实现提交`de710e1352dae2492289333c2f7e4948a37cd278` / run`40053762957` / attempt`1`已下载核对：257/257 XCTest、16图逐张、四份xcresult、6项JUnit、629个未加密文件digest/CRC/逐文件SHA256及Mac双架构Release包均通过，Swift源码编译警告为0。artifact为`mdjournal-ci-v0.94-main-de710e1-run40053762957-attempt1`；详细身份、哈希与范围见`update_log.md`。最终文档提交同样使用自己的云端artifact追溯，不复用实现提交的包。
+当前代码已加入以下功能，完整构建、交易测试、截图与现代 SDK archive 结果必须以本轮最新 SHA 对应结果包为准，不能使用 v0.94 的通过记录代替：
 
-云端固定macos-15 arm64 / Xcode16.4 / iOS18.5与已有设备，提前启动后串行测试，缺设备明确失败。8项纯JSON fixture、257项XCTest和16图全部保留，现有颜色用例增加四种外观主按钮色对比至少4.5:1断言并实际通过。本机不运行完整构建、XCTest、模拟器或App。Mac内部包不代表满足App Store SDK、Developer ID或公证要求。
+- 手机以原生 NavigationStack 打开日记、返回和重开；iPad 常规宽度及 Mac 保留分栏。新建成功后清除搜索与分类筛选，直接打开新日记。
+- 标题与正文统一处理完成、预览和写作命令的焦点；长标题、低高度、深色与辅助字号延续纸本布局。UTF-16 选区、中文组合输入和 Markdown 快捷输入边界保持。
+- 分享在实际传输时生成完整 Markdown；正文展示派生使用有限摘要，避免先物化整篇摘要与每个小节 Markdown。完整词数与小节识别仍需扫描正文，不宣称整体 O(1) 或未经测量的帧率。
+- 资料库设置入口提供免费完整 JSON 备份和安全合并导入。导入前校验并预览，只追加新 ID；冲突保留本地版本，过期预览需重新确认。
+- 读取本地 JSON 失败后保持独立写保护，新建、修改、删除、导入与 flush 都不能覆盖原文件。设置中可导出原始文件并重试读取，关闭错误提示不解除保护。
+- 可选应用锁使用系统设备所有者身份验证。窗口级遮罩覆盖非活跃内容及已呈现 sheet；前后台切换使过期认证失效。应用锁是界面访问保护，不能替代设备密码或保护另行导出的文件。
+- iOS 日记文件显式使用系统首次解锁后可访问的文件保护。保留用户数据的系统备份；隐私说明明确 iCloud 设备备份可能包含日记，应用没有自行进行日记云同步。
+- 原生 StoreKit 2 月度/年度 Pro 订阅，仅接受已验证且有效的白名单订阅，处理待批准、取消、恢复、到期、退款撤销与有限宽限期。价格来自真实 App Store 商品；没有商品时明确不可购买。
+- Pro 增加按日期和分类筛选的批量 Markdown 与分页 PDF 导出。基础编辑、预览、统计、单篇分享与 JSON 备份免费，订阅到期不锁住日记。
+- 本地隐私页、公开隐私/支持文档、Apple 标准 EULA、Face ID 用途说明与 PrivacyInfo.xcprivacy 已接线。没有广告、跟踪或第三方分析 SDK。
 
-## 功能
+## 数据与核心结构
 
-- 原生 SwiftUI 日记，支持 iPhone、iPad 与 Mac Catalyst；用户数据仅保存在本地 JSON。
-- v0.88 使用统一暖白纸面、墨绿强调和语义颜色资源，支持深色及高对比外观；列表、工作台、预览、统计与空态保持一致。
-- 资料库以“日常，值得记下。”与明确新建入口开始，保留系统分类菜单和年月时间轴。行使用日期页码、标题、有限摘要和分类/心情/词数；辅助字号改垂直日期、完整标题。选中有底色、强调线、勾选及selected trait，搜索/删除确认/selection修复/Mac相邻快捷键不变。
-- 写作工作台以标题优先的纸面、日期/分类/心情次级层级与轻命令带组织；窄屏标题最多三行，宽屏两行，辅助字号不限行且头部可独立滚动，始终不超过纸面38%。正文/标题/占位统一24pt边距；手机新增专注写作/切换预览/详情菜单。底栏“仅在本机”不冒充磁盘已保存，编辑时间可在详情查看。
-- 编辑/预览与 Markdown 合为一条命令带，宽屏显示小节、加粗、待办和完整格式菜单，窄屏/低高度/辅助字号使用模式切换与菜单；不再叠加独立 pane header 与完整九按钮工具层。
-- 单栏写作宽度限制为 760pt；实际 detail 宽度达到 1120pt 且非 Accessibility 字号时可编辑/预览双栏。正文节点在宽度切换时保持原有结构，选区、IME 和焦点规则保留。专注写作会收起详情并隐藏预览。
-- Markdown 支持三级小节、列表/任务/引用/代码等预览和工具栏插入，支持 UTF-16 选区、回车续写、Tab/Shift-Tab；预览以连续纸面、文字层级和细线组织内容，可选择文字。
-- 阅读小节以编号与衬线标题分层，辅助字号不限制为两行；统计“写作足迹”使用大数字与细分隔，取消嵌套指标卡，网格顶对齐。Accessibility统一单列，Mac统计仍为独立窗口。空态与轻渐变背景沿用纸本视觉。
-- 主按钮使用独立前景语义颜色，浅色为白字、深色为墨色，兼顾高对比模式；新建按钮全文可换行，辅助字号统计隐藏装饰图标以留出文字宽度。
-- Mac Catalyst 主窗口建议内容尺寸 1360×860pt（实际窗口尺寸与恢复由系统决定）、最小 1120×720pt，侧栏 260/300/360pt；工具栏显示当前筛选结果数量；保留日记、写作、插入 Markdown 菜单。顶部工具栏聚合为专注、写作工具、预览和分享。
-- v0.91 使用 Store 按ID维护的紧凑展示投影，列表/编辑器/概览/统计读取缓存；只有正文变化才重建该篇。展示摘要和小节预览最多160字符加省略号，原始Markdown与JSON不截断。
-- v0.93记录行进一步只持有可见标量`JournalEntryRowContent`，不持有全文或小节数组；Equatable比较展示内容和选中状态，非展示尾部/updatedAt变化不让行重新派生。日期与字号/locale仍读取环境；不声称全局O(1)或测得帧率。
-- 应用图标由 `script/generate_app_icon.swift` 的原生矢量绘图生成，iOS与Mac共享墨绿笔记本视觉；生成的PNG已纳入工程。
-- CI 新增 universal Mac Catalyst Release 内部包：arm64+x86_64、可追溯build number、ad-hoc签名和ZIP完整性报告。包未Developer ID签名/公证，真实Mac启动和公开分发尚待完成。
-- 保存仍由 JournalStore 唯一管理，debounce 合并编辑写入、actor 串行 JSON 编码/原子写盘；离开活跃态 flush。预览仍为 150ms latest-wins 与按文档去重的 inline cache，不进入持久化。
+`MDJournalApp` 共享 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。`ContentView` 拥有导航、选中项、搜索/分类和错误展示。所有日记修改均通过 Store；JSON 文件名为 `md-journal-entries.json`，原有 Codable 兼容规则与 ISO-8601 日期格式保持。
 
-用户最新要求“不多开子智能体”：现已停止子智能体，后续方案、实现、main推送与云端结果包核对均由当前线程串行完成，明确不标记为独立Agent C验收。此前多Agent工作保留真实历史。
+`EntryEditorView` 负责元数据、标题、正文与编辑/预览布局；`MarkdownBodyTextView` 承载 UIKit 输入和 UTF-16 选区。`MarkdownBlockParser` 解析轻量 Markdown，预览采用 150ms latest-wins 防抖与同文档内联缓存。`JournalStatistics` 负责计算，视图消费缓存和结果。
 
-低高度（可用高度 <400pt）使用紧凑标题、单行模式/Markdown 菜单并隐藏状态栏；辅助字号使用工具菜单，UITextView 字体跟随 SwiftUI Dynamic Type。此策略不改变正文、选区或 IME 同步。
+推荐用 `###` 组织小节，支持列表、待办、引用、有序列表与代码块。资料库按年月组织，保留搜索、分类、删除确认与相邻日记快捷键。宽度达到 1120pt 且非辅助字号时可双栏预览，单栏写作限制为 760pt；低高度减少头部和工具占用。
 
-## 日记结构建议
+## 验证与运行
 
-正文推荐用三级标题组织日记：
-
-```md
-### 今天发生了什么
-
-- 一件具体的事
-- 一个值得记住的细节
-
-### 我的感受
-
-> 写下真实状态。
-
-### 明天可以做的小事
-
-- [ ] 一个容易完成的行动
-```
-
-## 运行
-
-1. 用 Xcode 打开 `MDJournal.xcodeproj`。
-2. 选择 `MDJournal` scheme。
-3. 本机 iOS 验证只使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止新建或选择其他设备。默认自动验证使用云端。
-
-Mac 版本当前采用 Mac Catalyst 路径：在 Xcode 中选择 `My Mac (Mac Catalyst)`，或直接运行项目内脚本：
-
-```sh
-./script/build_and_run.sh
-```
-
-Codex 桌面环境已配置 `Run` action，指向同一个 `./script/build_and_run.sh`。脚本会停止旧的 `MDJournal` 进程、构建 Mac Catalyst Debug app，并启动最新构建产物；该入口用于人工本机开发，自动验收仍以 GitHub Actions 回传结果包为准。
-
-测试覆盖与各版本证据见 `md/test/test.md` 和 `update_log.md`。菜单、Picker、IME、VoiceOver 与真实 Mac 输入设备仍需实际交互验收。
-
-## 验证
-
-v0.94实现 `de710e1` / run `40053762957` / attempt `1` 已复核257项XCTest、16图、双平台Debug与Mac universal Release。每个新提交仍按自身SHA/run/attempt核对，历史记录不代替当前结果。
-
-CI 在四个主阶段后独立导出并核对16张生产视图PNG，包含完整宽屏ContentView、多月资料库及跨年滚动、双栏、手机浅/深色、低高度、辅助字号、阅读、统计与空态。结果包包含 `interface-review/manifest.json`、`interface-review/index.json` 和导出日志；JUnit记录六个workflow摘要项，真实257项计数来自XCTest日志与xcresult。图片是云端iOS SwiftUI渲染，不代表真实Mac窗口、输入设备、IME或VoiceOver交互。
-
-云端固定macos-15/Xcode16.4/iOS18.5，选定已有设备后提前启动；build-for-testing独立600秒，同一UDID等待上限240秒，串行test-without-building上限720秒。缺runtime/设备明确失败，不创建克隆或退回其他runtime。
-
-默认验证策略是“本机轻量检查 + GitHub Actions 云端重验证”。每次改动后先执行：
+默认只在本机执行轻量检查，完整构建、XCTest 和图片都在 GitHub Actions：
 
 ```sh
 git diff --check
-```
-
-修改 Xcode 工程时执行：
-
-```sh
 plutil -lint MDJournal.xcodeproj/project.pbxproj
-```
-
-修改 Swift 源码时执行：
-
-```sh
-xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)
-```
-
-修改 workflow 时执行：
-
-```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournalTests)
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-需要验证 Mac Catalyst 构建时执行：
+功能回归固定 macos-15 / Xcode 16.4 / iOS 18.5，使用一个已存在的云端 iPhone，提前启动并串行测试；保留 iOS/Catalyst Debug、原有全部测试与 16 图，新增手机操作、设置、锁与 Pro 图片。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
 
-```sh
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project MDJournal.xcodeproj \
-  -scheme MDJournal \
-  -configuration Debug \
-  -destination 'generic/platform=macOS,variant=Mac Catalyst' \
-  -derivedDataPath /private/tmp/mdjournal-derived-data \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+验收需要下载最新同 SHA/run/attempt 的两个未加密 artifact，核对 manifest、JUnit、日志、xcresult、PNG、ZIP digest/CRC/逐文件哈希及 archive SDK/架构/资源。实际计数和结果见 [测试规范](md/test/test.md) 与 [更新日志](update_log.md)。StoreKitTest 是本地商店配置测试，不能冒充 Apple Sandbox 或真实付费交易。
 
-修改 Mac Catalyst 一键运行入口时，默认通过 GitHub Actions 结果包验收；本机只需按需检查脚本语法和执行位：
+本机 iOS 编译/运行必须人工明确要求，而且只能使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止创建或选择其他设备。云端不受此限制。Mac 人工开发入口为 `./script/build_and_run.sh`；本轮未启动本机 App 或模拟器。
 
-```sh
-bash -n script/build_and_run.sh
-test -x script/build_and_run.sh
-```
+## App Store 提交
 
-`MDJournalTests` 覆盖模型兼容解码、正文派生/缓存失效、搜索筛选与选择修复、相邻导航、Markdown解析/插入/回车/缩进、UTF-16与桥接同步、预览防抖与inline cache、布局与输入控件身份、语义颜色对比，以及Store的actor revision/原子JSON/错误仲裁/flush。完整构建和XCTest默认在云端执行；真实Mac交互、IME、VoiceOver、性能及后台强杀行为仍需专项验收。仅在人工明确要求本机XCTest时，先设置既有设备的完整UDID并使用：
+[发布配置与提审材料](docs/app-store-release.md) 包含 Bundle ID、商品 ID、商店文案、隐私与支持 URL、账号步骤和审核备注。[隐私政策](docs/privacy.md) 与 [支持页面](docs/support.md) 可作为公开元数据链接。
 
-```sh
-case "${MDJOURNAL_SIMULATOR_UDID:-}" in
-  FAC4325D-*) ;;
-  *) printf '%s\n' '请先设置 FAC4325D 前缀的既有完整模拟器 UDID' >&2; exit 1 ;;
-esac
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project MDJournal.xcodeproj \
-  -scheme MDJournal \
-  -configuration Debug \
-  -destination "platform=iOS Simulator,id=$MDJOURNAL_SIMULATOR_UDID" \
-  -derivedDataPath /private/tmp/mdjournal-derived-data \
-  CODE_SIGNING_ALLOWED=NO \
-  test
-```
+Apple 自 2026-04-28 起要求 Xcode 26 和 iOS 26 SDK。云端设备 archive 明确标记为 unsigned；需要真实团队的 Distribution 签名、App Store Connect 商品与合同、实际定价、开发者联系/版权/分级信息后才能上传。不能把构建通过、Mac 内部包或本地 StoreKit 测试等同于已经可提交或已过审。
 
-人工明确要求本机iOS build时使用同一UDID校验与destination，把最后的`test`换为`build`。默认仍为main直推触发云端generic iOS/Catalyst Debug、XCTest、图片导出与Mac Release，上传未加密包；JUnit显式记录`tests/failures/errors/skipped`。
+真实设备上的中文输入、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式签名仍须按实际结果核验。项目不包含服务器、日记账号、第三方依赖或日记数据上传功能。
 
-本轮没有启动本机模拟器或App，未重新探测CoreSimulator服务状态。
+## 项目入口
 
-v0.85 新增 `JournalEntryListSnapshotTests.testEntryRowLayoutContractSeparatesRegularAndAccessibilityLayouts`，覆盖 `.large` / `.xxxLarge` 与 `.accessibility1` / `.accessibility5` 的完整布局策略矩阵。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 的阶段一云端结果为 `205/205 passed`，static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均成功；最终 docs-close HEAD `ae8e85073a13b7a50be003d7dc54d3a52173faf1` 对应 run `32646077288`、attempt `1` 的未加密 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对：static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest `205/205 passed`，481/481 ZIP entries 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。阶段一 artifact 仍仅证明阶段一 HEAD；本机未运行完整 build、XCTest、App、UI 自动化或 Instruments。纯布局契约不等价于真实 List 行高、Dynamic Type 像素排版、VoiceOver 或 Mac Catalyst 输入设备交互。
-
-用户本轮禁止子智能体：由当前线程串行核对最新origin/main的commitSha、run/attempt、manifest/JUnit/log/四份xcresult、16图与Mac包，明确没有独立Agent C。历史artifact只作为各自版本证据。
-
-## 协作与云端验证
-
-- `agenta` / `a:` 召唤 Agent A 写版本化实现提示词。
-- `agentb` / `b:` 召唤 Agent B 在 `main` 上实现、本地轻量检查、commit 并 push 到 `origin/main`。
-- `agentc` / `c:` 召唤 Agent C 下载 GitHub Actions 未加密结果包，核对 manifest、JUnit 或等价摘要、主日志和失败摘要。
-- `agentx` / `x:` 召唤 Agent X 启动主控循环；Agent X 不直接替代 A/B/C，而是围绕总目标调度 A -> B -> C 多轮迭代。
-- 当前默认不使用候选分支或 PR；云端验证阻塞时必须记录缺少的远端、权限或 artifact，而不是伪装通过。
-
-## 后续维护
-
-- 后续 Codex agent 必须先阅读 `AGENTS.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、本 README、当前 git 状态和最近提交记录。
-- 每次完成实际开发、修复或重构后，都要同步更新本 README、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md` 和 `md/test/test.md` 中受影响的部分。
-- 每轮 Agent A 写给 Agent B 的详细实现提示词保存在 `md/prompt/`，按版本号管理。
-- Agent B 默认在 `main` 上直推 `origin/main` 触发云端重验证；Agent C 最终以最新结果包验收，不通过时退回 Agent B 追加修复 commit。
-
-## 完成记录
-
-- 2026-08-24（v0.86 实现验证通过，docs-close 独立复核）：正文 UIKit bridge 的一次性同步 token 绑定正文与 UTF-16 选区，正文发布时建立，选区变化只更新选区；正文不同即使 `NSRange` 相同仍外部同步，marked text 继续延迟覆盖。新增 7 项同步状态/Coordinator 接线测试。实现验证 HEAD `8f2b3b8c2bfe3ca1168c2c728e0868e7ba9fd745` 对应 run `32650916069`、attempt `1` 的 artifact `mdjournal-ci-v0.86-main-8f2b3b8-run32650916069-attempt1`（ID `9496324008`，size `466015` bytes，digest `sha256:b4f645513aa682a6ba5ac6b80f87e9c9c1f88619aa0ac2fa6740439049302c41`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-32650916069/` 下载并核对：四阶段 success，JUnit `4/0/0/0`，XCTest `212/212 passed`，7 项新增测试均通过，495/495 ZIP entries 未加密且 CRC、fresh extract、文件清单和逐文件 SHA-256 均通过，xcresult 非空且 `Info.plist` lint OK。该 artifact 是实现验证 HEAD/docs-close source baseline；本轮 docs-only commit 将由 Agent C 针对新 HEAD 独立复核，不预填未来 run/artifact。真实 Mac Catalyst 输入延迟、IME、VoiceOver、帧率和 Instruments 分配仍需人工或专门工具验收。
-- 2026-08-23（v0.85 实现与 docs-close 均通过）：列表卡片新增 `EntryRowLayoutContract`，普通字号保持既有横向密度，Accessibility 字号使用明确的 metadata/footer 垂直布局、标题自然增高和有限宽度垂直小节栈；新增普通与 Accessibility Dynamic Type 纯契约测试，CI 版本更新为 `v0.85`。实现修复 HEAD `dead07c3b2551b91a3ac335672b1315ca590997f` 对应 run `32645093679`、attempt `1` 的 artifact `mdjournal-ci-v0.85-main-dead07c-run32645093679-attempt1`（ID `9494746382`，size `456026` bytes，digest `sha256:4e6cf7475691fb0590a545ebc176cd8af8f6da4b3cb259c2eaf287a1f74d2c2c`）已由 Agent C 下载并核对。最终 docs-close HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，对应 run `32646077288`、attempt `1` 的 artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`（ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`）已由 Agent C 下载并核对，四阶段 success，`205/205 passed`，481/481 entries 未加密且 CRC、fresh extract、逐文件 SHA-256 通过。早期 `e9674cd` / run `32644620613` 因测试缺少 `import SwiftUI` 失败，已由最小测试导入修复；真实卡片行高、VoiceOver、辅助字号像素排版和 Mac Catalyst 输入设备交互仍需人工验收。
-- 2026-08-23（v0.84）：列表摘要把 metrics 与完整正文 excerpt 合并到同一次 `JournalBodyDerivation` 扫描，新增纯值 characterization 覆盖摘要 Markdown 口径、换行、空标题、EOF、fenced code、Unicode/组合字符和长正文；`JournalSection.excerpt` 仍保留独立的 task/list marker 清理路径。实现 HEAD `38885bb078f945ebeac65a5d9c17902ec088c678` 对应 `MD Journal CI Results` run `32641923529`、attempt `1` 已由 Agent C PASS：artifact `mdjournal-ci-v0.84-main-38885bb-run32641923529-attempt1`（ID `9493893598`，size `454188` bytes，GitHub/local SHA-256 `sha256:84c00a40530ccaecbe0131a62ff1623ff1ce7a91e9fb77089ed2d664a134a132`），static checks、generic iOS build、Mac Catalyst build、XCTest 全部 success，JUnit 为 `tests=4 / failures=0 / errors=0 / skipped=0`，XCTest 为 `204 passed / 0 failed / 0 skipped` 且新增摘要 characterization 实际通过；479 项 ZIP 全部未加密，CRC、fresh extract、下载清单和逐文件 SHA-256 均通过。最终 docs HEAD `8d12e641b0c188bbd839ae7902b06979897fa311` 对应 run `32642592068`、attempt `1` 的 artifact `mdjournal-ci-v0.84-main-8d12e64-run32642592068-attempt1`（ID `9494058101`，size `453752` bytes，digest `sha256:c2bd17d5cbce074f24ff745020aeb59703ed5d64cf35e642d303a308dd3617c`）也已由 Agent C PASS：`204 passed / 0 failed / 0 skipped`，479 项未加密 ZIP 的 CRC、fresh extract 和逐文件 SHA-256 均通过，下载目录为 `/private/tmp/mdjournal-c-review-32642592068/`。两阶段云端验收已完成，真实 Mac 长文性能、IME、VoiceOver 和像素排版仍需人工验收。
-
-- 2026-08-23：v0.83 将编辑器 placeholder 的可见性判断并入 `JournalBodyDerivation` 既有单次 Character/Index 扫描，`EntryEditorView` 在同一次 body 评估中把 `JournalEntryBodyMetrics` 传入编辑区，保持 `body.contains { !$0.isWhitespace }` 语义且不改变 JSON、Store、Markdown、focus 或窗口行为。实现 HEAD `d923cd3720da5c8739bcf216a404379c752618b7` 的第一阶段 run `32638983543`、attempt `1` 对应未加密 artifact `mdjournal-ci-v0.83-main-d923cd3-run32638983543-attempt1`（ID `9493173578`，size `453266` bytes，digest `sha256:abfca59c408c01d0e9fbf59fb64f62d6c84d3dbff86b048254a82d4f94812fd5`），Agent C 已核对 `203 passed / 0 failed / 0 skipped`、新增测试实际执行、477 项 ZIP 未加密、CRC、fresh extract 和逐文件 SHA-256 均通过；最终 docs-only HEAD 仍须独立云端复核，真实 Mac 长文分配、IME、VoiceOver、placeholder 像素排版和帧率仍需人工/专门工具验收。
-- 2026-08-23：v0.82 让 `ContentView.body` 在同一次评估中只构造一份 `JournalEntryListSnapshot`，共享给列表、detail binding 和 Mac Catalyst 较新/较早导航；创建、删除和 selection repair 事件仍按需生成最新快照，Binding 不捕获过期 snapshot。新增搜索与分类组合的 filtered selection/navigation characterization，隐藏日记不会成为导航目标。实现 HEAD `5f83de061ff4d573ff1b1bb9d3b6fcd8995be22a` 对应 run `32636121799` attempt `1` 的未加密 artifact `mdjournal-ci-v0.82-main-5f83de0-run32636121799-attempt1`（ID `9492454468`，size `449249` bytes，digest `sha256:50375dd8a5a1463cfb3e0a2251b8382a6a6de7f94bf10ce7d2738c849d625bf3`）已由 Agent C PASS：`202 passed / 0 failed / 0 skipped`，新增 characterization 实际执行；475 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。docs-only HEAD 的完整云端验收仍需独立进行，真实 SwiftUI 筛选时序、Mac Catalyst 菜单状态、Dynamic Type、VoiceOver、长正文延迟和 Instruments 分配仍需人工/专门验收。
-- 2026-08-23：v0.81 实现 compact/窄屏预览焦点生命周期：进入预览清除正文焦点，现有 `⌘⌥P` 从预览回到编辑时复用正文聚焦入口，Picker 选回编辑保持未聚焦；新增 `EntryEditorFocusPolicy` 纯值契约，并为 `MarkdownBodyTextView` 的异步 first responder 请求加入最新 binding/请求代数门控。实现 HEAD `af6dfccddb266fa2966508b16fdd4df18eaadb9d` 对应 run `32632436582` attempt `1` 的未加密 artifact `mdjournal-ci-v0.81-main-af6dfcc-run32632436582-attempt1`（ID `9491532543`，size `452553` bytes，digest `sha256:037099d690ea27cbccd19f21c8b38a7f97ff1601eae3534a5ef3c763fb5e78bd`）已由 Agent C PASS：`201 passed / 0 failed / 0 skipped`，473 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；远端 Simulator `FBSOpenApplicationServiceErrorDomain` 启动 warning 不影响 `TEST SUCCEEDED`。真实 first responder、IME、VoiceOver、输入设备交互和帧率仍需人工验收。
-
-- 2026-08-23：v0.78 将 `JournalEntryBodyMetrics` 的词数和完整 `###` 小节派生收敛到模型层共享单次正文扫描；保留 v0.77 的换行、marker、trim、EOF、fenced code 和旧词数语义，新增精确 metrics characterization。实现 HEAD `987505cba6aa523e1b6321d29ac2f8c889a291bb` 对应 run `32626526380` attempt `1` 的未加密 artifact `mdjournal-ci-v0.78-main-987505c-run32626526380-attempt1`（ID `9489907904`，size `444220`，digest `sha256:5fbff4a599519f375788498fe1406bbde6b4388a21e542709f1331409065157c`）已由 Agent C PASS：`197 passed / 0 failed / 0 skipped`，新增 shared metrics 测试执行通过，465 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app。
-- 2026-08-23：v0.80 将列表概览的词数和 `###` 小节存在性收敛到模型层 `JournalEntryOverviewMetrics` 单次正文扫描；保留旧词数、Unicode newline、ASCII marker、空标题、EOF、连续 marker、fenced code 和 emoji/组合字符语义，不构造完整 sections/summary。新增 overview characterization，更新 CI 版本为 `v0.80`。实现 HEAD `38c04d4f7d5ab6a19cd54e90b36cb8ef9102c80c` 对应 run `32630508182` attempt `1` 的未加密 artifact `mdjournal-ci-v0.80-main-38c04d4-run32630508182-attempt1`（ID `9490952804`，size `443686`，digest `sha256:7d7b2615a5c0b2f9fb7c9511d2dac6f93a1fad3d449e23f30e3950035f8fb626`）已由 Agent C PASS：`199 passed / 0 failed / 0 skipped`，469 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；本机未运行 build、XCTest、模拟器或 app，真实长文分配、帧率和交互仍需人工验收。
-- 2026-08-23：v0.79 为 Mac Catalyst 主窗口增加 `1120×720pt` 最小内容尺寸，为 sidebar 增加 `260/300/360pt` 最小/理想/最大宽度，并用 `MacWindowLayoutContract` 与 `EntryEditorLayoutContract.wideLayoutMinimumWidth` 共享纯值尺寸关系；iOS/iPadOS 路径不附加这些约束。新增尺寸契约测试并更新 CI 版本为 `v0.79`。实现 HEAD `0509ad4d24b775d930e566ec696b41bf2339f2bc` 对应 run `32628877854` attempt `1` 的未加密 artifact `mdjournal-ci-v0.79-main-0509ad4-run32628877854-attempt1`（ID `9490536945`，size `442139`，digest `sha256:0a2802216736540ea44e4e48f24993fb73a77190ba5686d8ecd00b04875beaf1`）已由 Agent C PASS：`198 passed / 0 failed / 0 skipped`，467 项 ZIP 未加密且 CRC、fresh extract、逐文件 SHA-256 均通过；真实窗口拖拽/恢复、Dynamic Type、VoiceOver 和长文帧率仍需人工验收。
-
-- 2026-08-09：v0.75 最终 HEAD `f8a2d934e670a8a969958a2806f04af4bb24451a` 的 run `31295125221` attempt `1` 对应未加密 artifact `mdjournal-ci-v0.75-main-f8a2d93-run31295125221-attempt1`（ID `9032726874`，size `425855`，digest `sha256:f40aa954660e4a86b19bfcc51ec140d9c200ece425c56e04c89705a782792efe`）；Agent C PASS，`189 passed / 0 failed / 0 skipped`，449 ZIP entries，CRC/manifest match。
-- 2026-08-09：v0.76 将筛选状态和 `JournalEntryListSnapshot` 提升到 `ContentView`，列表、详情、selection repair、创建/删除修复和 Mac Catalyst 较新/较早导航统一消费可见 `filteredEntries`；新增 6 项纯 `JournalEntrySelectionPolicy` 与筛选删除/新建/导航测试。implementation HEAD `d3b11c3b63ea4af8d94dfbe1bc4d660766c06627` 的 artifact 保留为历史实现验证；最终文档 HEAD `822843b3af15dc180cb940587c10f372369eb69e`、branch `main` 对应 run `31297334280` attempt `1` 的未加密 artifact `mdjournal-ci-v0.76-main-822843b-run31297334280-attempt1`（ID `9033466495`，size `439409`，digest `sha256:7974609e893693967c7e47d848f58be1e132c729bd083fe90bedaa00a54e2fb1`）已由 Agent C 从 `/private/tmp/mdjournal-c-review-31297334280/` 下载并核对 PASS：manifest/JUnit/outcomes 通过，`195 passed / 0 failed / 0 skipped`，6 项新增测试各执行一次，三份 xcresult succeeded 且 errors/warnings/analyzer warnings 为 0，ZIP 461 entries 未加密、CRC PASS、fresh extract 文件清单差异为 0；普通 build/XCTest/app 未在本机运行，真实 UI 时序与辅助功能仍需人工验收。
-- 2026-07-26：v0.72 为列表滑动删除和 Mac Catalyst 右键删除增加统一系统确认；待确认状态稳定持有完整日记，确认先单次消费目标再进入既有 Store 删除链路，取消、Esc 或系统关闭只清理状态。
-- 2026-07-26：v0.68 为 Mac Catalyst “日记”菜单增加 `⌘⌥↑` / `⌘⌥↓` 较新/较早日记切换，按 Store 当前新到旧顺序导航，首尾独立禁用且不循环。
-- 2026-07-26：v0.67 优化正文输入直接写回；UIKit 已确认变化的普通输入、Markdown 回车续写和行缩进不再读取旧正文做全文比较，并用三项 Binding 计数测试锁定每次入口 `0 getter / 1 setter`。
-- 2026-07-26：v0.66 为列表概览增加 `###` 小节存在性单向扫描快路径，保持完整小节提取语义，同时避免概览为每篇正文构造完整小节数组。
-- 2026-07-26：v0.65 将 Markdown 工具栏图标按钮交互区提升到 `44×44pt`，并用矩形命中形状覆盖完整按钮标签，保留原快捷键提示和辅助功能语义。
-- 2026-07-26：v0.64 修正列表筛选空状态；区分真实空日记库和搜索/分类无结果，并为筛选空结果提供一键清除入口。
-- 2026-07-07：v0.61 优化 Markdown 解析分行；`MarkdownBlockParser` 改为逐行迭代正文，避免长文预览解析前构造整篇行数组，并补充尾随换行和 CRLF code block 语义覆盖。
-- 2026-07-07：v0.60 优化 Markdown 解析循环；`MarkdownBlockParser` 减少代码块和空白行的无关扫描，并让解析临时缓冲在 flush 后保留容量，保持 CR/CRLF 和代码块语义不变。
-- 2026-07-12：v0.63 约束 CI XCTest 超时；job 限时 25 分钟，模拟器选择优先 iPhone 16，xcodebuild test 增加 destination 超时与 720 秒 alarm。
-- 2026-07-12：v0.62 补齐 Mac 写作工具栏辅助功能标签；聚焦正文、专注写作、缩进、反缩进和插入 Markdown 的辅助功能标签与命令标题对齐。
-- 2026-07-07：v0.59 优化 Mac 预览切换提示；写作工具栏预览切换按钮的 hover help 和辅助功能标签跟随当前状态，并继续显示 `⌘⌥P` 快捷键。
-- 2026-07-07：v0.58 优化 Mac 专注写作正文宽度；宽屏隐藏预览栏时，正文输入区居中并限制最大宽度，让 Mac 长文输入保持更舒适的行长。
-- 2026-07-07：v0.57 优化 Markdown 行缩进正文构造；`MarkdownLineIndentation` 对多行 Tab / Shift-Tab 基于原正文单次构造结果，减少长选区多次字符串替换。
-- 2026-07-07：v0.56 收窄 Markdown 行缩进扫描范围；`MarkdownLineIndentation` 只扫描到选区有效结束行，减少长文靠前位置 Tab / Shift-Tab 的无关后续正文扫描。
-- 2026-07-07：v0.55 优化 Markdown 行缩进偏移计算；`MarkdownLineIndentation` 在单次扫描中收集行首索引和 UTF-16 offset，减少长多行选区 Tab / Shift-Tab 的重复偏移计算。
-- 2026-07-07：v0.54 补齐 Markdown 工具栏快捷键提示；正文 Markdown 图标工具栏 hover 提示复用片段菜单快捷键，例如“加粗（⌘⌥B）”。
-- 2026-07-07：v0.53 修正 CI 结果包 JUnit 错误字段和验收记录；`junit.xml` 显式写入 `errors="0"`，并区分 v0.52 实现 commit 与最终记录 commit 的 artifact 复判。
-- 2026-07-07：v0.52 优化 Markdown 解析行首裁剪；`MarkdownBlockParser` 的行首空格/tab 裁剪改为返回 `Substring`，减少长文预览解析中的临时行字符串。
-- 2026-07-07：v0.51 优化 Markdown 解析空行判断；`MarkdownBlockParser` 改为直接扫描水平空白识别空白行，减少长文预览解析中的临时 trimmed 字符串。
-- 2026-07-06：v0.50 优化 Markdown 选区片段转换；引用、无序列表、待办和有序列表对多行选区改用 LF 单次扫描和增量构造，保留 CR/CRLF、尾随换行、空白行跳过、有序编号和 UTF-16 选区语义。
-- 2026-07-06：v0.49 优化 Markdown 回车空项退出判断；空列表/待办/引用/有序列表项改为直接扫描 `.whitespaces` 水平空白，避免 `Substring` 转 `String` 后 trim。
-- 2026-07-07：v0.48 优化 Markdown 回车续写代码围栏判断；光标前 fenced code 状态改为单次索引扫描，避免长文回车时 `split` 和逐行临时字符串。
-- 2026-07-07：v0.47 优化 Markdown 预览纯文本内联渲染；普通文本片段跳过 `AttributedString(markdown:)`，有 Markdown 触发字符时保留原解析路径。
-- 2026-07-07：v0.46 优化正文词数统计；`JournalEntryBodyMetrics` 改用单次字符扫描计数，避免为词数统计创建 `split` 片段。
-- 2026-07-06：v0.45 优化正文字体配置写入；`MarkdownBodyTextView` 在刷新中只构造一次目标 rounded body 字体，并在当前字体不匹配时才写入。
-- 2026-07-06：v0.44 优化正文输入 traits 配置；`MarkdownBodyTextView` 只在智能引号、智能破折号或智能插入删除配置被重置时重新写入 `.no`。
-- 2026-07-06：v0.43 优化正文桥接状态写回；`MarkdownBodyTextView` 只在正文、选区或焦点真实变化时同步 binding，减少输入过程中的无效 SwiftUI 刷新。
-- 2026-07-06：v0.42 优化摘要 Markdown 清理；正文摘要和小节摘要改用单次扫描清理 Markdown 标记，减少列表/小节摘要派生中的中间字符串分配。
-- 2026-07-06：v0.41 打磨 Mac 写作工具栏提示；Mac Catalyst 写作工具栏的 hover help 复用写作命令快捷键文案，提升桌面快捷键可发现性。
-- 2026-07-06：v0.40 优化统计排序成本；`JournalStatistics` 对已按 `createdAt` 倒序的输入直接复用，只有乱序输入才回退排序。
-- 2026-07-06：v0.39 复用 Markdown 预览分组判断；同一次预览渲染中只派生一次 `shouldUseSectionGroups`，避免重复扫描小节分组。
-- 2026-07-06：v0.38 优化编辑器正文占位判断；placeholder 可见条件改为非分配字符扫描，保持全空白正文显示提示的语义。
-- 2026-07-06：v0.37 优化 Markdown 预览索引迭代；预览块、小节块、无序列表、有序列表和待办列表改用 `indices` 驱动 `ForEach`，减少实时预览中的临时数组分配。
-- 2026-07-06：v0.36 懒加载编辑器小节概览；头部横向 `###` 小节卡片改用 `LazyHStack`，减少多小节长文输入时离屏卡片同步构建成本。
-- 2026-07-06：v0.35 增加 Mac 专注写作命令；“写作”菜单和 Mac Catalyst 工具栏可一键隐藏宽屏预览栏并聚焦正文，窄屏下回到编辑模式并聚焦正文。
-- 2026-07-06：v0.34 优化编辑器头部正文派生成本；头部词数和 `###` 小节概览改用 `JournalEntryBodyMetrics`，不再为未展示的摘要生成 excerpt。
-- 2026-07-06：v0.33 预计算统计主导分类和主导心情；统计看板不再在读取主导项时重复扫描分类/心情分布，并补充平局规则测试。
-- 2026-07-06：v0.32 增加 Mac 写作缩进菜单和工具栏入口；“写作”菜单与 Mac Catalyst 工具栏可触发增加缩进和减少缩进，并复用现有 Markdown 行缩进规则。
-- 2026-07-06：v0.31 修正 Markdown 单空格反缩进规则；Shift-Tab 可删除一个 tab 或最多两个行首空格，多行选区混合缩进按行处理。
-- 2026-07-06：v0.30 优化 Markdown 选区片段插入；引用、列表、待办和有序列表转换多行选区时跳过空白行，有序列表按非空行连续编号。
-- 2026-07-06：v0.29 拆分正文统计轻量 metrics；统计和列表概览只计算词数与 `###` 小节信息，不再为这些路径生成正文摘要。
-- 2026-07-05：v0.28 预计算最近 7 天趋势最大词数；趋势柱状图不再在每根柱子计算高度时重复扫描 7 天数组。
-- 2026-07-05：v0.27 预计算统计看板分布最大值；分类和心情分布条不再在每一行渲染时重复扫描分布数组。
-- 2026-07-05：v0.26 补齐 Markdown 有序列表插入入口；工具栏、Mac 插入菜单和快捷键可插入 `1. `，选中多行时会递增编号。
-- 2026-07-05：v0.25 清理正文输入静态警告；修正 `UITextViewDelegate` replacement text 参数声明，让云端 Swift parse 不再产生重复参数标签 warning。
-- 2026-07-05：v0.24 支持 Markdown 有序列表预览；`数字. ` 行会解析为有序列表块，并在预览中保留用户输入编号对齐渲染。
-- 2026-07-05：v0.23 支持 Markdown 有序列表回车续写；正文中 `1. ` 项按回车会递增为下一编号，空有序列表项按回车退出列表。
-- 2026-07-05：v0.22 支持 Markdown 引用回车续写；正文中 `> ` 引用按回车会延续前缀，空引用行按回车退出引用。
-- 2026-07-05：v0.21 优化列表概览统计成本；新增 `JournalListOverviewSnapshot`，列表首页不再为概览卡构造完整统计看板数据。
-- 2026-07-05：v0.20 支持 Markdown 行缩进；正文编辑中 Tab / Shift-Tab 可对当前行或多行选区缩进和反缩进，并通过纯规则测试覆盖 UTF-16 选区边界。
-- 2026-07-05：v0.19 配置 Markdown 安全输入；正文输入禁用智能引号、智能破折号和智能插入删除，减少 Markdown 标记被系统改写的风险。
-- 2026-07-05：v0.18 支持 Markdown 列表回车续写；正文中列表、待办和缩进子项按回车会延续前缀，空项按回车退出列表。
-- 2026-07-05：v0.17 增加 Mac Catalyst 一键构建/运行入口；新增 `script/build_and_run.sh` 和 Codex Run action，支持 run、verify、debug、logs、telemetry 模式。
-- 2026-07-05：v0.16 优化 `JournalStore.update(_:)` 排序成本；正文、标题、分类、心情等非日期更新不再触发无效列表重排，日期变化仍保持 `createdAt` 倒序。
-- 2026-07-05：v0.15 支持 Markdown 片段按光标/选区插入；加粗、斜体、代码块可包裹选区，引用、列表和待办可逐行转换选区。
-- 2026-07-04：v0.14 增加 Mac 写作工具栏 polish；Mac Catalyst 下新增“写作”菜单、聚焦正文、顶部片段菜单和宽屏预览栏显示/隐藏。
-- 2026-07-04：v0.13 优化列表派生快照；列表搜索、分类筛选和分类计数改为单次非持久化派生，并新增快照测试。
-- 2026-07-04：v0.12 增加 Markdown 片段菜单命令；Mac Catalyst/硬件键盘可从“插入 Markdown”菜单追加片段，窄屏预览触发插入后会回到编辑模式。
-- 2026-07-04：v0.11 增加 Mac Catalyst 统计独立窗口；Mac 下“显示统计”打开独立窗口，iOS/iPadOS 保持统计 sheet，主窗口与统计窗口复用同一个 `JournalStore`。
-- 2026-07-04：v0.10 优化正文派生和统计计算；新增非持久化 `JournalEntryBodySummary`，列表、编辑器和统计看板复用单次派生结果，`JournalStatistics` 改为单轮聚合。
-- 2026-07-04：v0.9 增加 Mac Catalyst 菜单命令入口；新增“日记”菜单，提供新建日记和显示统计命令，统计 sheet 上移到 `ContentView` 统一复用。
-- 2026-07-04：v0.8 优化 Markdown 预览解析性能；`MarkdownPreviewView` 改为消费 `MarkdownBlockParser.parseDocument(_:)` 的单次解析结果，避免同一渲染周期重复解析正文。
-- 2026-07-04：v0.7 优化编辑写入性能；`JournalStore.update(_:)` 改为内存即时更新、短延迟合并保存，应用离开活跃态时 flush 待保存变更，并新增 `JournalStoreTests` 覆盖写入节流。
-- 2026-07-04：v0.6 启用 Mac Catalyst 构建；现有 `MDJournal` target 支持 macOS Catalyst，CI 结果包新增 Mac Catalyst build outcome、日志和 result bundle，列表新增桌面右键删除与 `⌘N` 新建入口。
-- 2026-07-04：v0.5 引入 Agent X 循环迭代文档基线；更新入口规则、核心流程、流程图、测试规范、prompt 规则和协作说明。本轮只做文档准备，不启动真实 Agent X 循环，不改 Swift 源码。
-- 2026-07-03：建立 `MDJournalTests` XCTest 基线，覆盖模型兼容解码、`###` 小节、Markdown 解析、统计和片段契约；CI 结果包新增真实 `testOutcome`、`xctest.log` 和测试 `.xcresult`。验证结果见 `update_log.md`。
-- 2026-07-03：升级协作制度为 main 直推、GitHub Actions 云端重验证和 Agent C 结果包验收；新增 `MD Journal CI Results` workflow。验证结果见 `update_log.md`。
-- 2026-06-29：更新多 Agent 工作流，明确 Agent C 验收不通过时退回 Agent B，最终通过后按版本号自动提交，并用简短提交说明概括该版本工作。验证结果见 `update_log.md`。
-- 2026-06-28：建立多 Agent 迭代文档体系，新增 `AGENT.md`、`update_log.md`、`md/prompt/`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`；README 改为指向标准入口。已验证指定文档存在、`git diff --check` 通过、`plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过、`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过；本轮只改文档，未重跑 Xcode 构建。
-- 2026-06-27：补充 `agent.md` 作为后续 Codex 系统提示词和项目维护规范；README 同步记录横屏、响应式布局、验证命令和后续维护要求。已验证 `plutil -lint MDJournal.xcodeproj/project.pbxproj` 通过，`xcrun swiftc -parse -parse-as-library $(rg --files -g '*.swift' MDJournal)` 通过；本次仅改文档，未重跑 Xcode 构建。
-
-云端失败和修复历史详见`update_log.md`：v0.91在Intel/Xcode26.2迁移启动超时，v0.92恢复macos-15/Xcode16.4/iOS18.5后已通过完整验证。当前状态见本文开头及版本日志，不把旧失败、旧包或旧截图作为当前交付。
+- `AGENTS.md`：当前协作规则、文件边界与安全限制。
+- `md/flow/flow.md` 和 `md/flow/flowchart.md`：当前真实状态流及云端执行流。
+- `md/test/test.md`：检查层次、云端门槛和证据边界。
+- `md/prompt/`：版本化方案；v0.95 初稿的串行前提已由本轮人工并行指令覆盖。
+- `update_log.md`：版本、实际验证证据与遗留事项。

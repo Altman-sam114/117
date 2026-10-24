@@ -11,10 +11,10 @@
 
 ## 当前状态
 
-- 当前任务 v0.94：云端编译恢复、纸本UI重构及逐图收尾已完成实现并下载复核，257项/16图与Mac包通过；最终文档提交也按自己的SHA复核。遵照用户最后要求不开子智能体，不进行无限循环。
+- 当前任务 v0.95：按用户最新指令改为模块并行，整合手机写作、长文派生、设置/隐私/数据安全、StoreKit订阅/高级导出与iOS26 Release archive；本轮新SHA完整云端结果待实际下载核对，不复用旧通过记录。
 - v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
-- 当前阶段：`v0.94` 界面验收收尾；实现de710e1/run40053762957/attempt1完整CI与结果包核对通过，Mac仍是未公证内部包，不等于公开发布验收。
+- 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
 - 当前测试基线：257项XCTest（含22项JournalStoreTests）、8项纯Python设备fixture、16张生产图、iOS/Catalyst Debug与universal Mac Release。v0.94实现de710e1/run40053762957/attempt1已通过当前线程串行下载复核；Swift源码编译警告0。历史版本数量与独立C证据保留在各版本条目，不代表当前SHA。
@@ -23,6 +23,21 @@
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
+
+### v0.95 / iOS 发布候选并行集成（实现完成，云端待核）
+
+日期：2026-10-24。
+
+- 人工从原手机UI/性能目标扩展为设置、隐私、安全和真实高级订阅，并明确要求子智能体按模块直接并行。初稿三轮串行计划已覆盖：B负责手机导航/焦点/延迟分享/有界派生，A负责Store保护/备份导入/应用锁/设置隐私，C负责StoreKit和两种Pro导出，主线程负责工程、现代SDK、集成和验收。不声称本轮有独立Agent C验收阶段。
+- 手机compact改原生NavigationStack+UUID value link，regular仍SplitView；新建成功才清筛选并直达新ID；标题与正文完成/预览/写作焦点统一，原UTF16/marked-text bridge不改。分享延迟生成完整Markdown。正文展示流式有界派生，旧summary作精确语义对照；仍完整扫描metrics，不预称帧率或速度。
+- Store新增独立readFailure保护，坏JSON/重复ID原字节保留，所有mutation/flush拒写，关闭提示不解除；恢复导出与重读、安全JSON预览合并（只追加、不覆冲突、revision防过期）。iOS显式系统文件保护，免费备份不截断原文，导入25MiB/10000篇限制已说明。
+- 设置入口、系统所有者认证App锁、同步window隐私shield覆盖sheet及键盘、过期认证防绕过、隐私/支持页和PrivacyInfo UserDefaults CA92.1。root也在应用锁期间禁用并guard所有菜单/快捷动作，防隐藏视图focused action绕过。日记不自建云同步，但诚实说明系统设备备份可能包含内容。
+- StoreKit2真实月/年Product、价格/期限、验证/待批准/取消/恢复/管理/撤销/到期/宽限期；Pro新增日期分类筛选的完整Markdown集和CoreText分页PDF，后台生成前后都核有效权益，旧写作/统计/分享/JSON备份免费。.storekit仅测试资源，无DEBUG假权益开关。
+- 保留257项和16图基线，新增生产host导航/真实responder、保护/导入/认证、StoreKitTest真实本地交易、分页/正文末尾与bounded等价和性能JSON；当前目标25图。Python fixture由8增至13（5项archive拒绝边界）。最终XCTest数量以源码声明和最新xcresult一致为准。
+- 云端并行保留Xcode16.4/iOS18.5稳定全测与Mac内部包，新增Xcode26.2/iPhoneOS26.2 generic Release设备archive。核实际arm64/platform2/SDK、图标/隐私/FaceID/加密说明与文件/ZIP哈希；产物明确unsigned/未上传，避免重蹈现代模拟器冷启动历史阻塞。
+- 关键文件：ContentView/Editor/List/App、Store/Writer/BodyPresentation、Bounded/Backup/AppLock/Subscription/PremiumExport及相关Views与测试、PrivacyInfo、project、workflow、archive/verify脚本和13项Pythonfixtures；README/test/flow/flowchart/AGENTS与docs隐私支持和发布材料同步。
+- 未本机build/XCTest/App/simctl/Instruments。现有本机只有开发证书，未发现正式Distribution签名条件；未复制私钥或伪造账号商品。Apple Team/App记录、商品/价格/合同税务/银行、开发者法定联系方式/版权/分级、Sandbox/TestFlight及真机输入/VoiceOver/系统认证仍需对应实际证据。不能宣布已上传App Store或已通过审核。
+- 实际本机轻检退出0：全应用/测试Swift parse、project与PrivacyInfo plist、13/13纯Pythonfixture、14个workflow run块bash语法/3个Python heredoc/全部Python AST、asset及StoreKit JSON、全部源文件注册、301项XCTest声明与25图矩阵、git diff --check。未做本机完整构建。提交/push与最新两个artifact、截图和性能结果仍需随后实际记录。
 
 ### v0.94 / 界面验收收尾（实现云端通过）
 

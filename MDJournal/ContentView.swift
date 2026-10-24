@@ -1,7 +1,24 @@
 import SwiftUI
 
+#if DEBUG
+struct JournalContentInteraction {
+    let compactPath: Binding<[JournalEntry.ID]>
+    let searchText: Binding<String>
+    let selectedCategory: Binding<JournalEntry.Category?>
+    let createEntry: () -> Void
+}
+#endif
+
 struct ContentView: View {
+    private enum Sheet: String, Identifiable {
+        case statistics
+        case settings
+
+        var id: String { rawValue }
+    }
+
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #if targetEnvironment(macCatalyst)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -10,36 +27,36 @@ struct ContentView: View {
     @State private var selectedEntryID: JournalEntry.ID?
     @State private var searchText = ""
     @State private var selectedCategory: JournalEntry.Category?
-    @State private var isShowingStatistics = false
+    @State private var presentedSheet: Sheet?
+    @State private var isCompactDetailPresented = false
+    #if DEBUG
+    var interactionObserver: ((JournalContentInteraction) -> Void)? = nil
+    #endif
 
     var body: some View {
         let listSnapshot = makeListSnapshot()
 
-        NavigationSplitView {
-            EntryListView(
-                overviewSnapshot: overviewSnapshot,
-                snapshot: listSnapshot,
-                bodyPresentations: store.bodyPresentations,
-                selection: $selectedEntryID,
-                searchText: $searchText,
-                selectedCategory: $selectedCategory,
-                onCreate: createEntry,
-                onDelete: deleteEntry,
-                onShowStatistics: showStatistics
-            )
-            #if targetEnvironment(macCatalyst)
-            .navigationSplitViewColumnWidth(
-                min: MacWindowLayoutContract.sidebarMinimumWidth,
-                ideal: MacWindowLayoutContract.sidebarIdealWidth,
-                max: MacWindowLayoutContract.sidebarMaximumWidth
-            )
-            #endif
-        } detail: {
-            if let entryBinding = selectedEntryBinding(using: listSnapshot),
-               let presentation = store.bodyPresentations[entryBinding.wrappedValue.id] {
-                EntryEditorView(entry: entryBinding, bodyPresentation: presentation)
+        Group {
+            if usesCompactNavigation {
+                NavigationStack(path: compactPath) {
+                    entryList(using: listSnapshot)
+                        .navigationDestination(for: JournalEntry.ID.self) { entryID in
+                            detail(for: entryID, using: listSnapshot)
+                        }
+                }
             } else {
-                EmptyStateView(onCreate: createEntry)
+                NavigationSplitView {
+                    entryList(using: listSnapshot)
+                        #if targetEnvironment(macCatalyst)
+                        .navigationSplitViewColumnWidth(
+                            min: MacWindowLayoutContract.sidebarMinimumWidth,
+                            ideal: MacWindowLayoutContract.sidebarIdealWidth,
+                            max: MacWindowLayoutContract.sidebarMaximumWidth
+                        )
+                        #endif
+                } detail: {
+                    detail(for: selectedEntryID, using: listSnapshot)
+                }
             }
         }
         .tint(JournalTheme.accent)
@@ -54,7 +71,15 @@ struct ContentView: View {
             }
         }
         #endif
-        .onAppear(perform: selectInitialEntry)
+        .onAppear {
+            selectInitialEntry()
+            #if DEBUG
+            interactionObserver?(JournalContentInteraction(
+                compactPath: compactPath, searchText: $searchText,
+                selectedCategory: $selectedCategory, createEntry: createEntry
+            ))
+            #endif
+        }
         .onChange(of: store.entries) { _ in
             repairSelection()
         }
@@ -71,8 +96,13 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingStatistics) {
-            StatisticsDashboardView(entries: store.entries, bodyPresentations: store.bodyPresentations)
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .statistics:
+                StatisticsDashboardView(entries: store.entries, bodyPresentations: store.bodyPresentations)
+            case .settings:
+                JournalSettingsView(store: store)
+            }
         }
         .focusedSceneValue(\.createJournalEntryAction, createEntry)
         .focusedSceneValue(\.showJournalStatisticsAction, showStatistics)
@@ -80,12 +110,69 @@ struct ContentView: View {
             \.journalEntryNavigationActions,
             journalEntryNavigationActions(using: listSnapshot)
         )
-        .alert("无法保存日记", isPresented: errorAlertBinding) {
+        .alert(store.canMutate ? "无法保存日记" : "无法读取日记", isPresented: errorAlertBinding) {
             Button("好", role: .cancel) {
                 store.dismissError()
             }
         } message: {
             Text(store.errorMessage ?? "")
+        }
+    }
+
+    private var usesCompactNavigation: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        horizontalSizeClass == .compact
+        #endif
+    }
+
+    private var compactPath: Binding<[JournalEntry.ID]> {
+        Binding(
+            get: {
+                guard isCompactDetailPresented, let selectedEntryID else { return [] }
+                return [selectedEntryID]
+            },
+            set: { path in
+                guard let entryID = path.last else {
+                    isCompactDetailPresented = false
+                    return
+                }
+                guard makeListSnapshot().filteredEntries.contains(where: { $0.id == entryID }) else {
+                    repairSelection()
+                    return
+                }
+                selectedEntryID = entryID
+                isCompactDetailPresented = true
+            }
+        )
+    }
+
+    private func entryList(using snapshot: JournalEntryListSnapshot) -> some View {
+        EntryListView(
+            overviewSnapshot: overviewSnapshot,
+            snapshot: snapshot,
+            bodyPresentations: store.bodyPresentations,
+            selection: $selectedEntryID,
+            searchText: $searchText,
+            selectedCategory: $selectedCategory,
+            onCreate: createEntry,
+            onDelete: deleteEntry,
+            onShowStatistics: showStatistics,
+            onShowSettings: { presentedSheet = .settings },
+            canCreate: store.canMutate,
+            readFailureMessage: store.readFailureMessage
+        )
+    }
+
+    @ViewBuilder
+    private func detail(for entryID: JournalEntry.ID?, using snapshot: JournalEntryListSnapshot) -> some View {
+        if let entryBinding = selectedEntryBinding(for: entryID, using: snapshot),
+           let presentation = store.bodyPresentations[entryBinding.wrappedValue.id] {
+            EntryEditorView(entry: entryBinding, bodyPresentation: presentation)
+        } else {
+            EmptyStateView(onCreate: createEntry)
+                .disabled(!store.canMutate)
         }
     }
 
@@ -126,6 +213,7 @@ struct ContentView: View {
     }
 
     private func selectedEntryBinding(
+        for selectedEntryID: JournalEntry.ID?,
         using listSnapshot: JournalEntryListSnapshot
     ) -> Binding<JournalEntry>? {
         guard let selectedEntryID,
@@ -160,18 +248,18 @@ struct ContentView: View {
     }
 
     private func createEntry() {
-        let createdID = store.createEntry()
-        selectedEntryID = JournalEntrySelectionPolicy.repairedSelection(
-            currentSelection: createdID,
-            visibleEntries: makeListSnapshot().filteredEntries
-        )
+        guard let createdID = store.createEntry() else { return }
+        searchText = ""
+        selectedCategory = nil
+        selectedEntryID = createdID
+        isCompactDetailPresented = true
     }
 
     private func showStatistics() {
         #if targetEnvironment(macCatalyst)
         openWindow(id: JournalSceneID.statistics)
         #else
-        isShowingStatistics = true
+        presentedSheet = .statistics
         #endif
     }
 
@@ -189,5 +277,8 @@ struct ContentView: View {
             currentSelection: selectedEntryID,
             visibleEntries: makeListSnapshot().filteredEntries
         )
+        if selectedEntryID == nil {
+            isCompactDetailPresented = false
+        }
     }
 }

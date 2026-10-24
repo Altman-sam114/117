@@ -2,11 +2,15 @@ import SwiftUI
 
 @main
 struct MDJournalApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = JournalStore()
+    @StateObject private var subscriptions = JournalSubscriptionStore()
+    @StateObject private var appLock = JournalAppLockStore()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(store: store)
+            JournalPrivacyGate {
+                ContentView(store: store)
                 #if targetEnvironment(macCatalyst)
                 .frame(
                     minWidth: MacWindowLayoutContract.minimumWindowWidth,
@@ -15,17 +19,29 @@ struct MDJournalApp: App {
                     idealHeight: MacWindowLayoutContract.idealWindowHeight
                 )
                 #endif
+            }
+            .environmentObject(subscriptions)
+            .environmentObject(appLock)
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    Task { await subscriptions.refreshEntitlements() }
+                }
+            }
         }
         .commands {
-            JournalCommands()
+            JournalCommands(appLock: appLock)
         }
 
         #if targetEnvironment(macCatalyst)
         WindowGroup("统计", id: JournalSceneID.statistics) {
-            StatisticsDashboardView(
-                entries: store.entries, bodyPresentations: store.bodyPresentations, showsCloseButton: false
-            )
-                .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
+            JournalPrivacyGate {
+                StatisticsDashboardView(
+                    entries: store.entries, bodyPresentations: store.bodyPresentations, showsCloseButton: false
+                )
+                    .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
+            }
+            .environmentObject(subscriptions)
+            .environmentObject(appLock)
         }
         #endif
     }
@@ -46,6 +62,7 @@ internal enum MacWindowLayoutContract {
 }
 
 private struct JournalCommands: Commands {
+    @ObservedObject var appLock: JournalAppLockStore
     @FocusedValue(\.createJournalEntryAction) private var createJournalEntryAction
     @FocusedValue(\.showJournalStatisticsAction) private var showJournalStatisticsAction
     @FocusedValue(\.journalEntryNavigationActions) private var journalEntryNavigationActions
@@ -55,13 +72,18 @@ private struct JournalCommands: Commands {
     @FocusedValue(\.toggleEditorPreviewAction) private var toggleEditorPreviewAction
     @FocusedValue(\.applyEditorIndentationAction) private var applyEditorIndentationAction
 
+    private var allowsJournalAccess: Bool {
+        !appLock.isEnabled || appLock.state == .unlocked
+    }
+
     var body: some Commands {
         CommandMenu("日记") {
             Button("新建日记") {
+                guard allowsJournalAccess else { return }
                 createJournalEntryAction?()
             }
             .keyboardShortcut("n", modifiers: .command)
-            .disabled(createJournalEntryAction == nil)
+            .disabled(!allowsJournalAccess || createJournalEntryAction == nil)
 
             Divider()
 
@@ -78,9 +100,10 @@ private struct JournalCommands: Commands {
             Divider()
 
             Button("显示统计") {
+                guard allowsJournalAccess else { return }
                 showJournalStatisticsAction?()
             }
-                .disabled(showJournalStatisticsAction == nil)
+                .disabled(!allowsJournalAccess || showJournalStatisticsAction == nil)
         }
 
         CommandMenu("写作") {
@@ -100,15 +123,17 @@ private struct JournalCommands: Commands {
                 let shortcut = MarkdownSnippetCommandShortcut(snippet: snippet)
 
                 Button("插入\(snippet.title)") {
+                    guard allowsJournalAccess else { return }
                     insertMarkdownSnippetAction?(snippet)
                 }
                 .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.modifiers)
-                .disabled(insertMarkdownSnippetAction == nil)
+                .disabled(!allowsJournalAccess || insertMarkdownSnippetAction == nil)
             }
         }
     }
 
     private func navigationAction(for direction: JournalEntryNavigationDirection) -> (() -> Void)? {
+        guard allowsJournalAccess else { return nil }
         switch direction {
         case .newer:
             return journalEntryNavigationActions?.selectNewer
@@ -118,6 +143,7 @@ private struct JournalCommands: Commands {
     }
 
     private func action(for command: EditorWritingCommand) -> (() -> Void)? {
+        guard allowsJournalAccess else { return nil }
         switch command {
         case .focusBody:
             return focusEditorBodyAction

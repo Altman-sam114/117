@@ -60,7 +60,11 @@ actor JSONJournalPersistenceWriter: JournalPersistenceWriting {
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(snapshot.entries)
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            try data.write(to: storageURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            #else
             try data.write(to: storageURL, options: [.atomic])
+            #endif
             durableRevision = snapshot.revision
             return .written(revision: snapshot.revision)
         } catch {

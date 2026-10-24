@@ -5,6 +5,7 @@ import Foundation
 final class JournalStore: ObservableObject {
     @Published private(set) var entries: [JournalEntry] = []
     @Published private(set) var errorMessage: String?
+    @Published private(set) var readFailureMessage: String?
     private(set) var bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation] = [:]
 
     private enum ErrorSource: Equatable {
@@ -27,6 +28,8 @@ final class JournalStore: ObservableObject {
 
     private(set) var revision: UInt64 = 0
     private(set) var durableRevision: UInt64?
+
+    var canMutate: Bool { readFailureMessage == nil }
 
     init(
         fileManager: FileManager = .default,
@@ -62,7 +65,8 @@ final class JournalStore: ObservableObject {
     }
 
     @discardableResult
-    func createEntry() -> JournalEntry.ID {
+    func createEntry() -> JournalEntry.ID? {
+        guard allowMutation() else { return nil }
         cancelPendingSave()
         let entry = JournalEntry(
             title: Date().journalTitleText,
@@ -88,6 +92,7 @@ final class JournalStore: ObservableObject {
     }
 
     func update(_ entry: JournalEntry) {
+        guard allowMutation() else { return }
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
         cancelPendingSave()
@@ -106,6 +111,7 @@ final class JournalStore: ObservableObject {
     }
 
     func delete(_ entry: JournalEntry) {
+        guard allowMutation() else { return }
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
         cancelPendingSave()
@@ -118,6 +124,7 @@ final class JournalStore: ObservableObject {
     @discardableResult
     func flushPendingSave() async -> JournalPersistenceResult? {
         cancelPendingSave()
+        guard canMutate else { return nil }
         guard revision > 0 else { return nil }
 
         while true {
@@ -138,6 +145,68 @@ final class JournalStore: ObservableObject {
         errorSource = nil
     }
 
+    @discardableResult
+    func retryReadingProtectedFile() -> Bool {
+        guard !canMutate else { return true }
+        guard FileManager.default.fileExists(atPath: storageURL.path) else {
+            publishError("原日记文件暂不可访问，未创建替代文件。", source: .read)
+            return false
+        }
+        load()
+        return canMutate
+    }
+
+    func exportBackupData() async throws -> Data {
+        guard canMutate else { throw JournalBackupError.readProtected }
+        let snapshot = entries
+        return try await Task.detached(priority: .userInitiated) {
+            try JournalBackupCodec.encode(snapshot)
+        }.value
+    }
+
+    func exportOriginalDataForRecovery() async throws -> Data {
+        let url = storageURL
+        return try await Task.detached(priority: .userInitiated) {
+            try JournalBackupCodec.readBoundedData(from: url)
+        }.value
+    }
+
+    func prepareImport(_ incoming: [JournalEntry]) throws -> JournalBackupImportPreview {
+        guard canMutate else { throw JournalBackupError.readProtected }
+        guard incoming.count <= JournalBackupCodec.maximumEntries else { throw JournalBackupError.tooManyEntries }
+        try JournalBackupCodec.validateIdentifiers(incoming)
+        let existingIDs = Set(entries.map(\.id))
+        let existingCount = incoming.reduce(0) { $0 + (existingIDs.contains($1.id) ? 1 : 0) }
+        return JournalBackupImportPreview(
+            entries: incoming, newEntryCount: incoming.count - existingCount,
+            existingEntryCount: existingCount, basedOnRevision: revision
+        )
+    }
+
+    @discardableResult
+    func confirmImport(_ preview: JournalBackupImportPreview) throws -> Int {
+        guard allowMutation() else { throw JournalBackupError.readProtected }
+        guard preview.basedOnRevision == revision else { throw JournalBackupError.stalePreview }
+        try JournalBackupCodec.validateIdentifiers(preview.entries)
+        let existingIDs = Set(entries.map(\.id))
+        let additions = preview.entries.filter { !existingIDs.contains($0.id) }
+        guard !additions.isEmpty else { return 0 }
+        cancelPendingSave()
+        for entry in additions {
+            bodyPresentations[entry.id] = makeBodyPresentation(entry)
+        }
+        entries = (entries + additions).sorted { $0.createdAt > $1.createdAt }
+        recordMutation()
+        submitImmediately(currentSnapshot())
+        return additions.count
+    }
+
+    private func allowMutation() -> Bool {
+        guard let readFailureMessage else { return true }
+        publishError(readFailureMessage, source: .read)
+        return false
+    }
+
     private func load() {
         guard FileManager.default.fileExists(atPath: storageURL.path) else {
             let starter = JournalEntry.starterEntry()
@@ -153,13 +222,23 @@ final class JournalStore: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let loadedEntries = try decoder.decode([JournalEntry].self, from: data)
+            try JournalBackupCodec.validateIdentifiers(loadedEntries)
+            bodyPresentations.removeAll(keepingCapacity: true)
             for entry in loadedEntries {
                 bodyPresentations[entry.id] = makeBodyPresentation(entry)
             }
             entries = loadedEntries
             sortEntries()
+            readFailureMessage = nil
+            if case .read = errorSource {
+                errorMessage = nil
+                errorSource = nil
+            }
         } catch {
-            publishError("读取本地日记失败：\(error.localizedDescription)", source: .read)
+            let message = "读取本地日记失败：\(error.localizedDescription)"
+            readFailureMessage = message
+            publishError(message, source: .read)
+            bodyPresentations.removeAll()
             entries = []
         }
     }

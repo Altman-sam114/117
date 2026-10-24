@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.94
+      VERSION: v0.95
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
       PYTHONDONTWRITEBYTECODE: '1'
@@ -168,6 +168,10 @@ jobs:
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
               test-without-building
+            xcrun xcresulttool get test-results summary \
+              --path "$RESULT_DIR/MDJournalTests.xcresult" > "$RESULT_DIR/xctest-summary.json"
+            python3 script/verify_xctest_summary.py "$RESULT_DIR/xctest-summary.json" MDJournalTests \
+              > "$RESULT_DIR/xctest-verification.json"
           } 2>&1 | tee "$RESULT_DIR/xctest.log"
 
       - name: Export and verify interface review images
@@ -186,11 +190,21 @@ jobs:
           import os
           import pathlib
           import struct
+          import shutil
 
           result_dir = pathlib.Path(os.environ["RESULT_DIR"])
           export_dir = result_dir / "interface-review"
           manifest = json.loads((export_dir / "manifest.json").read_text())
           expected = {
+              "review-content-390x844-compact-library": (390, 844, "light", "large", "ContentView / compact library after real navigation pop"),
+              "review-content-390x844-compact-detail": (390, 844, "light", "large", "ContentView / compact detail after real list selection"),
+              "review-settings-390x844-light": (390, 844, "light", "large", "JournalSettingsView"),
+              "review-settings-390x844-light-accessibility3": (390, 844, "light", "accessibility3", "JournalSettingsView"),
+              "review-privacy-390x844-light": (390, 844, "light", "large", "JournalPrivacyView"),
+              "review-lock-390x844-dark-presented-sheet": (390, 844, "dark", "large", "JournalPrivacyGate / window shield above presented sheet"),
+              "review-pro-paywall-390x844-light": (390, 844, "light", "large", "JournalPaywallView / StoreKitTest verified purchase"),
+              "review-pro-export-390x844-light-verified": (390, 844, "light", "large", "JournalPremiumExportView / StoreKitTest verified entitlement"),
+              "review-pro-unavailable-390x844-light-accessibility3": (390, 844, "light", "accessibility3", "JournalPaywallView / unavailable products"),
               "review-content-1360x860-light-regular": (1360, 860, "light", "large", "ContentView / iOS regular width"),
               "review-content-1120x720-light-regular": (1120, 720, "light", "large", "ContentView / iOS regular width"),
               "review-editor-1440x900-light-split": (1440, 900, "light", "large", "EntryEditorView / split"),
@@ -209,10 +223,20 @@ jobs:
               "review-statistics-390x900-light-accessibility3": (390, 900, "light", "accessibility3", "StatisticsDashboardView"),
           }
           images = {}
+          benchmark_found = False
           for test in manifest:
               for attachment in test.get("attachments", []):
                   suggested = attachment.get("suggestedHumanReadableName", "")
                   name = suggested.split("_", 1)[0]
+                  if name == "performance-bounded-body-derivation":
+                      report_path = export_dir / attachment["exportedFileName"]
+                      if not report_path.resolve().is_relative_to(export_dir.resolve()):
+                          raise SystemExit("Invalid benchmark attachment path")
+                      report = json.loads(report_path.read_text())
+                      if report.get("resultsEquivalent") is not True or report.get("iterations") != 3:
+                          raise SystemExit("The benchmark must compare equivalent results over three iterations")
+                      shutil.copyfile(report_path, result_dir / "body-derivation-benchmark.json")
+                      benchmark_found = True
                   if name not in expected:
                       continue
                   if name in images:
@@ -241,6 +265,8 @@ jobs:
           missing = sorted(set(expected) - set(images))
           if missing:
               raise SystemExit(f"Required interface images missing: {missing}")
+          if not benchmark_found:
+              raise SystemExit("Missing required body derivation benchmark attachment")
           index = {
               "matrixVerified": True,
               "expectedImageCount": len(expected),
@@ -414,5 +440,84 @@ jobs:
 
       - name: Fail workflow on failed checks
         if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success' || steps.interface_review.outcome != 'success' || steps.mac_release.outcome != 'success')
+        shell: bash
+        run: exit 1
+
+  ios-release:
+    name: iOS 26 Release Archive
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      RESULT_DIR: ios-release-results
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Archive and verify iPhoneOS release
+        id: archive
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RESULT_DIR"
+          bash script/archive_ios_release.sh "$GITHUB_WORKSPACE/$RESULT_DIR" 2>&1 | tee "$RESULT_DIR/ios-release.log"
+
+      - name: Write archive outcome
+        if: always()
+        shell: bash
+        env:
+          ARCHIVE_OUTCOME: ${{ steps.archive.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          directory = pathlib.Path(os.environ["RESULT_DIR"])
+          directory.mkdir(parents=True, exist_ok=True)
+          outcome = os.environ["ARCHIVE_OUTCOME"]
+          manifest = {
+              "version": "v0.95", "branch": os.environ["GITHUB_REF_NAME"],
+              "commitSha": os.environ["GITHUB_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"], "workflowName": os.environ["GITHUB_WORKFLOW"],
+              "developerDirectory": os.environ["DEVELOPER_DIR"], "archiveOutcome": outcome,
+              "archiveManifestPath": "ios-release-manifest.json", "logPath": "ios-release.log",
+              "resultBundlePath": "MDJournalIOSRelease.xcresult", "appStoreUploadPerformed": False,
+              "signingStatus": "unsigned-requires-developer-team-and-distribution-signing",
+          }
+          (directory / "ci-artifact-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          suite = ET.Element("testsuite", name="MDJournalIOSRelease", tests="1",
+                             failures="0" if outcome == "success" else "1", errors="0", skipped="0")
+          case = ET.SubElement(suite, "testcase", name="ios-device-release-archive")
+          if outcome != "success":
+              ET.SubElement(case, "failure", message="See ios-release.log").text = outcome
+          ET.ElementTree(suite).write(directory / "junit.xml", encoding="utf-8", xml_declaration=True)
+          (directory / "ci-failure-summary.md").write_text(
+              f"# iOS Release Archive\n\nOutcome: {outcome}\n\nCommit: {manifest['commitSha']}\n"
+              f"Run: {manifest['runId']} attempt {manifest['runAttempt']}\n\n"
+              "The archive is unsigned. No App Store upload or review has been performed.\n")
+          PY
+
+      - name: Upload iOS release artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdjournal-ios-release-v0.95-main-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: |
+            ios-release-results/ci-artifact-manifest.json
+            ios-release-results/ios-release-manifest.json
+            ios-release-results/ios-release.log
+            ios-release-results/MDJournalIOSRelease.xcresult
+            ios-release-results/MDJournal-iOS-unsigned.xcarchive.zip
+            ios-release-results/junit.xml
+            ios-release-results/ci-failure-summary.md
+          if-no-files-found: error
+
+      - name: Require successful archive
+        if: always() && steps.archive.outcome != 'success'
         shell: bash
         run: exit 1

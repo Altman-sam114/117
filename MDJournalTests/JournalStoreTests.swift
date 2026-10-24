@@ -41,7 +41,7 @@ final class JournalStoreTests: XCTestCase {
         }
         defer { fixture.cleanup() }
         let initial = try XCTUnwrap(fixture.store.entries.first)
-        let created = fixture.store.createEntry()
+        let created = try XCTUnwrap(fixture.store.createEntry())
         XCTAssertEqual(calls[created], 1)
         fixture.store.delete(initial)
         fixture.store.delete(initial)
@@ -171,7 +171,7 @@ final class JournalStoreTests: XCTestCase {
         let oldWriteTask = try XCTUnwrap(scheduler.fireNext())
         let oldSnapshot = await writer.nextRequest()
 
-        let entryID = fixture.store.createEntry()
+        let entryID = try XCTUnwrap(fixture.store.createEntry())
         let latestSnapshot = await writer.nextRequest()
         var mainActorMarker = false
 
@@ -279,7 +279,7 @@ final class JournalStoreTests: XCTestCase {
         let fixture = try makeProductionStoreFixture(scheduler: scheduler)
         defer { fixture.cleanup() }
 
-        let entryID = fixture.store.createEntry()
+        let entryID = try XCTUnwrap(fixture.store.createEntry())
 
         XCTAssertNotNil(fixture.store.entry(with: entryID))
         let result = await fixture.store.flushPendingSave()

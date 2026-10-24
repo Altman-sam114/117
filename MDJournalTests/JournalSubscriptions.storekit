@@ -1,0 +1,55 @@
+{
+  "identifier" : "B0483E77-284A-47AA-92B1-2E8455C9B6D1",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "71000001",
+      "localizations" : [],
+      "name" : "MD Journal Pro Test Fixtures",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "71000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            { "description" : "Local StoreKit test only", "displayName" : "Pro Monthly Test", "locale" : "en_US" }
+          ],
+          "productID" : "com.codex.mdjournal.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly Test",
+          "subscriptionGroupID" : "71000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "14.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "71000003",
+          "introductoryOffer" : null,
+          "localizations" : [
+            { "description" : "Local StoreKit test only", "displayName" : "Pro Yearly Test", "locale" : "en_US" }
+          ],
+          "productID" : "com.codex.mdjournal.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Yearly Test",
+          "subscriptionGroupID" : "71000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : { "major" : 3, "minor" : 0 }
+}

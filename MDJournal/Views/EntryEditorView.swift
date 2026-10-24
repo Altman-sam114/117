@@ -1,4 +1,30 @@
+import CoreTransferable
 import SwiftUI
+import UniformTypeIdentifiers
+
+struct JournalMarkdownShareItem: Transferable {
+    let entry: JournalEntry
+
+    func markdownData() -> Data {
+        Data(entry.markdownDocument.utf8)
+    }
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .utf8PlainText) { item in
+            item.markdownData()
+        }
+        .suggestedFileName("Journal.md")
+    }
+}
+
+#if DEBUG
+struct JournalEditorInteraction {
+    let dismissKeyboard: () -> Void
+    let focusBody: () -> Void
+    let enterPreview: () -> Void
+    let returnToEdit: () -> Void
+}
+#endif
 
 enum EntryEditorAccessibilityContract {
     static let journalDateLabel = "日记日期"
@@ -169,8 +195,12 @@ struct EntryEditorView: View {
     @State private var workspaceState = EntryEditorWorkspaceState()
     @State private var showsDetails = false
     @State private var headerContentHeight: CGFloat = 0
+    @FocusState private var titleFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if DEBUG
+    var interactionObserver: ((JournalEditorInteraction) -> Void)? = nil
+    #endif
 
     private let focusedWritingMaxWidth = JournalTheme.readableWidth
 
@@ -231,6 +261,14 @@ struct EntryEditorView: View {
             .background { JournalBackdrop() }
             .onAppear {
                 workspaceState.updateLayout(layout)
+                #if DEBUG
+                interactionObserver?(JournalEditorInteraction(
+                    dismissKeyboard: dismissKeyboard,
+                    focusBody: { perform(.focusBody, layout: layout) },
+                    enterPreview: { perform(.selectMode(.preview), layout: layout) },
+                    returnToEdit: { perform(.selectMode(.edit), layout: layout) }
+                ))
+                #endif
             }
             .onChange(of: layout.usesSplitPreview) { _ in
                 workspaceState.updateLayout(layout)
@@ -248,6 +286,13 @@ struct EntryEditorView: View {
         .onChange(of: entry.id) { _ in
             resetBodySelectionToEnd()
         }
+        .onChange(of: titleFocused) { isFocused in
+            if isFocused { workspaceState.editorFocused = false }
+        }
+        .onChange(of: workspaceState.editorFocused) { isFocused in
+            if isFocused { titleFocused = false }
+        }
+        .onDisappear(perform: dismissKeyboard)
     }
 
     @ToolbarContentBuilder
@@ -311,15 +356,17 @@ struct EntryEditorView: View {
         #endif
 
         ToolbarItem(placement: .primaryAction) {
-            ShareLink(item: entry.markdownDocument, subject: Text(entry.displayTitle)) {
+            ShareLink(
+                item: JournalMarkdownShareItem(entry: entry),
+                subject: Text(entry.displayTitle), preview: SharePreview(entry.displayTitle)
+            ) {
                 Label("分享", systemImage: "square.and.arrow.up")
             }
         }
 
         ToolbarItemGroup(placement: .keyboard) {
-            Button("完成") {
-                workspaceState.editorFocused = false
-            }
+            Button("完成", action: dismissKeyboard)
+                .accessibilityIdentifier("journal.keyboard.done")
         }
     }
 
@@ -399,6 +446,7 @@ struct EntryEditorView: View {
         TextField("今天，想记下什么？", text: $entry.title, axis: .vertical)
             .font(compact ? .headline : .system(.title, design: .serif).weight(.medium))
             .textFieldStyle(.plain)
+            .focused($titleFocused)
             .lineLimit(compact ? 1 : layout.titleLineLimit)
             .accessibilityLabel("日记标题")
     }
@@ -633,7 +681,17 @@ struct EntryEditorView: View {
 
     private func perform(_ action: EntryEditorWorkspaceState.Action, layout: EntryEditorLayoutContract) {
         if case .focusWriting = action { showsDetails = false }
-        workspaceState.perform(action, layout: layout)
+        var updatedWorkspace = workspaceState
+        updatedWorkspace.perform(action, layout: layout)
+        if updatedWorkspace.editorFocused || !updatedWorkspace.showsEditor {
+            titleFocused = false
+        }
+        workspaceState = updatedWorkspace
+    }
+
+    private func dismissKeyboard() {
+        titleFocused = false
+        workspaceState.editorFocused = false
     }
 
     private func resetBodySelectionToEnd() {

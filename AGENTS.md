@@ -4,6 +4,15 @@
 
 MD Journal 是一个原生 SwiftUI Markdown 日记应用，当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。主链路是“用户编辑日记 -> `JournalEntry` 状态更新 -> `JournalStore` 本地 JSON 持久化 -> SwiftUI 列表、编辑器、预览和统计看板渲染”。
 
+## 当前人工选择：按模块并行交付
+
+用户已明确要求跳过按 A → B → C 串行轮转，直接让子智能体负责不同功能板块，统一快速集成。本条覆盖本文后续以串行角色交接作为开工或下一步前提的规则；其他安全、数据保护、main 分支与云端证据要求继续适用。
+
+- 子智能体按文件边界并行实现手机写作、设置与安全、订阅与高级导出；主线程负责工程接线、现代 SDK 发布构建与最终验收。
+- 共享工作区不同时编辑同一文件。集成后只提交本轮相关文件到 main，直推 origin/main；不创建候选分支或 PR。
+- 完整构建、XCTest、图片与 Release archive 在云端执行。最终由主线程或完成实施后的交叉审查者下载最新同 SHA/run/attempt 的未加密结果包，不要求再等待一个名为 Agent C 的串行阶段。
+- 发布账号、商品、签名或审核状态必须真实。unsigned archive、StoreKitTest 和截图不等同于 App Store 上传、Sandbox 或真机验收。
+
 ## 1. 必读文件
 
 每次开始任务前按顺序阅读：

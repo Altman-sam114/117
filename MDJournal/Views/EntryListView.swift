@@ -35,6 +35,9 @@ struct EntryListView: View {
     let onCreate: () -> Void
     let onDelete: (JournalEntry) -> Void
     let onShowStatistics: () -> Void
+    var onShowSettings: () -> Void = {}
+    var canCreate = true
+    var readFailureMessage: String? = nil
 
     @State private var deletionConfirmation = JournalDeletionConfirmationState()
     @Environment(\.calendar) private var calendar
@@ -50,6 +53,21 @@ struct EntryListView: View {
             Section {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewCard(overviewSnapshot)
+                    if let readFailureMessage {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("原始日记文件已保护", systemImage: "lock.shield")
+                                .font(.subheadline.weight(.medium))
+                            Text(readFailureMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button("打开设置恢复", action: onShowSettings)
+                                .frame(minHeight: 44)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(JournalTheme.inset, in: RoundedRectangle(cornerRadius: 10))
+                    }
                     createButton
                     categoryFilter(snapshot)
                 }
@@ -68,12 +86,16 @@ struct EntryListView: View {
                 ForEach(timeline.months) { month in
                     Section {
                         ForEach(month.entries) { entry in
-                            EntryRowView(
-                                entry: entry, bodyPresentation: presentation(for: entry.id),
-                                isSelected: selection == entry.id
-                            )
+                            NavigationLink(value: entry.id) {
+                                EntryRowView(
+                                    entry: entry, bodyPresentation: presentation(for: entry.id),
+                                    isSelected: selection == entry.id
+                                )
                                 .equatable()
+                            }
+                                .buttonStyle(.plain)
                                 .tag(entry.id)
+                                .accessibilityIdentifier("journal.entry.\(entry.id.uuidString)")
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets(top: 1, leading: 12, bottom: 1, trailing: 12))
@@ -124,6 +146,13 @@ struct EntryListView: View {
             Text("此操作无法撤销。")
         }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: onShowSettings) {
+                    Label("设置", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("journal.settings")
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onShowStatistics) {
                     Label("统计", systemImage: "chart.bar.xaxis")
@@ -134,6 +163,8 @@ struct EntryListView: View {
                 Button(action: onCreate) {
                     Label("新建", systemImage: "square.and.pencil")
                 }
+                .accessibilityIdentifier("journal.create.toolbar")
+                .disabled(!canCreate)
             }
         }
     }
@@ -194,6 +225,8 @@ struct EntryListView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(JournalTheme.accent)
+        .accessibilityIdentifier("journal.create")
+        .disabled(!canCreate)
         .help("新建日记（⌘N）")
     }
 
@@ -251,6 +284,7 @@ struct EntryListView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(JournalTheme.accent)
+                .disabled(!canCreate)
             } else {
                 Button(action: clearFilters) {
                     Label("清除筛选", systemImage: "line.3.horizontal.decrease.circle")

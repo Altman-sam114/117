@@ -4,6 +4,312 @@ import XCTest
 @testable import MDJournal
 
 final class JournalInterfaceTests: XCTestCase {
+    @MainActor
+    func testCompactProductionNavigationLinkOpensPopsAndReopensTheSameEntry() async throws {
+        let entries = Array(reviewEntries().prefix(2))
+        let fixture = try makeNavigationStore(entries: entries)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let controller = UIHostingController(rootView: ContentView(store: fixture.store)
+            .environment(\.horizontalSizeClass, .compact))
+        let size = CGSize(width: 390, height: 844)
+        let window = makeWindow(controller: controller, size: size)
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await waitForHost("Compact ContentView must show its library first") {
+            self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        XCTAssertNil(bodyInput(in: controller.view, text: entries[0].body))
+        try attachHostImage(controller.view, name: "content-390x844-compact-library", size: size)
+
+        try await activateFirstProductionEntry(in: controller.view)
+        try await waitForHost("A production NavigationLink must push the selected editor") {
+            self.navigationController(in: controller)?.viewControllers.count == 2
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+                && self.bodyInput(in: controller.view, text: entries[0].body) != nil
+        }
+        try attachHostImage(controller.view, name: "content-390x844-compact-detail", size: size)
+        let navigation = try XCTUnwrap(navigationController(in: controller))
+        XCTAssertFalse(navigation.navigationBar.isHidden)
+        XCTAssertFalse(try XCTUnwrap(navigation.topViewController).navigationItem.hidesBackButton)
+        navigation.popViewController(animated: false)
+        try await waitForHost("System pop must return to the library") {
+            navigation.viewControllers.count == 1
+                && self.bodyInput(in: controller.view, text: entries[0].body) == nil
+        }
+        try await activateFirstProductionEntry(in: controller.view)
+        try await waitForHost("The same selected row must remain openable after pop") {
+            navigation.viewControllers.count == 2
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        XCTAssertEqual(fixture.store.entries, entries)
+        XCTAssertEqual(fixture.store.revision, 0, "Navigation must not mutate persisted journals")
+    }
+
+    @MainActor
+    func testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID() async throws {
+        let entries = Array(reviewEntries().prefix(2))
+        let fixture = try makeNavigationStore(entries: entries)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        var interaction: JournalContentInteraction?
+        let controller = UIHostingController(rootView: ContentView(
+            store: fixture.store, interactionObserver: { interaction = $0 }
+        ).environment(\.horizontalSizeClass, .compact))
+        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await waitForHost("Production ContentView must publish its installed actions") { interaction != nil }
+        let actions = try XCTUnwrap(interaction)
+        actions.searchText.wrappedValue = "a search that matches no journal"
+        actions.selectedCategory.wrappedValue = .travel
+        try await waitForHost("Filtering must not push a detail") {
+            actions.compactPath.wrappedValue.isEmpty
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+
+        actions.createEntry()
+        try await waitForHost("The production create action must open a new journal") {
+            fixture.store.entries.count == entries.count + 1
+                && self.navigationController(in: controller)?.viewControllers.count == 2
+        }
+        let created = try XCTUnwrap(fixture.store.entries.first)
+        XCTAssertFalse(entries.contains { $0.id == created.id })
+        XCTAssertEqual(actions.compactPath.wrappedValue, [created.id])
+        XCTAssertEqual(actions.searchText.wrappedValue, "")
+        XCTAssertNil(actions.selectedCategory.wrappedValue)
+        XCTAssertNotNil(titleInput(in: controller.view, title: created.title))
+        XCTAssertNotNil(bodyInput(in: controller.view, text: created.body))
+        await fixture.store.flushPendingSave()
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let saved = try decoder.decode([JournalEntry].self, from: Data(contentsOf: fixture.storageURL))
+        XCTAssertEqual(saved.first?.id, created.id)
+        XCTAssertEqual(saved.count, entries.count + 1)
+    }
+
+    @MainActor
+    func testProductionNavigationRepairsFilteredAndDeletedSelectionsAcrossSizeClasses() async throws {
+        let entries = Array(reviewEntries().prefix(2))
+        let fixture = try makeNavigationStore(entries: entries)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let configuration = NavigationHostConfiguration()
+        var interaction: JournalContentInteraction?
+        let controller = UIHostingController(rootView: NavigationHostRoot(
+            store: fixture.store, configuration: configuration, observer: { interaction = $0 }
+        ))
+        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await waitForHost("Production navigation actions must be installed") { interaction != nil }
+        let actions = try XCTUnwrap(interaction)
+        actions.compactPath.wrappedValue = [entries[0].id]
+        try await waitForHost("A bound compact destination must show the real editor") {
+            self.bodyInput(in: controller.view, text: entries[0].body) != nil
+        }
+
+        configuration.sizeClass = .regular
+        window.frame.size = CGSize(width: 1360, height: 860)
+        controller.view.frame = window.bounds
+        try await waitForHost("Regular ContentView must retain the current journal in its split view") {
+            self.splitController(in: controller) != nil
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        configuration.sizeClass = .compact
+        window.frame.size = CGSize(width: 390, height: 844)
+        controller.view.frame = window.bounds
+        try await waitForHost("Returning to compact width must retain the selected destination") {
+            self.navigationController(in: controller)?.viewControllers.count == 2
+                && self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        XCTAssertEqual(fixture.store.revision, 0)
+
+        actions.searchText.wrappedValue = "a search that matches no journal"
+        try await waitForHost("An empty visible result must remove an invalid detail") {
+            actions.compactPath.wrappedValue.isEmpty
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        actions.searchText.wrappedValue = ""
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(actions.compactPath.wrappedValue.isEmpty, "Selection repair must not push")
+        actions.compactPath.wrappedValue = [entries[0].id]
+        try await waitForHost("The original journal must be open before deletion") {
+            self.titleInput(in: controller.view, title: entries[0].title) != nil
+        }
+        fixture.store.delete(entries[0])
+        try await waitForHost("Deleting the current journal must repair to a visible remaining journal") {
+            actions.compactPath.wrappedValue == [entries[1].id]
+                && self.titleInput(in: controller.view, title: entries[1].title) != nil
+        }
+        fixture.store.delete(entries[1])
+        try await waitForHost("Deleting the last journal must return to an empty library") {
+            actions.compactPath.wrappedValue.isEmpty
+                && self.navigationController(in: controller)?.viewControllers.count == 1
+        }
+        await fixture.store.flushPendingSave()
+    }
+
+    @MainActor
+    func testProductionDoneAndWritingActionsCoordinateTitleAndBodyFirstResponders() async throws {
+        let entry = reviewEntries()[0]
+        var interaction: JournalEditorInteraction?
+        let controller = UIHostingController(rootView: EntryEditorView(
+            entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
+            interactionObserver: { interaction = $0 }
+        ))
+        let window = makeWindow(controller: controller, size: CGSize(width: 390, height: 844))
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await waitForHost("The production title, body and keyboard actions must exist") {
+            interaction != nil && self.titleInput(in: controller.view, title: entry.title) != nil
+                && self.bodyInput(in: controller.view, text: entry.body) != nil
+        }
+        let actions = try XCTUnwrap(interaction)
+        let title = try XCTUnwrap(titleInput(in: controller.view, title: entry.title))
+        let body = try XCTUnwrap(bodyInput(in: controller.view, text: entry.body))
+        XCTAssertTrue(title.becomeFirstResponder())
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(title.isFirstResponder)
+        actions.dismissKeyboard()
+        try await waitForHost("The production Done action must dismiss the title keyboard") {
+            !title.isFirstResponder && !body.isFirstResponder
+        }
+        actions.focusBody()
+        try await waitForHost("The production writing action must focus the body") { body.isFirstResponder }
+        let selection = (entry.body as NSString).range(of: "河边")
+        XCTAssertNotEqual(selection.location, NSNotFound)
+        body.selectedRange = selection
+        try await Task.sleep(for: .milliseconds(100))
+        actions.dismissKeyboard()
+        try await waitForHost("Done must also dismiss the body keyboard") {
+            !title.isFirstResponder && !body.isFirstResponder
+        }
+        XCTAssertEqual(body.selectedRange, selection)
+        XCTAssertEqual(body.text, entry.body)
+
+        XCTAssertTrue(title.becomeFirstResponder())
+        try await Task.sleep(for: .milliseconds(100))
+        actions.focusBody()
+        try await waitForHost("Writing from a focused title must transfer focus to the body") {
+            body.isFirstResponder && !title.isFirstResponder
+        }
+        actions.enterPreview()
+        try await waitForHost("Preview must release both input responders") {
+            !title.isFirstResponder && !body.isFirstResponder
+                && self.bodyInput(in: controller.view, text: entry.body) == nil
+        }
+        actions.returnToEdit()
+        try await waitForHost("Picker-style return to edit must preserve the unfocused state") {
+            self.bodyInput(in: controller.view, text: entry.body) != nil
+        }
+        let restoredBody = try XCTUnwrap(bodyInput(in: controller.view, text: entry.body))
+        XCTAssertFalse(restoredBody.isFirstResponder)
+        XCTAssertFalse(title.isFirstResponder)
+        XCTAssertEqual(restoredBody.selectedRange, selection)
+        XCTAssertEqual(restoredBody.text, entry.body)
+    }
+
+    func testDeferredMarkdownSharePreservesTheFullDocumentAndUnicode() {
+        let date = reviewDate("2026-10-22T12:00:00Z")
+        for (title, body) in [
+            ("标题 📝", "### 小节\n\n中文与 e\u{301} / 👨‍👩‍👧‍👦\n- **完整内容**\n"),
+            (" \n", ""),
+            ("多行", String(repeating: "正文，包含 emoji 🌊 和换行。\n", count: 200))
+        ] {
+            let entry = JournalEntry(title: title, body: body, createdAt: date, updatedAt: date)
+            let item = JournalMarkdownShareItem(entry: entry)
+            XCTAssertEqual(String(data: item.markdownData(), encoding: .utf8), entry.markdownDocument)
+            XCTAssertEqual(item.entry, entry)
+        }
+    }
+
+    @MainActor
+    private func makeNavigationStore(entries: [JournalEntry]) throws -> (store: JournalStore, directory: URL, storageURL: URL) {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mdjournal-navigation-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let storageURL = directory.appendingPathComponent("entries.json")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(entries).write(to: storageURL, options: .atomic)
+        return (JournalStore(storageURL: storageURL), directory, storageURL)
+    }
+
+    @MainActor
+    private func makeWindow<Content: View>(controller: UIHostingController<Content>, size: CGSize) -> UIWindow {
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.frame = window.bounds
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        return window
+    }
+
+    @MainActor
+    private func waitForHost(_ message: String, condition: () -> Bool) async throws {
+        for _ in 0..<80 {
+            if condition() { return }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        XCTFail(message)
+        throw NSError(domain: "JournalInterfaceHost", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    @MainActor
+    private func navigationController(in controller: UIViewController) -> UINavigationController? {
+        if let navigation = controller as? UINavigationController { return navigation }
+        for child in controller.children {
+            if let navigation = navigationController(in: child) { return navigation }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func splitController(in controller: UIViewController) -> UISplitViewController? {
+        if let split = controller as? UISplitViewController { return split }
+        for child in controller.children {
+            if let split = splitController(in: child) { return split }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func collectionView(in view: UIView) -> UICollectionView? {
+        if let collection = view as? UICollectionView { return collection }
+        for child in view.subviews {
+            if let collection = collectionView(in: child) { return collection }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func activateFirstProductionEntry(in view: UIView) async throws {
+        try await waitForHost("Production List must have a visible journal section") {
+            guard let collection = self.collectionView(in: view) else { return false }
+            return collection.numberOfSections > 1 && collection.numberOfItems(inSection: 1) > 0
+        }
+        let collection = try XCTUnwrap(collectionView(in: view))
+        let indexPath = IndexPath(item: 0, section: 1)
+        collection.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        collection.layoutIfNeeded()
+        collection.selectItem(at: indexPath, animated: false, scrollPosition: [])
+        let delegate = try XCTUnwrap(collection.delegate)
+        XCTAssertTrue(delegate.responds(to: #selector(UICollectionViewDelegate.collectionView(_:didSelectItemAt:))))
+        delegate.collectionView?(collection, didSelectItemAt: indexPath)
+    }
+
+    @MainActor
+    private func attachHostImage(_ view: UIView, name: String, size: CGSize) throws {
+        view.layoutIfNeeded()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        var didDraw = false
+        let image = renderer.image { _ in
+            didDraw = view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+        }
+        XCTAssertTrue(didDraw, "Unable to render \(name)")
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "review-\(name)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testNarrowTitleGetsThirdLineWhileWideAndAccessibilityPoliciesRemainExplicit() {
         for width: CGFloat in [320, 390, 819] {
             XCTAssertEqual(EntryEditorLayoutContract(width: width, dynamicTypeSize: .large).titleLineLimit, 3)
@@ -432,5 +738,21 @@ final class JournalInterfaceTests: XCTestCase {
             if let scrollView = scrollableList(in: child) { return scrollView }
         }
         return nil
+    }
+}
+
+@MainActor
+private final class NavigationHostConfiguration: ObservableObject {
+    @Published var sizeClass: UserInterfaceSizeClass = .compact
+}
+
+private struct NavigationHostRoot: View {
+    let store: JournalStore
+    @ObservedObject var configuration: NavigationHostConfiguration
+    let observer: (JournalContentInteraction) -> Void
+
+    var body: some View {
+        ContentView(store: store, interactionObserver: observer)
+            .environment(\.horizontalSizeClass, configuration.sizeClass)
     }
 }
