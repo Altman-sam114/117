@@ -11,10 +11,10 @@
 
 ## 当前状态
 
-- 当前任务 v0.93：v0.92云端基线已恢复并下载复判通过，进入纸本UI与高效写作重构；遵照2026-10-23用户要求不开子智能体，不进行无限循环。
+- 当前任务 v0.94：v0.93纸本UI云端技术验证与结果包核对通过，收尾逐图发现的按钮对比/换行和辅助字号统计问题；遵照用户最后要求不开子智能体，不进行无限循环。
 - v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
-- 当前阶段：`v0.93` 原生界面重构；v0.92完整CI通过，Mac仍是未公证内部包，不等于公开发布验收。
+- 当前阶段：`v0.94` 界面验收收尾；v0.93完整CI通过，Mac仍是未公证内部包，不等于公开发布验收。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
 - 当前测试基线：`MDJournalTests` 单元测试 target + 本地轻量检查 + GitHub Actions 云端 iOS build / Mac Catalyst build / XCTest 重验证；v0.74 云端 artifact 为 185 项，v0.75 最终 HEAD 云端 artifact 为 189 项（新增 4 项 Markdown 预览策略测试），v0.76 最终文档 HEAD 云端 artifact 为 195 项（新增 6 项 selection/navigation 纯测试），v0.77 最终文档 HEAD 云端 artifact 为 196 项（新增 1 项 extraction characterization），v0.78 实现 HEAD 云端 artifact 为 197 项（新增 1 项 shared metrics characterization），v0.81 最终云端 artifact 为 201 项；v0.82 实现 HEAD 云端 artifact 为 202 项（新增 1 项列表快照复用 characterization），已由 Agent C PASS；v0.83 实现 HEAD 第一阶段云端 artifact 为 203 项（新增 1 项 `hasVisibleContent` 纯值 characterization），已由 Agent C PASS；v0.84 实现与最终 docs HEAD 云端 artifact 均为 204 项（新增 1 项摘要共享扫描 characterization），两阶段均由 Agent C PASS；v0.85 实现 HEAD 云端 artifact 为 205 项（新增 1 项列表卡片 Dynamic Type 布局 characterization），阶段一已由 Agent C PASS；v0.86 实现验证 HEAD 云端 artifact 为 212 项（新增 7 项同步状态/接线测试），已由 Agent C PASS。`JournalStoreTests` 现有 19 项，其他模型、Markdown、统计、导航与界面契约测试继续保留。
@@ -24,7 +24,18 @@
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
 
-### v0.93 / 纸本界面与高效写作（待云端验收）
+### v0.94 / 界面验收收尾（待云端验收）
+
+日期：2026-10-24。
+
+- 从最新main/cc46e09且干净工作区开始，先完整复核v0.93的257项/16图/双平台与Mac包，再针对图片实际问题修正，不启动子智能体。
+- 资料库新建按钮改独立图标与可换行全文，辅助字号隐藏Mac快捷键提示；新增JournalOnAccent四外观颜色并显式用于资料库/空库/详情空态主按钮，修复深色浅绿底白字低对比。统计辅助字号隐藏装饰图标，文字占满宽度。
+- 扩展已有语义颜色用例，断言实际UIColor在浅/深和普通/高对比下的主按钮色对比至少4.5:1；保留257项和16图。四处预览测试显式parseDocument参数，清理Swift弃用警告，不改解析/调度/断言。
+- 关键文件：JournalTheme、JournalOnAccent.colorset、EntryListView、EmptyStateView、StatisticsDashboardView、JournalInterfaceTests、MarkdownPreviewTests、workflow VERSION和版本化prompt；README/test/flow/flowchart同步。
+- 本机只轻量检查；新SHA的构建、XCTest、16图与Mac包须重新云端验证并下载核对，尚不预填通过。不改持久化/缓存/IME/UTF16/焦点/部署版本/第三方依赖；正式签名、公证、真实Mac输入与性能仍未完成。
+- 实际轻量检查全部退出0：应用与测试`swiftc -parse -parse-as-library`、project `plutil -lint`、8/8纯Python设备fixture、workflow YAML/11个run块bash语法/2个Python heredoc及全部Python AST、8份asset JSON、257个XCTest声明/16图矩阵一致性、`git diff --check`。四格资源色对比独立计算为7.24/8.91/10.17/13.06:1；实际UIColor解析断言待云端执行。本机没有build/XCTest/simctl/App。
+
+### v0.93 / 纸本界面与高效写作（云端通过，视觉问题在v0.94收尾）
 
 日期：2026-10-23。
 
@@ -34,6 +45,7 @@
 - 关键文件：Theme、List/Row、Editor/ChromeLayout、BodyTextView创建布局、Preview展示、Statistics/EmptyState、DateFormatters、相关测试、workflow与版本化prompt；README/test/flow/flowchart同步。
 - 本机仅轻量检查，新SHA的完整构建、XCTest、16图和Mac包需自己的云端artifact，未预填通过。正式签名、公证、App Store工具链资格、真实Mac/IME/VoiceOver及性能仍须专项验收。
 - 实际轻量检查退出0：应用/测试Swift parse、project plist、8/8纯Python fixture、workflow YAML与11个run块bash语法/2个Python heredoc及Python源码AST、全部asset JSON、257个XCTest声明和16图矩阵一致性、git diff --check。未本机build/XCTest/simctl/App。
+- 实现cc46e099671b9b1735a1f421b1de4ae017e5b38b已推origin/main；run39885633937/attempt1六阶段success，257/257 XCTest、16图、四份xcresult与6项JUnit实际核对。artifact `mdjournal-ci-v0.93-main-cc46e09-run39885633937-attempt1`（ID12472911749，9190055bytes，SHA256 3623b5a6c0a1f1a1ec92f4641b017496ad4b0a4956348409c8e633035ac50712）。2026-10-24当前线程重新gh登录下载至`/private/tmp/mdjournal-c-review-39885633937/`，629个未加密文件、CRC、fresh extract与gh下载逐文件SHA256、manifest/log/四份xcresult/16图均已核对；Mac另作只读解压、双架构/Catalyst平台/图标/build200.1/ad-hoc签名/全文件和权限复核通过，不启动App、不标独立C。逐图发现大字号新建文字截断、深色按钮前景对比和统计文字宽度问题，转v0.94定点收尾，不冒充公开发布完成。
 
 ### v0.92 / 恢复可追溯云端基线（云端通过）
 

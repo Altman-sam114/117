@@ -6,10 +6,10 @@ final class MarkdownPreviewTests: XCTestCase {
     func testInitialActivationPublishesImmediatelyAndDebouncesUpdates() async {
         let scheduler = ManualMarkdownPreviewScheduler()
         var parsedMarkdown: [String] = []
-        let model = MarkdownPreviewUpdateModel(scheduler: scheduler) { markdown in
+        let model = MarkdownPreviewUpdateModel(scheduler: scheduler, parseDocument: { markdown in
             parsedMarkdown.append(markdown)
             return MarkdownBlockParser.parseDocument(markdown)
-        }
+        })
         let entryID = UUID()
 
         model.activate(entryID: entryID, markdown: "初始")
@@ -28,10 +28,10 @@ final class MarkdownPreviewTests: XCTestCase {
     func testLatestRequestWinsWhenCancelledRequestArrivesLate() async {
         let scheduler = ManualMarkdownPreviewScheduler()
         var parsedMarkdown: [String] = []
-        let model = MarkdownPreviewUpdateModel(scheduler: scheduler) { markdown in
+        let model = MarkdownPreviewUpdateModel(scheduler: scheduler, parseDocument: { markdown in
             parsedMarkdown.append(markdown)
             return MarkdownBlockParser.parseDocument(markdown)
-        }
+        })
         let entryID = UUID()
 
         model.activate(entryID: entryID, markdown: "A")
@@ -51,10 +51,10 @@ final class MarkdownPreviewTests: XCTestCase {
     func testEntrySwitchAndDeactivationInvalidatePendingRequests() async {
         let scheduler = ManualMarkdownPreviewScheduler()
         var parsedMarkdown: [String] = []
-        let model = MarkdownPreviewUpdateModel(scheduler: scheduler) { markdown in
+        let model = MarkdownPreviewUpdateModel(scheduler: scheduler, parseDocument: { markdown in
             parsedMarkdown.append(markdown)
             return MarkdownBlockParser.parseDocument(markdown)
-        }
+        })
         let firstEntryID = UUID()
         let secondEntryID = UUID()
 
@@ -77,10 +77,10 @@ final class MarkdownPreviewTests: XCTestCase {
     func testSameMarkdownDoesNotCreateAnotherRequest() {
         let scheduler = ManualMarkdownPreviewScheduler()
         var parseCount = 0
-        let model = MarkdownPreviewUpdateModel(scheduler: scheduler) { markdown in
+        let model = MarkdownPreviewUpdateModel(scheduler: scheduler, parseDocument: { markdown in
             parseCount += 1
             return MarkdownBlockParser.parseDocument(markdown)
-        }
+        })
         let entryID = UUID()
 
         model.activate(entryID: entryID, markdown: "不变")

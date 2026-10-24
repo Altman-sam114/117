@@ -1,5 +1,19 @@
 # 项目流程图
 
+## 界面验收收尾（v0.94）
+
+```mermaid
+flowchart LR
+  Review["v0.93同SHA包：257项 / 16图 / Mac包已复核"] --> Findings["逐图发现按钮截断、暗色对比与统计文字挤压"]
+  Findings --> Fix["可换行新建 / OnAccent语义前景 / 辅助字号移除装饰"]
+  Fix --> Checks["既有颜色测试增加四格4.5:1 / 保留257项和16图"]
+  Checks --> Cloud["main新SHA / 双平台Debug / XCTest / Mac universal Release"]
+  Cloud --> Download["当前线程下载最新run / attempt / 未加密artifact"]
+  Download --> Gate{"技术结果、逐图与包核对通过？"}
+  Gate -- "是" --> Deliver["交付内部包 / 记录已知发布边界 / 有限收尾"]
+  Gate -- "否" --> Repair["必要追加修复或按停止条件报告阻塞"]
+```
+
 ## 纸本界面与行渲染（v0.93）
 
 ```mermaid

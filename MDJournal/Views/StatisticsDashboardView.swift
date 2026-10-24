@@ -76,19 +76,21 @@ struct StatisticsDashboardView: View {
                         .foregroundStyle(JournalTheme.accent)
                     Text("回看，也是一种记录。")
                         .font(.system(.title2, design: .serif).weight(.medium))
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(stats.insightText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer(minLength: 8)
-
-                Image(systemName: "chart.xyaxis.line")
-                    .font(.title)
-                    .foregroundStyle(JournalTheme.accent)
-                    .accessibilityHidden(true)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.title)
+                        .foregroundStyle(JournalTheme.accent)
+                        .accessibilityHidden(true)
+                }
             }
 
             LazyVGrid(columns: metricColumns(isWideLayout: isWideLayout), spacing: 10) {

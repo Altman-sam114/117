@@ -198,7 +198,7 @@ final class JournalInterfaceTests: XCTestCase {
 
     @MainActor
     func testSemanticColorsArePackagedForEveryAppearance() throws {
-        for name in ["JournalCanvas", "JournalPaper", "JournalInset", "JournalAccent", "JournalSeparator"] {
+        for name in ["JournalCanvas", "JournalPaper", "JournalInset", "JournalAccent", "JournalOnAccent", "JournalSeparator"] {
             let color = try XCTUnwrap(UIColor(named: name), "Missing asset: \(name)")
             for style in [UIUserInterfaceStyle.light, .dark] {
                 for contrast in [UIAccessibilityContrast.normal, .high] {
@@ -210,6 +210,32 @@ final class JournalInterfaceTests: XCTestCase {
                 }
             }
         }
+
+        let accent = try XCTUnwrap(UIColor(named: "JournalAccent"))
+        let foreground = try XCTUnwrap(UIColor(named: "JournalOnAccent"))
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            for contrast in [UIAccessibilityContrast.normal, .high] {
+                let traits = UITraitCollection(traitsFrom: [
+                    UITraitCollection(userInterfaceStyle: style),
+                    UITraitCollection(accessibilityContrast: contrast)
+                ])
+                let backgroundLuminance = luminance(accent.resolvedColor(with: traits))
+                let foregroundLuminance = luminance(foreground.resolvedColor(with: traits))
+                let ratio = (max(backgroundLuminance, foregroundLuminance) + 0.05)
+                    / (min(backgroundLuminance, foregroundLuminance) + 0.05)
+                XCTAssertGreaterThanOrEqual(ratio, 4.5, "Primary button contrast: \(style), \(contrast)")
+            }
+        }
+    }
+
+    @MainActor
+    private func luminance(_ color: UIColor) -> CGFloat {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        XCTAssertTrue(color.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+        func linear(_ component: CGFloat) -> CGFloat {
+            component <= 0.04045 ? component / 12.92 : pow((component + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
     }
 
     /// Review attachments are real SwiftUI renders on the CI simulator, not interaction tests.

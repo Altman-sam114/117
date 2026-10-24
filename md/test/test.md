@@ -1,5 +1,13 @@
 # 测试规范
 
+## v0.94 当前验证要求
+
+v0.93实现cc46e09 / run39885633937 / attempt1已由当前线程重新登录下载复核：manifest、6项JUnit、四份xcresult、257/257 XCTest、16图及629个未加密文件digest/CRC/独立解压逐文件SHA256通过。Mac Release包另核双架构、平台、图标、200.1版本、ad-hoc签名与全部内容/权限，未启动App。16图逐张检查发现的主按钮与辅助字号问题在v0.94修正，不能把技术构建通过当作公开发布完成。
+
+本轮保留257项和16图，不删测试或图片。扩展已有`testSemanticColorsArePackagedForEveryAppearance`：新增JournalOnAccent资源解析，并对浅/深 × 普通/高对比四格实际UIColor计算sRGB相对亮度，断言主按钮前背景对比至少4.5:1；不是屏幕像素测量或VoiceOver验收。查看新图确认大字号新建全文、深色主按钮墨色文字和大字号统计全宽文字。四条测试编译弃用警告应消失；工具链AppIntents未依赖提示不伪装成应用Swift警告。
+
+本机只做diff/Swift parse/plist/JSON/YAML/脚本语法与8项设备选择fixture，云端保持iOS/Catalyst Debug、完整串行XCTest、16图和universal Mac Release。新同SHA/run/attempt的artifact重新下载、核对manifest/JUnit/log/四份xcresult、每图及Mac包，最终文档提交也核对自己的run。不开子智能体，C职责由当前线程串行执行。
+
 ## v0.93 当前验证要求
 
 v0.92的4bb89ae/run39883823991/attempt1已串行下载核对通过：250/250 XCTest、11图、6项JUnit、四份xcresult、600个未加密文件、GitHub digest/CRC/独立解压逐文件SHA256；Mac包另作只读核对通过，不是独立C或真实Mac启动验收。

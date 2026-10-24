@@ -6,6 +6,7 @@ enum JournalTheme {
     static let paper = Color("JournalPaper")
     static let inset = Color("JournalInset")
     static let accent = Color("JournalAccent")
+    static let onAccent = Color("JournalOnAccent")
     static let separator = Color("JournalSeparator")
     static let cornerRadius: CGFloat = 14
     static let pageInset: CGFloat = 24

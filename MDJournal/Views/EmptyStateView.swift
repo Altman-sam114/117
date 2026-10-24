@@ -37,6 +37,8 @@ struct EmptyStateView: View {
 
                     Button(action: onCreate) {
                         Label("新建日记", systemImage: "square.and.pencil")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundStyle(JournalTheme.onAccent)
                             .frame(minHeight: 44)
                     }
                     .buttonStyle(.borderedProminent)

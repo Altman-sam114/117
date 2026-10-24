@@ -174,14 +174,22 @@ struct EntryListView: View {
     private var createButton: some View {
         Button(action: onCreate) {
             HStack(spacing: 10) {
-                Label("写一篇日记", systemImage: "square.and.pencil")
-                Spacer(minLength: 0)
+                Image(systemName: "square.and.pencil")
+                    .accessibilityHidden(true)
+                Text("写一篇日记")
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 #if targetEnvironment(macCatalyst)
-                Text("⌘N").font(.caption).accessibilityHidden(true)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("⌘N").font(.caption).accessibilityHidden(true)
+                }
                 #endif
             }
             .font(.subheadline.weight(.medium))
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .multilineTextAlignment(.leading)
+            .foregroundStyle(JournalTheme.onAccent)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.borderedProminent)
@@ -239,8 +247,10 @@ struct EntryListView: View {
             if listSnapshot.isCollectionEmpty {
                 Button(action: onCreate) {
                     Label("写一篇", systemImage: "square.and.pencil")
+                        .foregroundStyle(JournalTheme.onAccent)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(JournalTheme.accent)
             } else {
                 Button(action: clearFilters) {
                     Label("清除筛选", systemImage: "line.3.horizontal.decrease.circle")

@@ -1,5 +1,11 @@
 # 项目核心流程文档
 
+## 界面验收收尾（v0.94）
+
+资料库新建按钮：独立图标 + 自然换行全文 + 普通字号Mac快捷键提示 → 原有onCreate → ContentView → JournalStore。资料库/空库/详情空态主按钮用JournalAccent背景和JournalOnAccent前景，颜色资源各自覆盖浅/深/高对比；实际解析颜色对比由既有语义测试核对。辅助字号统计hero移除装饰图标，文字占满可用宽度；统计计算、编辑器身份、缓存及JSON保存链路保持原样。
+
+v0.93的cc46e09 / run39885633937 / attempt1已串行下载核对257项、16图、四份xcresult、6项JUnit、629个未加密文件和Mac包。v0.94修正逐图发现的可访问性展示问题，清理四条测试Swift弃用警告；继续使用同一云端策略、257项和16图，新SHA必须重新验收。当前线程承担C职责，不标独立Agent C。
+
 ## 当前界面与渲染边界（v0.93）
 
 资料库：纸本引导/新建按钮 → 系统分类筛选 → 既有可见年月Section。每行从entry元数据和Store缓存构造`JournalEntryRowContent`，仅持有ID、标题、日期、分类、心情、有限摘要与词数；Equatable只比较该投影与选中状态，不持有或比较全文/小节数组。字号、Calendar和Locale仍由行环境消费；页码日期与年月分组使用同一Calendar时区。
@@ -10,9 +16,9 @@
 
 ## 当前云端执行策略（v0.92）
 
-main push → 固定macos-15/Xcode16.4 → 静态检查与8项设备选择fixture → 在固定iOS18.5清单内选择已有iPhone（同runtime Booted优先，再iPhone16）→ 记录UDID/runtime/初始状态并提前启动 → iOS/Catalyst Debug → 独立build-for-testing → 同一设备bootstatus有界等待 → 串行完整XCTest → 11张图片导出 → universal Mac Release/签名/ZIP核对 → manifest/JUnit/未加密artifact → 当前线程下载复判。无设备时明确失败，不吞错退回其他runtime，不在本机执行构建或simctl。
+main push → 固定macos-15/Xcode16.4 → 静态检查与8项设备选择fixture → 在固定iOS18.5清单内选择已有iPhone（同runtime Booted优先，再iPhone16）→ 记录UDID/runtime/初始状态并提前启动 → iOS/Catalyst Debug → 独立build-for-testing → 同一设备bootstatus有界等待 → 串行完整XCTest → 16张图片导出（v0.93由11扩展）→ universal Mac Release/签名/ZIP核对 → manifest/JUnit/未加密artifact → 当前线程下载复判。无设备时明确失败，不吞错退回其他runtime，不在本机执行构建或simctl。
 
-用户最新禁用子智能体覆盖旧多Agent默认：方案、实现和C职责的包核对顺序保留，但不声称独立Agent。有限两轮先恢复验证、再重构UI；失败或停止条件触发时不进入下一轮。
+用户最新禁用子智能体覆盖旧多Agent默认：方案、实现和C职责的包核对顺序保留，但不声称独立Agent。有限两轮先恢复验证、再重构UI，v0.94仅收尾逐图发现的问题；失败或停止条件触发时不进入下一轮。
 
 ## 0. 一句话总览
 

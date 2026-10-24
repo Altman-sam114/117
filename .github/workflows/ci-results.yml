@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 25
     env:
       RESULT_DIR: ci-results
-      VERSION: v0.93
+      VERSION: v0.94
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
       PYTHONDONTWRITEBYTECODE: '1'
