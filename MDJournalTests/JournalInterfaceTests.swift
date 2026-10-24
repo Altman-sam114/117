@@ -11,11 +11,30 @@ final class JournalInterfaceTests: XCTestCase {
         let entries = Array(reviewEntries().prefix(2))
         let fixture = try makeNavigationStore(entries: entries)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
-        let controller = UIHostingController(rootView: ContentView(store: fixture.store)
+        let suite = "mdjournal-navigation-gate-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: JournalAppLockStore.enabledDefaultsKey)
+        let appLock = JournalAppLockStore(defaults: defaults)
+        let subscriptions = JournalSubscriptionStore(startsAutomatically: false)
+        var observedScenePhase: ScenePhase?
+        let controller = UIHostingController(rootView: NavigationPrivacyHostRoot(
+            store: fixture.store, appLock: appLock, subscriptions: subscriptions,
+            observeScenePhase: { observedScenePhase = $0 }
+        )
             .environment(\.horizontalSizeClass, .compact))
         let size = CGSize(width: 390, height: 844)
         let (window, restoreWindow) = try makeWindow(controller: controller, size: size)
         defer { restoreWindow() }
+        try await waitForHost("The production privacy gate must be active and uncovered before journal navigation") {
+            observedScenePhase == .active && window.windowScene?.activationState == .foregroundActive
+                && !appLock.needsPrivacyCover(sceneIsActive: true)
+                && self.nativePrivacyCover(in: window) == nil
+        }
+        XCTAssertFalse(appLock.isEnabled)
+        XCTAssertEqual(appLock.state, .unlocked)
+        XCTAssertEqual(observedScenePhase, .active)
+        XCTAssertNil(nativePrivacyCover(in: window))
         try await waitForHost("Compact ContentView must show its library first") {
             self.navigationController(in: controller)?.viewControllers.count == 1
         }
@@ -632,6 +651,19 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
+    private func nativePrivacyCover(in view: UIView) -> UIView? {
+        if let identifier = view.accessibilityIdentifier,
+           ["journal.privacy-cover", "journal.window-privacy-cover"].contains(identifier),
+           !view.isHidden, view.alpha > 0.01, view.window != nil {
+            return view
+        }
+        for child in view.subviews {
+            if let cover = nativePrivacyCover(in: child) { return cover }
+        }
+        return nil
+    }
+
+    @MainActor
     private func hasVisibleAccessibilityIdentifier(
         _ identifier: String, in view: UIView, reportsDiagnostics: Bool = false
     ) -> Bool {
@@ -1227,6 +1259,24 @@ final class JournalInterfaceTests: XCTestCase {
             if let scrollView = scrollableList(in: child) { return scrollView }
         }
         return nil
+    }
+}
+
+private struct NavigationPrivacyHostRoot: View {
+    @Environment(\.scenePhase) private var scenePhase
+    let store: JournalStore
+    let appLock: JournalAppLockStore
+    let subscriptions: JournalSubscriptionStore
+    let observeScenePhase: (ScenePhase) -> Void
+
+    var body: some View {
+        JournalPrivacyGate {
+            ContentView(store: store)
+        }
+        .environmentObject(appLock)
+        .environmentObject(subscriptions)
+        .onAppear { observeScenePhase(scenePhase) }
+        .onChange(of: scenePhase) { observeScenePhase($0) }
     }
 }
 

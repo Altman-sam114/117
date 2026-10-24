@@ -35,7 +35,7 @@ bash -n script/package_macos.sh
 1. 静态检查与纯 Python fixtures。
 2. 读取可用设备 JSON，只在固定 runtime 中选一台已有 iPhone，Booted 优先，再 iPhone16；缺 runtime 或设备明确失败，不创建克隆、不回退别的系统。提前启动并记录 UDID/runtime/初始状态。
 3. 先独立 build-for-testing 上限 600 秒；同一 UDID bootstatus 上限 240 秒；串行 test-without-building 上限 720 秒，不借机删测试、跳过或缩减门槛。启用 XCTest 进程外逐用例 watchdog，默认/最大 180 秒，四项生产导航/焦点 host 用例明确 60 秒，避免主线程循环阻止用例内等待超时后又耗尽整轮预算；超时仍计失败。
-4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 301 项用例，不把附图算成新增测试。
+4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 302 项用例，不把附图算成新增测试。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
 测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
@@ -52,7 +52,9 @@ bash -n script/package_macos.sh
 - 安全：真实临时 JSON 读取失败后 create/update/delete/import/flush 均不改原字节，关 alert 不能解锁；重读成功和合法空库可写，重复 ID、无效导入、stale 预览及冲突均无静默覆盖。原 revision/debounce/actor 保存回归保留。
 - 应用锁：可注入系统认证协议测试启用/关闭/失败/后台/迟到结果/请求重叠；生产 Gate 先呈现真实 sheet，再锁定并检查 UIWindow 顶层 shield。截图捕获整个 window。假认证用于确定性边界，不声称真实 Face ID/设备密码已验收。
 - 订阅：纯权益测试拒绝未知商品、未验证、到期、撤销、升级，处理有限宽限期。StoreKitTest 从测试 bundle 的 `.storekit` 配置创建真实本地会话，执行生产 purchase/restore/refund/待批准/冷启/到期/取消及自动 transaction listener。取消要求真实注入读回、无错误文案和购买状态复位。签名失败先要求实际成功购买取得 Pro 和期限，再注入 invalidSignature，严格核对 Transaction.latest 与 currentEntitlements 返回实际 `.unverified`、正确 SKU 和精确验证错误，最后由生产 refresh 拒绝权益；不构造验证结果、不用普通购买错误代替，该用例不覆盖 Product.purchase 的未验证文案分支。冷启动批准必须先有界等到 Pro 及非空期限，再执行到期，防止原本未授权时空过；退款同样等待真实状态传播。session、SDK await 与清理即时记录阶段，30秒轮询不是非协作 SDK 的硬中断，进程外 watchdog 仍计超时失败。不能以这些结果声称 Sandbox、真实付款或 App Store 商品已配置。
-- 交易前置条件：仅 DEBUG 且存在 XCTest 配置或运行时 XCTestCase 的宿主，关闭 App 全局 Store 的自动启动与回前台订阅刷新，避免真实 Sandbox 查询先于 SKTestSession 配置。测试显式构造的 Store 仍正常调用生产代码，自动监听用例继续使用 startsAutomatically=true。普通 DEBUG 启动与 Release 不走隔离；此隔离是否解决已观察到的 daemon 停滞，以新云端结果判断。
+- 无权益目录回归：新增一项从真实 SKTestSession 加载两项 Product 的集成测试，注入空当前权益 reader，断言不查询仅来自目录的组且没有 Pro/到期日。该 reader 只控制“没有已验证当前交易”的边界，不冒充真实交易覆盖；原生产 reader 的购买、恢复、退款、批准、验签和无目录冷启宽限期测试全部保留。总数由301增至302。Apple currentEntitlements 明确包含 subscribed/inGracePeriod 自动续期交易，status(for:) 对从未订阅组返回空数组；见官方 [当前权益](https://developer.apple.com/documentation/storekit/transaction/currententitlements) 和 [组状态](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:))。
+- 宿主前置条件：仅 DEBUG 且存在 XCTest 配置或运行时 XCTestCase 的宿主，默认窗口使用 Color.clear，不调用生产根内容闭包，避免恢复闭包持有的原 App 焦点/隐私树继续参与同 scene 更新。首个 NavLink 用例显式安装真实 JournalPrivacyGate → ContentView，锁来自独立 UserDefaults suite 并关闭，订阅不自动启动；有界等待真实环境 scenePhase.active、前台 window scene、生产锁策略无需覆盖及实际 UIView 无窗口盾。SwiftUI 虚拟 AX 未物化不算安全证据；覆盖条件由真实 phase 与生产策略确认。普通 DEBUG 启动与 Release 保持完整根视图。所有原导航、焦点、安全和截图断言保留；该隔离是否消除挂起须由新云端结果判断。
+- 交易前置条件：同一 DEBUG XCTest 宿主关闭 App 全局 Store 的自动启动与回前台订阅刷新，避免真实 Sandbox 查询先于 SKTestSession 配置。测试显式构造的 Store 仍正常调用生产代码，自动监听用例继续使用 startsAutomatically=true。普通 DEBUG 启动与 Release 不走隔离；不把空宿主当作已证明的 StoreKit 停滞根因。
 - 导出：日期/时区/分类过滤、完整 Markdown、空选择拒绝、CoreText PDF 真分页与末尾正文保留；导出 actor 不改 Store，生成前后需有效 Pro，失效取消输出。旧免费功能不付费墙。
 
 ## 25 张图片矩阵

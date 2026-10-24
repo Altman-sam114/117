@@ -8,7 +8,7 @@ v0.95 按用户最新要求分模块并行：手机导航/编辑与性能、设�
 
 `MDJournalApp` 创建共享的 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。主窗口以及 Catalyst 统计窗口均经过 `JournalPrivacyGate` 并注入同一权益/应用锁对象；App 回到活跃态刷新订阅权益。没有日记服务器或登录账号。
 
-仅 DEBUG 的 XCTest 宿主关闭全局订阅 Store 的自动查询和 scenePhase 刷新，避免本地测试会话建立前查询 Sandbox；交易测试仍显式使用真实 StoreKit Store、Product 和 transaction listener。普通开发启动与 Release 保持正常自动启动路径。
+仅 DEBUG 的 XCTest 宿主默认窗口返回空根视图，不调用生产内容闭包，避免原 App 树在夹具临时替换 root 后仍被恢复闭包保留。专项用例显式安装各自的真实生产视图；首个手机导航用例组合 JournalPrivacyGate 与 ContentView，注入独立关闭的锁和不自动启动的订阅 Store，等待真实 scenePhase 活跃、window scene 前台且无需隐私遮罩后才导航，不伪设 active。宿主同时关闭全局订阅 Store 的自动查询和 scenePhase 刷新，避免本地测试会话建立前查询 Sandbox；交易测试仍显式使用真实 StoreKit Store、Product 和 transaction listener。普通开发启动与 Release 保持完整生产视图和正常自动启动路径。
 
 `ContentView` 拥有 selectedEntryID、搜索、分类、sheet 与原生 UUID 导航数组。手机 compact 的 NavigationStack 直接绑定 `@State compactEntryPath`，首次展示资料库，NavigationLink 和系统返回直接更新该数组；不由选中项加布尔标志在 getter/setter 中反推路径。compact 以实际路径为准同步有效选中，选中 observer 仅在 regular 回写已呈现目标，两者都拒绝过时回调；相邻命令和筛选/删除修复显式同步，空路径保持资料库。compact 列表不安装原生 selection 绑定，行高亮仍消费 selectedEntryID，避免列表 diff 的选择回写与导航路径竞争。系统返回保留有效选择，能够再次打开同篇。常规宽度和 Catalyst 使用 NavigationSplitView，继续保留原生列表 selection。
 
@@ -52,15 +52,17 @@ MarkdownPreviewUpdateModel 的 document 与 inline cache 为同一 Published 快
 
 JournalSubscriptionStore 通过真实 Product 查询白名单月/年自动续期商品，显示 Apple 本地化名称、价格和周期。没有商品或隐私链接时购买不可用，不伪造价格/成功。Transaction.updates 启动监听，verified 交易完成后刷新 currentEntitlements；未知商品、未验证、已撤销、已升级或无有效期限不能解锁。宽限期还需已验证 renewalInfo 且有限 grace 到期日。状态刷新用 generation，定时到期/回前台重查；恢复只在用户主动操作时 AppStore.sync，管理走系统订阅页。
 
+组状态只查询 currentEntitlements 中已验证白名单交易给出的 subscriptionGroupID，不从可售商品目录补组。Apple 的 currentEntitlements 包含 subscribed 和 inGracePeriod 的自动续期交易，因此无目录的冷启宽限期仍能查询已验证 renewalInfo；终态仍覆盖旧交易。没有已验证当前交易时以空候选撤权，不为从未订阅的用户额外等待一个只会返回空数组的目录组查询。
+
 Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；日期和分类过滤使用同一 Calendar，按日期从早到晚稳定排序。导出在 actor 生成，视图只在生成前后权益仍有效时交给 fileExporter，撤销权益取消在途输出。没有改写 Store。基础写作、统计、单篇分享和 JSON 备份继续免费。
 
 ## 云端执行与发布边界
 
 main push 同时触发：
 
-1. macos-15/Xcode16.4/iOS18.5：31 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行全部 301 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；宽窄测试只改变包含式画布及 traits，不改系统窗口原生几何。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode16.4/iOS18.5：31 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行全部 302 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；宽窄测试只改变包含式画布及 traits，不改系统窗口原生几何。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
 
-功能包另从相同 301 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+功能包另从相同 302 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。

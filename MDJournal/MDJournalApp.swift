@@ -11,22 +11,24 @@ struct MDJournalApp: App {
 
     var body: some Scene {
         WindowGroup {
-            JournalPrivacyGate {
-                ContentView(store: store)
-                #if targetEnvironment(macCatalyst)
-                .frame(
-                    minWidth: MacWindowLayoutContract.minimumWindowWidth,
-                    idealWidth: MacWindowLayoutContract.idealWindowWidth,
-                    minHeight: MacWindowLayoutContract.minimumWindowHeight,
-                    idealHeight: MacWindowLayoutContract.idealWindowHeight
-                )
-                #endif
-            }
-            .environmentObject(subscriptions)
-            .environmentObject(appLock)
-            .onChange(of: scenePhase) { phase in
-                if phase == .active && !JournalApplicationRuntime.isUnitTestHost {
-                    Task { await subscriptions.refreshEntitlements() }
+            windowContent {
+                JournalPrivacyGate {
+                    ContentView(store: store)
+                    #if targetEnvironment(macCatalyst)
+                    .frame(
+                        minWidth: MacWindowLayoutContract.minimumWindowWidth,
+                        idealWidth: MacWindowLayoutContract.idealWindowWidth,
+                        minHeight: MacWindowLayoutContract.minimumWindowHeight,
+                        idealHeight: MacWindowLayoutContract.idealWindowHeight
+                    )
+                    #endif
+                }
+                .environmentObject(subscriptions)
+                .environmentObject(appLock)
+                .onChange(of: scenePhase) { phase in
+                    if phase == .active && !JournalApplicationRuntime.isUnitTestHost {
+                        Task { await subscriptions.refreshEntitlements() }
+                    }
                 }
             }
         }
@@ -36,15 +38,31 @@ struct MDJournalApp: App {
 
         #if targetEnvironment(macCatalyst)
         WindowGroup("统计", id: JournalSceneID.statistics) {
-            JournalPrivacyGate {
-                StatisticsDashboardView(
-                    entries: store.entries, bodyPresentations: store.bodyPresentations, showsCloseButton: false
-                )
-                    .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
+            windowContent {
+                JournalPrivacyGate {
+                    StatisticsDashboardView(
+                        entries: store.entries, bodyPresentations: store.bodyPresentations, showsCloseButton: false
+                    )
+                        .frame(minWidth: 720, idealWidth: 980, minHeight: 560, idealHeight: 720)
+                }
+                .environmentObject(subscriptions)
+                .environmentObject(appLock)
             }
-            .environmentObject(subscriptions)
-            .environmentObject(appLock)
         }
+        #endif
+    }
+
+    @ViewBuilder
+    private func windowContent<Content: View>(@ViewBuilder productionContent: () -> Content) -> some View {
+        #if DEBUG
+        if JournalApplicationRuntime.isUnitTestHost {
+            // Tests install their own production views; retain no second app view graph in the scene.
+            Color.clear
+        } else {
+            productionContent()
+        }
+        #else
+        productionContent()
         #endif
     }
 }
@@ -52,10 +70,10 @@ struct MDJournalApp: App {
 private enum JournalApplicationRuntime {
     static let isUnitTestHost: Bool = {
         #if DEBUG
-        // Each integration test owns its StoreKit session; the host must not query Sandbox first.
+        // Integration tests own their production view roots and StoreKit sessions.
         let isHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
-        if isHost { print("StoreKit test host: automatic app subscription queries disabled") }
+        if isHost { print("Unit-test app host: empty scene root; automatic subscription queries disabled") }
         return isHost
         #else
         return false

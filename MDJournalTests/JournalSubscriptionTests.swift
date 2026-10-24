@@ -89,6 +89,26 @@ final class JournalSubscriptionTests: XCTestCase {
     }
 
     @MainActor
+    func testLoadedStoreKitCatalogDoesNotQueryGroupsWithoutVerifiedEntitlements() async throws {
+        let session = try session()
+        defer { reset(session) }
+        let reader = EmptyCurrentEntitlementReader(
+            unexpectedEntitlement: entitlement(expiration: Date().addingTimeInterval(3600))
+        )
+        let store = JournalSubscriptionStore(startsAutomatically: false, entitlementReader: reader)
+        await step("load real catalog with no verified entitlement") { await store.loadProducts() }
+        XCTAssertEqual(store.products.count, 2)
+        XCTAssertTrue(store.products.allSatisfy { $0.subscription != nil })
+        XCTAssertFalse(store.isLoadingProducts)
+        XCTAssertFalse(store.isPremium, "A loaded catalog must not create access without a verified current entitlement")
+        XCTAssertNil(store.accessExpirationDate)
+        let currentReadCount = await reader.currentReadCount
+        let requestedGroups = await reader.requestedGroups
+        XCTAssertEqual(currentReadCount, 1)
+        XCTAssertTrue(requestedGroups.isEmpty, "Catalog-only groups must not trigger subscription status requests")
+    }
+
+    @MainActor
     func testStoreKitUpdatesAutomaticallyApplyApprovalAndRefund() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
@@ -475,5 +495,27 @@ private actor CatalogUnavailableEntitlementReader: JournalSubscriptionEntitlemen
     func setExpiredStatusWithStaleTransaction(_ transaction: JournalSubscriptionEntitlement) {
         expired = transaction
         isTerminal = true
+    }
+}
+
+private actor EmptyCurrentEntitlementReader: JournalSubscriptionEntitlementReading {
+    let unexpectedEntitlement: JournalSubscriptionEntitlement
+    private(set) var currentReadCount = 0
+    private(set) var requestedGroups: [String] = []
+
+    init(unexpectedEntitlement: JournalSubscriptionEntitlement) {
+        self.unexpectedEntitlement = unexpectedEntitlement
+    }
+
+    func currentEntitlements(for productIDs: Set<String>) -> JournalSubscriptionCurrentEntitlements {
+        currentReadCount += 1
+        return JournalSubscriptionCurrentEntitlements(entitlements: [], subscriptionGroupIDs: [])
+    }
+
+    func groupEntitlements(for groupID: String) -> JournalSubscriptionGroupEntitlements {
+        requestedGroups.append(groupID)
+        return JournalSubscriptionGroupEntitlements(
+            activeEntitlements: [unexpectedEntitlement], inactiveProductIDs: []
+        )
     }
 }

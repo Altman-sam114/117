@@ -48,7 +48,8 @@ flowchart LR
 flowchart TD
   Products["Apple Product / 实际价格与周期"] --> Paywall["Pro页 / 隐私、EULA、恢复、管理"]
   Paywall --> Purchase["purchase / pending、cancel、verified、unverified"]
-  Updates["Transaction.updates / currentEntitlements / 前台与到期刷新"] --> Verify["白名单 / 已验证 / 未撤销升级 / 有限期限与宽限期"]
+  Updates["Transaction.updates / currentEntitlements / 前台与到期刷新"] --> Groups["只查询已验证当前交易所属组 / 不按可售目录补组"]
+  Groups --> Verify["白名单 / 已验证 / 未撤销升级 / 有限期限与宽限期"]
   Purchase --> Verify
   Verify --> Entitled{"有效 Pro？"}
   Entitled -- "是" --> Filter["日期与分类选择 / 稳定日期排序"]
@@ -70,7 +71,8 @@ flowchart TD
   Mobile --> Integrate["主线程工程集成 / main直推"]
   Safety --> Integrate
   Pro --> Integrate
-  Integrate --> Regression["Xcode16.4/iOS18.5 / 301项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / iOS与Mac构建"]
+  Integrate --> TestHost["仅DEBUG XCTest空宿主 / 用例安装真实生产根 / NavLink组合隐私门并等待真实活跃scene"]
+  TestHost --> Regression["Xcode16.4/iOS18.5 / 302项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results

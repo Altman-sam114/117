@@ -215,8 +215,8 @@ final class JournalSubscriptionStore: ObservableObject {
         let generation = refreshGeneration
         let current = await entitlementReader.currentEntitlements(for: productIDs)
         var candidates = current.entitlements
-        // Current verified transactions identify groups even when the product catalog is unavailable.
-        let groups = current.subscriptionGroupIDs.union(products.compactMap { $0.subscription?.subscriptionGroupID })
+        // Current entitlements include billing grace periods; catalog groups alone do not imply access.
+        let groups = current.subscriptionGroupIDs
         for group in groups {
             let state = await entitlementReader.groupEntitlements(for: group)
             // A terminal status for a verified transaction overrides the older cached entitlement.
