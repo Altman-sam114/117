@@ -44,7 +44,7 @@ final class JournalBoundedBodyDerivationTests: XCTestCase {
         \u{00A0}### 非 ASCII 缩进不识别
         #### 四级不识别
         ###\t无 ASCII 空格不识别
-        ### 
+        ###\(" ")
         ### 末尾
         """)
     }
