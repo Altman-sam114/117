@@ -249,7 +249,7 @@ final class JournalSubscriptionTests: XCTestCase {
     @MainActor
     private func scrollableContent(in view: UIView) -> UIScrollView? {
         if let scroll = view as? UIScrollView, scroll.contentSize.height > scroll.bounds.height { return scroll }
-        return view.subviews.lazy.compactMap { scrollableContent(in: $0) }.first
+        return view.subviews.lazy.compactMap { self.scrollableContent(in: $0) }.first
     }
 }
 

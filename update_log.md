@@ -40,6 +40,8 @@
 - 实际本机轻检退出0：全应用/测试Swift parse、project与PrivacyInfo plist、13/13纯Pythonfixture、14个workflow run块bash语法/3个Python heredoc/全部Python AST、asset及StoreKit JSON、全部源文件注册、301项XCTest声明与25图矩阵、git diff --check。未做本机完整构建。提交/push与最新两个artifact、截图和性能结果仍需随后实际记录。
 - 首轮整合1284abd已推，空标题fixture的有意尾空格改显式插值后追加c503996并推main；旧run40065066892请求取消，不作验收。c503996/run40065109562/attempt1现代Release明确失败：Xcode26.2/SDK26.2编译报告JournalAppLockStore.init在state初始化前读取wrapped self.isEnabled。已按实际错误改为局部enabled值初始化两属性，不改变认证语义；同步补政策中iOS删除/Mac容器区别、支持页导入上限，并更正初始资料库图来源描述。新SHA须重新云端验证，失败包不放行。
 
+- 第二轮85fb7ec/run40065704141/attempt1现代设备archive已独立下载通过：artifact12548953625（2463324bytes，digest fbfab529af34d8017f33f81125216e01755bf82f3f99d5a5608d71f2bd30dd00），实际iphoneos26.2/Xcode2620/arm64/build205.1，13外层文件与嵌套设备archive全部11文件哈希/CRC/未加密通过，JUnit1/0/0/0、Archive xcresult succeeded，仍unsigned未上传。功能明确失败于JournalSubscriptionTests:252 lazy closure缺显式self，TEST BUILD FAILED，301项与25图均未执行；不使用wrapper step conclusion冒充通过。仅修辅助函数捕获语义，另优化CI为先全测/25图再两平台构建，失败时跳过重复构建但最终六阶段全success门槛不变。下一SHA仍须两个自己的包。
+
 ### v0.94 / 界面验收收尾（实现云端通过）
 
 日期：2026-10-24。

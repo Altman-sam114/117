@@ -90,38 +90,6 @@ jobs:
             fi
           } 2>&1 | tee "$RESULT_DIR/xctest-destination.log"
 
-      - name: Generic iOS Debug build
-        id: xcode_build
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun xcodebuild \
-            -project MDJournal.xcodeproj \
-            -scheme "$SCHEME" \
-            -configuration Debug \
-            -destination "$BUILD_DESTINATION" \
-            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
-            -resultBundlePath "$RESULT_DIR/MDJournal.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
-            build 2>&1 | tee "$RESULT_DIR/xcodebuild.log"
-
-      - name: Mac Catalyst Debug build
-        id: maccatalyst_build
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun xcodebuild \
-            -project MDJournal.xcodeproj \
-            -scheme "$SCHEME" \
-            -configuration Debug \
-            -destination "$MACCATALYST_BUILD_DESTINATION" \
-            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
-            -resultBundlePath "$RESULT_DIR/MDJournalMacCatalyst.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
-            build 2>&1 | tee "$RESULT_DIR/maccatalyst-build.log"
-
       - name: XCTest
         id: xcode_test
         continue-on-error: true
@@ -278,9 +246,43 @@ jobs:
           PY
           } 2>&1 | tee "$RESULT_DIR/interface-review-export.log"
 
+      - name: Generic iOS Debug build
+        id: xcode_build
+        if: steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun xcodebuild \
+            -project MDJournal.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$BUILD_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+            -resultBundlePath "$RESULT_DIR/MDJournal.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RESULT_DIR/xcodebuild.log"
+
+      - name: Mac Catalyst Debug build
+        id: maccatalyst_build
+        if: steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun xcodebuild \
+            -project MDJournal.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$MACCATALYST_BUILD_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+            -resultBundlePath "$RESULT_DIR/MDJournalMacCatalyst.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee "$RESULT_DIR/maccatalyst-build.log"
+
       - name: Build and verify universal Mac Release package
         id: mac_release
-        if: always()
+        if: always() && steps.maccatalyst_build.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
