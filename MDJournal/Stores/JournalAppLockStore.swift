@@ -51,8 +51,9 @@ final class JournalAppLockStore: ObservableObject {
     init(defaults: UserDefaults = .standard, authenticator: (any JournalOwnerAuthenticating)? = nil) {
         self.defaults = defaults
         self.authenticator = authenticator ?? LocalJournalOwnerAuthenticator()
-        isEnabled = defaults.bool(forKey: Self.enabledDefaultsKey)
-        state = isEnabled ? .locked : .unlocked
+        let enabled = defaults.bool(forKey: Self.enabledDefaultsKey)
+        isEnabled = enabled
+        state = enabled ? .locked : .unlocked
     }
 
     var isAuthenticating: Bool { state == .authenticating }

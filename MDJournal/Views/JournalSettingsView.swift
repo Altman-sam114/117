@@ -16,94 +16,7 @@ struct JournalSettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Label("每一页，都由你掌握。", systemImage: "book.closed")
-                        .font(.system(.headline, design: .serif))
-                    Text("本机保存 · 原生写作 · 随时备份")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-
-                if let failure = store.readFailureMessage {
-                    Section("原文件已保护") {
-                        Text(failure).font(.footnote)
-                        Text("已暂停新建、修改和导入，防止覆盖尚未成功读取的日记。关闭提示不会解除保护。")
-                            .foregroundStyle(.secondary)
-                        Button("导出原始文件") { export(original: true) }
-                            .disabled(isBusy)
-                        Button("重新读取原文件") {
-                            message = store.retryReadingProtectedFile()
-                                ? "已成功重新读取日记，修改功能已恢复。"
-                                : "仍无法读取原文件，保护保持开启。你可以先导出原文件以便恢复。"
-                        }
-                        .disabled(isBusy)
-                    }
-                }
-
-                Section {
-                    Button { export(original: false) } label: {
-                        Label("导出完整 JSON 备份", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(isBusy || !store.canMutate)
-                    .accessibilityIdentifier("journal.backup.export")
-                    Button { isImporting = true } label: {
-                        Label("合并导入 JSON 备份", systemImage: "square.and.arrow.down")
-                    }
-                    .disabled(isBusy || !store.canMutate)
-                    .accessibilityIdentifier("journal.backup.import")
-                } header: {
-                    Text("免费备份与恢复")
-                } footer: {
-                    Text("完整备份包含日记的全部正文与元数据。单次导入上限为 25 MB、10,000 篇；超过上限的完整备份需先在电脑分批整理。导入前会显示数量，同 ID 的本机日记不会被覆盖。备份文件未经额外加密，请妥善保管。")
-                }
-
-                Section {
-                    Toggle("应用锁", isOn: Binding(
-                        get: { appLock.isEnabled },
-                        set: { enabled in Task { await appLock.setEnabled(enabled) } }
-                    ))
-                    .disabled(appLock.isAuthenticating)
-                    .accessibilityIdentifier("journal.app-lock.toggle")
-                    if appLock.isEnabled {
-                        Button("立即锁定") { appLock.lock() }
-                    }
-                    if let lockMessage = appLock.message {
-                        Text(lockMessage).font(.footnote).foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("本地访问保护")
-                } footer: {
-                    Text("使用系统设备密码或生物识别验证。进入后台后再次验证，并遮挡非活跃界面；导出文件不受应用锁保护。")
-                }
-
-                Section("更多写作方式") {
-                    NavigationLink {
-                        JournalPaywallView()
-                    } label: {
-                        Label(subscription.isPremium ? "管理高级权益" : "了解高级功能", systemImage: "sparkles")
-                    }
-                    NavigationLink {
-                        JournalPremiumExportView(entries: store.entries)
-                    } label: {
-                        Label("批量 Markdown 与 PDF", systemImage: "doc.on.doc")
-                    }
-                    .disabled(!store.canMutate)
-                }
-
-                Section("关于与隐私") {
-                    NavigationLink("隐私与数据") { JournalPrivacyView() }
-                    if let url = JournalPublicLinks.support {
-                        Link("联系与支持", destination: url)
-                    }
-                    HStack {
-                        Text("版本")
-                        Spacer()
-                        Text(versionText).foregroundStyle(.secondary)
-                    }
-                }
-
-                if isBusy { ProgressView("正在准备文件") }
-            }
+            settingsForm
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -128,18 +41,7 @@ struct JournalSettingsView: View {
                 }
             }
             .sheet(item: $importPreview) { preview in
-                JournalImportPreviewView(preview: preview) {
-                    try store.confirmImport(preview)
-                } onResult: { count in
-                    Task {
-                        let result = await store.flushPendingSave()
-                        if case .some(.failed) = result {
-                            message = "已合并 \(count) 篇到当前日记，但写入磁盘失败。请保留应用并处理保存错误后重试。"
-                        } else {
-                            message = "已合并 \(count) 篇新日记；已有 ID 的日记保持原样。"
-                        }
-                    }
-                }
+                importPreviewContent(preview)
             }
             .alert("数据与设置", isPresented: Binding(
                 get: { message != nil }, set: { if !$0 { message = nil } }
@@ -150,6 +52,131 @@ struct JournalSettingsView: View {
             }
         }
         .tint(JournalTheme.accent)
+    }
+
+    private var settingsForm: some View {
+        Form {
+            introductionSection
+            readProtectionSection
+            backupSection
+            appLockSection
+            premiumSection
+            aboutSection
+            if isBusy { ProgressView("正在准备文件") }
+        }
+    }
+
+    private var introductionSection: some View {
+        Section {
+            Label("每一页，都由你掌握。", systemImage: "book.closed")
+                .font(.system(.headline, design: .serif))
+            Text("本机保存 · 原生写作 · 随时备份")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var readProtectionSection: some View {
+        if let failure = store.readFailureMessage {
+            Section("原文件已保护") {
+                Text(failure).font(.footnote)
+                Text("已暂停新建、修改和导入，防止覆盖尚未成功读取的日记。关闭提示不会解除保护。")
+                    .foregroundStyle(.secondary)
+                Button("导出原始文件") { export(original: true) }
+                    .disabled(isBusy)
+                Button("重新读取原文件") {
+                    message = store.retryReadingProtectedFile()
+                        ? "已成功重新读取日记，修改功能已恢复。"
+                        : "仍无法读取原文件，保护保持开启。你可以先导出原文件以便恢复。"
+                }
+                .disabled(isBusy)
+            }
+        }
+    }
+
+    private var backupSection: some View {
+        Section {
+            Button { export(original: false) } label: {
+                Label("导出完整 JSON 备份", systemImage: "square.and.arrow.up")
+            }
+            .disabled(isBusy || !store.canMutate)
+            .accessibilityIdentifier("journal.backup.export")
+            Button { isImporting = true } label: {
+                Label("合并导入 JSON 备份", systemImage: "square.and.arrow.down")
+            }
+            .disabled(isBusy || !store.canMutate)
+            .accessibilityIdentifier("journal.backup.import")
+        } header: {
+            Text("免费备份与恢复")
+        } footer: {
+            Text("完整备份包含日记的全部正文与元数据。单次导入上限为 25 MB、10,000 篇；超过上限的完整备份需先在电脑分批整理。导入前会显示数量，同 ID 的本机日记不会被覆盖。备份文件未经额外加密，请妥善保管。")
+        }
+    }
+
+    private var appLockSection: some View {
+        Section {
+            Toggle("应用锁", isOn: Binding(
+                get: { appLock.isEnabled },
+                set: { enabled in Task { await appLock.setEnabled(enabled) } }
+            ))
+            .disabled(appLock.isAuthenticating)
+            .accessibilityIdentifier("journal.app-lock.toggle")
+            if appLock.isEnabled {
+                Button("立即锁定") { appLock.lock() }
+            }
+            if let lockMessage = appLock.message {
+                Text(lockMessage).font(.footnote).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("本地访问保护")
+        } footer: {
+            Text("使用系统设备密码或生物识别验证。进入后台后再次验证，并遮挡非活跃界面；导出文件不受应用锁保护。")
+        }
+    }
+
+    private var premiumSection: some View {
+        Section("更多写作方式") {
+            NavigationLink {
+                JournalPaywallView()
+            } label: {
+                Label(subscription.isPremium ? "管理高级权益" : "了解高级功能", systemImage: "sparkles")
+            }
+            NavigationLink {
+                JournalPremiumExportView(entries: store.entries)
+            } label: {
+                Label("批量 Markdown 与 PDF", systemImage: "doc.on.doc")
+            }
+            .disabled(!store.canMutate)
+        }
+    }
+
+    private var aboutSection: some View {
+        Section("关于与隐私") {
+            NavigationLink("隐私与数据") { JournalPrivacyView() }
+            if let url = JournalPublicLinks.support {
+                Link("联系与支持", destination: url)
+            }
+            HStack {
+                Text("版本")
+                Spacer()
+                Text(versionText).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func importPreviewContent(_ preview: JournalBackupImportPreview) -> some View {
+        JournalImportPreviewView(preview: preview) {
+            try store.confirmImport(preview)
+        } onResult: { count in
+            Task {
+                let result = await store.flushPendingSave()
+                if case .some(.failed) = result {
+                    message = "已合并 \(count) 篇到当前日记，但写入磁盘失败。请保留应用并处理保存错误后重试。"
+                } else {
+                    message = "已合并 \(count) 篇新日记；已有 ID 的日记保持原样。"
+                }
+            }
+        }
     }
 
     private var versionText: String {

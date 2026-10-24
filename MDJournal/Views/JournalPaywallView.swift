@@ -85,7 +85,7 @@ struct JournalPaywallView: View {
                         .disabled(subscriptions.isPurchasing).frame(minHeight: 44)
                     Button("管理订阅") { Task { await manageSubscriptions() } }
                         .frame(minHeight: 44)
-                    Text("订阅会自动续订，费用由 Apple 账户收取。可随时在系统订阅设置中取消，取消后仍可使用至当前已付费期限结束。月付与年付包含相同功能。")
+                    Text("订阅费用由 Apple 账户收取。如未在当前期限结束前至少 24 小时取消，将自动续订，Apple 会在到期前 24 小时内收取续期费用。可在系统订阅设置中管理或取消，取消后仍可使用至当前已付费期限结束。月付与年付包含相同功能；实际扣款与取消规则以 Apple 确认页及所在地区规定为准。")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("日常写作、预览、单篇分享与 JSON 备份始终免费；到期后也不会删除或锁住日记。")
                         .font(.footnote).foregroundStyle(.secondary)

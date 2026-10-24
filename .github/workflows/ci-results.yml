@@ -196,7 +196,7 @@ jobs:
           export_dir = result_dir / "interface-review"
           manifest = json.loads((export_dir / "manifest.json").read_text())
           expected = {
-              "review-content-390x844-compact-library": (390, 844, "light", "large", "ContentView / compact library after real navigation pop"),
+              "review-content-390x844-compact-library": (390, 844, "light", "large", "ContentView / compact initial library before real list selection"),
               "review-content-390x844-compact-detail": (390, 844, "light", "large", "ContentView / compact detail after real list selection"),
               "review-settings-390x844-light": (390, 844, "light", "large", "JournalSettingsView"),
               "review-settings-390x844-light-accessibility3": (390, 844, "light", "accessibility3", "JournalSettingsView"),

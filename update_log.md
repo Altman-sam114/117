@@ -38,6 +38,7 @@
 - 关键文件：ContentView/Editor/List/App、Store/Writer/BodyPresentation、Bounded/Backup/AppLock/Subscription/PremiumExport及相关Views与测试、PrivacyInfo、project、workflow、archive/verify脚本和13项Pythonfixtures；README/test/flow/flowchart/AGENTS与docs隐私支持和发布材料同步。
 - 未本机build/XCTest/App/simctl/Instruments。现有本机只有开发证书，未发现正式Distribution签名条件；未复制私钥或伪造账号商品。Apple Team/App记录、商品/价格/合同税务/银行、开发者法定联系方式/版权/分级、Sandbox/TestFlight及真机输入/VoiceOver/系统认证仍需对应实际证据。不能宣布已上传App Store或已通过审核。
 - 实际本机轻检退出0：全应用/测试Swift parse、project与PrivacyInfo plist、13/13纯Pythonfixture、14个workflow run块bash语法/3个Python heredoc/全部Python AST、asset及StoreKit JSON、全部源文件注册、301项XCTest声明与25图矩阵、git diff --check。未做本机完整构建。提交/push与最新两个artifact、截图和性能结果仍需随后实际记录。
+- 首轮整合1284abd已推，空标题fixture的有意尾空格改显式插值后追加c503996并推main；旧run40065066892请求取消，不作验收。c503996/run40065109562/attempt1现代Release明确失败：Xcode26.2/SDK26.2编译报告JournalAppLockStore.init在state初始化前读取wrapped self.isEnabled。已按实际错误改为局部enabled值初始化两属性，不改变认证语义；同步补政策中iOS删除/Mac容器区别、支持页导入上限，并更正初始资料库图来源描述。新SHA须重新云端验证，失败包不放行。
 
 ### v0.94 / 界面验收收尾（实现云端通过）
 
