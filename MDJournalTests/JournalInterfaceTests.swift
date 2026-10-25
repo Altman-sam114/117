@@ -352,7 +352,7 @@ final class JournalInterfaceTests: XCTestCase {
             !title.isFirstResponder && !body.isFirstResponder
         }
         XCTAssertFalse(actions.titleFocus.wrappedValue)
-        actions.focusBody()
+        actions.sceneActions.focusBody()
         try await waitForHost("The production writing action must focus the body") { body.isFirstResponder }
         let selection = (entry.body as NSString).range(of: "河边")
         XCTAssertNotEqual(selection.location, NSNotFound)
@@ -369,11 +369,11 @@ final class JournalInterfaceTests: XCTestCase {
         try await waitForHost("The title must receive focus again before transferring to writing") {
             actions.titleFocus.wrappedValue && title.isFirstResponder
         }
-        actions.focusBody()
+        actions.sceneActions.focusBody()
         try await waitForHost("Writing from a focused title must transfer focus to the body") {
             body.isFirstResponder && !title.isFirstResponder
         }
-        actions.enterPreview()
+        actions.sceneActions.togglePreview()
         try await waitForHost("Preview must release both input responders") {
             !title.isFirstResponder && !body.isFirstResponder
         }
@@ -389,6 +389,72 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertFalse(title.isFirstResponder)
         XCTAssertEqual(restoredBody.selectedRange, selection)
         XCTAssertEqual(restoredBody.text, entry.body)
+        assertSceneActionsUseCurrentBindingsAndReleaseTheirTarget(titleFocus: actions.titleFocus)
+    }
+
+    @MainActor
+    private func assertSceneActionsUseCurrentBindingsAndReleaseTheirTarget(titleFocus: FocusState<Bool>.Binding) {
+        var first = JournalEntry.starterEntry()
+        var second = JournalEntry.starterEntry()
+        second.body = "第二篇正文"
+        let originalFirst = first
+        var workspace = EntryEditorWorkspaceState()
+        var details = true
+        let workspaceBinding = Binding(get: { workspace }, set: { workspace = $0 })
+        let detailsBinding = Binding(get: { details }, set: { details = $0 })
+        var router: EntryEditorSceneActions? = EntryEditorSceneActions()
+        weak var weakRouter = router
+        let focus = router!.focusBody
+        let writing = router!.focusWriting
+        let preview = router!.togglePreview
+        let insert = router!.insertMarkdownSnippet
+        let indent = router!.applyIndentation
+        router!.updateTarget(EntryEditorActionTarget(
+            entry: Binding(get: { first }, set: { first = $0 }), workspace: workspaceBinding,
+            titleFocus: titleFocus, showsDetails: detailsBinding,
+            layout: EntryEditorLayoutContract(width: 390, dynamicTypeSize: .large)
+        ))
+        focus()
+        XCTAssertTrue(workspace.editorFocused)
+
+        router!.updateTarget(EntryEditorActionTarget(
+            entry: Binding(get: { second }, set: { second = $0 }), workspace: workspaceBinding,
+            titleFocus: titleFocus, showsDetails: detailsBinding,
+            layout: EntryEditorLayoutContract(width: 1440, dynamicTypeSize: .large)
+        ))
+        preview()
+        XCTAssertTrue(workspace.usesSplitPreview, "Previously published commands must use the current layout")
+        XCTAssertFalse(workspace.isPreviewColumnVisible)
+        XCTAssertEqual(workspace.mode, .edit)
+        insert(.heading)
+        XCTAssertTrue(second.body.contains("### 小节标题"))
+        let beforeIndent = second.body
+        indent(.indent)
+        XCTAssertNotEqual(second.body, beforeIndent)
+        writing()
+        XCTAssertFalse(details)
+        XCTAssertTrue(workspace.editorFocused)
+        XCTAssertEqual(first, originalFirst, "Old command handles must not edit the previous journal")
+
+        let beforeDetach = (first, second, workspace, details)
+        router!.clearTarget()
+        focus()
+        writing()
+        preview()
+        insert(.bold)
+        indent(.outdent)
+        XCTAssertEqual(first, beforeDetach.0)
+        XCTAssertEqual(second, beforeDetach.1)
+        XCTAssertEqual(workspace, beforeDetach.2)
+        XCTAssertEqual(details, beforeDetach.3)
+        router = nil
+        XCTAssertNil(weakRouter, "Published command handles must not retain their editor router")
+        focus()
+        writing()
+        preview()
+        insert(.bold)
+        indent(.outdent)
+        XCTAssertEqual(second, beforeDetach.1)
     }
 
     func testDeferredMarkdownSharePreservesTheFullDocumentAndUnicode() {

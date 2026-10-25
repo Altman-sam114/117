@@ -30,7 +30,7 @@ Bundle ID 必须在开发者团队中注册且与 App Store Connect 的 App 记�
 7. 用真实开发者团队完成 Apple Distribution 签名与 App Store provisioning。云端 unsigned xcarchive 验证代码和 SDK，不能直接作为已签名 IPA 上传。
 8. 在 Sandbox/TestFlight 中验证实际商品加载、购买、待批准、恢复、取消续期、到期、退款和 Apple 账号切换；本地 StoreKit 配置测试不能代替商店配置验收。最后核对真机中文输入、VoiceOver、Face ID/密码与锁屏后台保存。
 
-Apple 自 2026-04-28 起要求上传使用 Xcode 26 或更新版本和 iOS 26 SDK：[官方要求](https://developer.apple.com/news/upcoming-requirements/)。CI 保留稳定的 Xcode 16.4/iOS 18.5 功能回归，并独立在 Xcode 26.2/iPhoneOS 26.2 上构建 Release 设备 archive；后者不启动模拟器。两项结果必须对应同一提交。
+Apple 自 2026-04-28 起要求上传使用 Xcode 26 或更新版本和 iOS 26 SDK：[官方要求](https://developer.apple.com/news/upcoming-requirements/)。CI 使用 Xcode 26.2/iOS 26.2 进行功能回归，并独立在相同 Xcode 26.2/iPhoneOS 26.2 上构建 Release 设备 archive；后者不启动模拟器。两项结果必须对应同一提交。
 
 ## 商店图片
 

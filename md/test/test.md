@@ -30,7 +30,7 @@ bash -n script/package_macos.sh
 
 ## 云端功能 job
 
-`.github/workflows/ci-results.yml` 的 `ci-results` 固定 macos-15/Xcode16.4/iOS18.5：
+`.github/workflows/ci-results.yml` 的 `ci-results` 固定 macos-15/Xcode26.2/iOS26.2：
 
 1. 静态检查与纯 Python fixtures。
 2. 读取可用设备 JSON，只在固定 runtime 中选一台已有 iPhone，Booted 优先，再 iPhone16；缺 runtime 或设备明确失败，不创建克隆、不回退别的系统。提前启动并记录 UDID/runtime/初始状态。
@@ -38,7 +38,7 @@ bash -n script/package_macos.sh
 4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 306 项用例，不把附图算成新增测试。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
-测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份主 xcresult 及两份预检 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试期间每 25 秒对存活宿主采样 2 秒并按阶段保存，避免 watchdog 杀掉进程后丢失栈；采样调用有 10 秒外部上限。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
+测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份主 xcresult 及两份预检 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试期间每 25 秒对存活宿主采样 2 秒并按阶段保存，避免 watchdog 杀掉进程后丢失栈；采样调用有 10 秒外部上限；StoreKit 预检另采样 storekitd 和 ASOctaneSupportXPCService。build-for-testing 后保存实际 .xctestrun，以便核对生效计划和环境。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
 
 若测试执行已生成可读 xcresult，即使 xcodebuild 返回失败，也先保存 `xctest-summary.json` 再使阶段失败，便于准确区分失败用例数与断言记录数；源声明数、实际执行数和零跳过终门保持。模拟器准备或测试进程中断导致 xcresult 不完整时，日志中的实际错误仍使阶段失败。
 
@@ -46,7 +46,7 @@ bash -n script/package_macos.sh
 
 - 模型/Markdown：保留分类和心情兼容解码、ISO-8601、Foundation 换行、### 小节、fenced code 旧规则、词数、解析、inline cache、防抖、UTF-16、片段/回车/缩进和输入 traits 全部基线。
 - 手机：真实 ContentView compact host 临时借用既有前台 key window，更换根控制器并在结束时完整恢复，避免同一 scene 同时发布两套 focusedSceneValue。List 按公开 shouldSelect、selectItem、didSelect、primaryAction 顺序激活 NavigationLink，查看系统导航栈与真实标题/正文，系统 pop 后同篇重开；初次 push 前确认真实两行，截图及重开后离场前须等转场结束且详情全宽就位。新建先核两行变一空态行、阻断筛选和空导航，再用真实高分辨率画面与第一方 Vision 中文 OCR 确认空态标题；公开 accessibility/automation 子树保留诊断，不能把宿主未物化的 SwiftUI 虚拟元素当作产品缺失。额外保存 regression-compact-filtered-empty 附件，不抵扣 25 图矩阵。随后调用生产新建动作，核对清筛选、新 ID、标题/正文与 JSON 持久化。宽窄切换只改变包含式 hosting 画布及 traits，系统窗口保持 scene 原生几何；iOS16.4 起只对该合成画布清除 safeAreaRegions，保留 split、同篇、回 compact、筛选及删除断言，不强制同步布局。它是 UIKit host/delegate 与合成宽度证据，不声称物理触屏、真实 iPad 旋转或交互返回手势实测。
-- 焦点：通过 DEBUG probe 设置生产标题 FocusState 并同时确认绑定和真实输入 first responder，再使用与按钮相同的生产完成/预览/写作 action，断言实际 responder、标题焦点、正文内容与选区；保留标题高度变化及正文单/双栏身份测试。不是中文输入法完整实测。
+- 焦点：通过 DEBUG probe 设置生产标题 FocusState 并同时确认绑定和真实输入 first responder，再使用与按钮相同的生产完成/预览/写作 action，断言实际 responder、标题焦点、正文内容与选区；保留标题高度变化及正文单/双栏身份测试。现有焦点用例直接调用生产 sceneActions，继续断言真实 first responder；补同一固定句柄切换当前 entry/宽窄布局、旧篇不变、清目标后全部句柄无操作、弱引用不保活 router。后半为明确的目标模型边界，不冒充真实 UI 离场操作。不是中文输入法完整实测。
 - 有界派生：逐字段与旧 JournalEntryBodySummary 截断路径对照，覆盖 CR/LF/CRLF/Unicode newline、任务标记任意位置、空白、组合字符/emoji/区域指示符、fenced code、长内容和确定性混合输入。旧纯入口保留；新路径不物化全文摘要或小节 Markdown。
 - 性能附件：`performance-bounded-body-derivation` 记录同一约 160k 字符/40 小节 Debug 正文，旧/新各 3 次 ContinuousClock 毫秒和中位数，先断言完整投影等价；不设不稳定耗时阈值，不把它当 UI 帧率、真实输入延迟或分配测量。
 - 安全：真实临时 JSON 读取失败后 create/update/delete/import/flush 均不改原字节，关 alert 不能解锁；首次加载只有明确 NSFileReadNoSuchFileError 才建示例库；真实 POSIX 不可访问目录不建库、不调用 writer，保护重读遇到原文件移走也不建替代。原始恢复导出不受 25 MiB 导入上限限制，逐字节核对超限坏文件。重读成功和合法空库可写，重复 ID、无效导入、stale 预览及冲突均无静默覆盖。原 revision/debounce/actor 保存回归保留。
@@ -90,3 +90,5 @@ bash script/archive_ios_release.sh "$GITHUB_WORKSPACE/ios-release-results"
 必须核对两个 artifact 的 branch/commitSha/runId/runAttempt/workflow/version、GitHub digest 与大小、本地 ZIP SHA256、未加密 flag、CRC、独立解压与逐文件哈希。功能包核六阶段 JUnit、四份主 xcresult 及两份预检 xcresult 和具体新增测试、25 图逐张；release 包核实际 archive SDK/平台/架构/资源和内部清单，重新只读执行 verifier 不启动 App。提取性能 JSON 并按实际值记录，不预填更快。
 
 失败回到负责模块追加最小修复并推 main，不回滚用户数据。同因 CI 连续失败、连续三轮同阻塞、连续两轮无有效 diff、未知冲突或账号权限需求按入口规则停止/求取必要人工信息，不无限重跑。完整结果写入 update_log.md；任何后续新 SHA 都需要自己的云端结果。
+
+本次工具链明确变更理由：run40166218300 的本地 XcodeTest 服务确认正确 bundle 和真实 localhost 订阅请求后仍无完成，而宿主主线程空闲。改用 Xcode26.2/iOS26.2 的已有 iPhone16（清单确实存在）进行受控重验证，签名参数和交易预检保持；不静默回退旧系统、不创建设备、不跳过空权益或放松验证。该变更仍须新结果证明，iOS16最低部署配置保持。

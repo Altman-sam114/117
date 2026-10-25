@@ -19,6 +19,7 @@ struct JournalMarkdownShareItem: Transferable {
 
 #if DEBUG
 struct JournalEditorInteraction {
+    let sceneActions: EntryEditorSceneActions
     let titleFocus: FocusState<Bool>.Binding
     let dismissKeyboard: () -> Void
     let focusBody: () -> Void
@@ -188,12 +189,86 @@ internal struct EntryEditorWorkspaceState: Equatable {
     }
 }
 
+@MainActor
+struct EntryEditorActionTarget {
+    let entry: Binding<JournalEntry>
+    let workspace: Binding<EntryEditorWorkspaceState>
+    let titleFocus: FocusState<Bool>.Binding
+    let showsDetails: Binding<Bool>
+    let layout: EntryEditorLayoutContract
+
+    func perform(_ action: EntryEditorWorkspaceState.Action) {
+        if case .focusWriting = action { showsDetails.wrappedValue = false }
+        var updatedWorkspace = workspace.wrappedValue
+        updatedWorkspace.perform(action, layout: layout)
+        if updatedWorkspace.editorFocused || !updatedWorkspace.showsEditor {
+            titleFocus.wrappedValue = false
+        }
+        workspace.wrappedValue = updatedWorkspace
+    }
+
+    func applyIndentation(_ direction: MarkdownLineIndentation.Direction) {
+        perform(.focusBody)
+        guard let result = MarkdownLineIndentation.apply(
+            to: entry.wrappedValue.body,
+            selectedRange: workspace.wrappedValue.bodySelectedRange,
+            direction: direction
+        ) else { return }
+
+        entry.wrappedValue.body = result.body
+        workspace.wrappedValue.bodySelectedRange = result.selectedRange
+    }
+
+    func insertSnippet(_ snippet: MarkdownSnippet) {
+        perform(.focusBody)
+        let result = MarkdownSnippetInsertion.apply(
+            snippet: snippet,
+            to: entry.wrappedValue.body,
+            selectedRange: workspace.wrappedValue.bodySelectedRange
+        )
+        entry.wrappedValue.body = result.body
+        workspace.wrappedValue.bodySelectedRange = result.selectedRange
+    }
+}
+
+/// Scene values retain stable closures; only their current bindings change with the editor lifecycle.
+@MainActor
+final class EntryEditorSceneActions: ObservableObject {
+    private var target: EntryEditorActionTarget?
+
+    private(set) lazy var insertMarkdownSnippet: (MarkdownSnippet) -> Void = { [weak self] snippet in
+        self?.target?.insertSnippet(snippet)
+    }
+    private(set) lazy var focusBody: () -> Void = { [weak self] in
+        self?.target?.perform(.focusBody)
+    }
+    private(set) lazy var focusWriting: () -> Void = { [weak self] in
+        self?.target?.perform(.focusWriting)
+    }
+    private(set) lazy var togglePreview: () -> Void = { [weak self] in
+        self?.target?.perform(.togglePreview)
+    }
+    private(set) lazy var applyIndentation: (MarkdownLineIndentation.Direction) -> Void = { [weak self] direction in
+        self?.target?.applyIndentation(direction)
+    }
+
+    func updateTarget(_ target: EntryEditorActionTarget) {
+        self.target = target
+    }
+
+    func clearTarget() {
+        target = nil
+    }
+}
+
+@MainActor
 struct EntryEditorView: View {
     typealias Mode = EntryEditorWorkspaceState.Mode
 
     @Binding var entry: JournalEntry
     let bodyPresentation: JournalEntryBodyPresentation
     @State private var workspaceState = EntryEditorWorkspaceState()
+    @StateObject private var sceneActions = EntryEditorSceneActions()
     @State private var showsDetails = false
     @State private var headerContentHeight: CGFloat = 0
     @FocusState private var titleFocused: Bool
@@ -262,8 +337,10 @@ struct EntryEditorView: View {
             .background { JournalBackdrop() }
             .onAppear {
                 workspaceState.updateLayout(layout)
+                sceneActions.updateTarget(actionTarget(layout: layout))
                 #if DEBUG
                 interactionObserver?(JournalEditorInteraction(
+                    sceneActions: sceneActions,
                     titleFocus: $titleFocused,
                     dismissKeyboard: dismissKeyboard,
                     focusBody: { perform(.focusBody, layout: layout) },
@@ -272,16 +349,20 @@ struct EntryEditorView: View {
                 ))
                 #endif
             }
-            .onChange(of: layout.usesSplitPreview) { _ in
-                workspaceState.updateLayout(layout)
+            .onChange(of: layout) { updatedLayout in
+                workspaceState.updateLayout(updatedLayout)
+                sceneActions.updateTarget(actionTarget(layout: updatedLayout))
+            }
+            .onChange(of: entry.id) { _ in
+                sceneActions.updateTarget(actionTarget(layout: layout))
             }
             .toolbar { editorToolbar(layout: layout, workspace: workspace) }
-            .focusedSceneValue(\.insertMarkdownSnippetAction, { insertSnippet($0, layout: layout) })
-            .focusedSceneValue(\.focusEditorBodyAction, { perform(.focusBody, layout: layout) })
-            .focusedSceneValue(\.focusEditorWritingAction, { perform(.focusWriting, layout: layout) })
-            .focusedSceneValue(\.toggleEditorPreviewAction, { perform(.togglePreview, layout: layout) })
-            .focusedSceneValue(\.applyEditorIndentationAction, { applyIndentation($0, layout: layout) })
         }
+        .focusedSceneValue(\.insertMarkdownSnippetAction, sceneActions.insertMarkdownSnippet)
+        .focusedSceneValue(\.focusEditorBodyAction, sceneActions.focusBody)
+        .focusedSceneValue(\.focusEditorWritingAction, sceneActions.focusWriting)
+        .focusedSceneValue(\.toggleEditorPreviewAction, sceneActions.togglePreview)
+        .focusedSceneValue(\.applyEditorIndentationAction, sceneActions.applyIndentation)
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .background(JournalTheme.canvas)
@@ -294,7 +375,10 @@ struct EntryEditorView: View {
         .onChange(of: workspaceState.editorFocused) { isFocused in
             if isFocused { titleFocused = false }
         }
-        .onDisappear(perform: dismissKeyboard)
+        .onDisappear {
+            sceneActions.clearTarget()
+            dismissKeyboard()
+        }
     }
 
     @ToolbarContentBuilder
@@ -682,13 +766,14 @@ struct EntryEditorView: View {
     }
 
     private func perform(_ action: EntryEditorWorkspaceState.Action, layout: EntryEditorLayoutContract) {
-        if case .focusWriting = action { showsDetails = false }
-        var updatedWorkspace = workspaceState
-        updatedWorkspace.perform(action, layout: layout)
-        if updatedWorkspace.editorFocused || !updatedWorkspace.showsEditor {
-            titleFocused = false
-        }
-        workspaceState = updatedWorkspace
+        actionTarget(layout: layout).perform(action)
+    }
+
+    private func actionTarget(layout: EntryEditorLayoutContract) -> EntryEditorActionTarget {
+        EntryEditorActionTarget(
+            entry: $entry, workspace: $workspaceState, titleFocus: $titleFocused,
+            showsDetails: $showsDetails, layout: layout
+        )
     }
 
     private func dismissKeyboard() {
@@ -701,30 +786,11 @@ struct EntryEditorView: View {
     }
 
     private func applyIndentation(_ direction: MarkdownLineIndentation.Direction, layout: EntryEditorLayoutContract) {
-        perform(.focusBody, layout: layout)
-
-        guard let result = MarkdownLineIndentation.apply(
-            to: entry.body,
-            selectedRange: workspaceState.bodySelectedRange,
-            direction: direction
-        ) else {
-            return
-        }
-
-        entry.body = result.body
-        workspaceState.bodySelectedRange = result.selectedRange
+        actionTarget(layout: layout).applyIndentation(direction)
     }
 
     private func insertSnippet(_ snippet: MarkdownSnippet, layout: EntryEditorLayoutContract) {
-        perform(.focusBody, layout: layout)
-        let result = MarkdownSnippetInsertion.apply(
-            snippet: snippet,
-            to: entry.body,
-            selectedRange: workspaceState.bodySelectedRange
-        )
-
-        entry.body = result.body
-        workspaceState.bodySelectedRange = result.selectedRange
+        actionTarget(layout: layout).insertSnippet(snippet)
     }
 
 }

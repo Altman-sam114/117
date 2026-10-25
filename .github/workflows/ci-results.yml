@@ -17,8 +17,8 @@ jobs:
     env:
       RESULT_DIR: ci-results
       VERSION: v0.95
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
-      TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-2
       PYTHONDONTWRITEBYTECODE: '1'
       PROJECT_NAME: MD Journal
       SCHEME: MDJournalCI
@@ -114,15 +114,21 @@ jobs:
             start_test_sampling() {
               local phase="$1"
               (
+                process_names=(MDJournal)
+                if [[ "$phase" == storekit-preflight ]]; then
+                  process_names+=(storekitd ASOctaneSupportXPCService)
+                fi
                 iteration=0
                 while sleep 25; do
                   iteration=$((iteration + 1))
-                  while IFS= read -r host_pid; do
-                    [[ -n "$host_pid" ]] || continue
-                    /usr/bin/perl -e 'alarm shift; exec @ARGV' 10 \
-                      /usr/bin/sample "$host_pid" 2 \
-                      -file "$RESULT_DIR/${phase}-host-${host_pid}-${iteration}.sample.txt" || true
-                  done < <(/usr/bin/pgrep -x MDJournal || true)
+                  for process_name in "${process_names[@]}"; do
+                    while IFS= read -r host_pid; do
+                      [[ -n "$host_pid" ]] || continue
+                      /usr/bin/perl -e 'alarm shift; exec @ARGV' 10 \
+                        /usr/bin/sample "$host_pid" 2 \
+                        -file "$RESULT_DIR/${phase}-${process_name}-${host_pid}-${iteration}.sample.txt" || true
+                    done < <(/usr/bin/pgrep -x "$process_name" || true)
+                  done
                 done
               ) &
               test_sampler=$!
@@ -158,6 +164,10 @@ jobs:
               -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -enableCodeCoverage NO CODE_SIGNING_ALLOWED=NO SWIFT_OPTIMIZATION_LEVEL=-Onone \
               build-for-testing
+            for test_run in "$RUNNER_TEMP/mdjournal-derived-data/Build/Products/"*.xctestrun; do
+              [[ -f "$test_run" ]] || continue
+              cp "$test_run" "$RESULT_DIR/"
+            done
             echo "## Prepare selected CI simulator (240 second limit)"
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
               xcrun simctl bootstatus "$device_id" -b

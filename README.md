@@ -40,7 +40,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-功能回归固定 macos-15 / Xcode 16.4 / iOS 18.5，使用一个已存在的云端 iPhone，提前启动后，专用 MDJournalCI scheme/test plan 显式选择本地 StoreKit 配置，先独立检查真实交易环境与两项导航，再串行执行全部 306 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；所有手机导航用例均使用包含式测试画布，保留系统窗口的原生尺寸。隐私门夹具按被测真实 UIWindowScene 的状态和通知传递生命周期。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。预检失败会阻止完整回归并保留失败状态，仍执行另一项预检取证；测试期间每 25 秒采样存活宿主，失败时保留可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
+功能回归固定 macos-15 / Xcode 26.2 / iOS 26.2，使用一个已存在的云端 iPhone，提前启动后，专用 MDJournalCI scheme/test plan 显式选择本地 StoreKit 配置，先独立检查真实交易环境与两项导航，再串行执行全部 306 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；所有手机导航用例均使用包含式测试画布，保留系统窗口的原生尺寸。隐私门夹具按被测真实 UIWindowScene 的状态和通知传递生命周期。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。预检失败会阻止完整回归并保留失败状态，仍执行另一项预检取证；测试期间每 25 秒采样存活宿主，失败时保留可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
 
 验收需要下载最新同 SHA/run/attempt 的两个未加密 artifact，核对 manifest、JUnit、日志、xcresult、PNG、ZIP digest/CRC/逐文件哈希及 archive SDK/架构/资源。实际计数和结果见 [测试规范](md/test/test.md) 与 [更新日志](update_log.md)。StoreKitTest 是本地商店配置测试，不能冒充 Apple Sandbox 或真实付费交易。
 
@@ -48,7 +48,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 
 DEBUG 的 XCTest 宿主默认窗口只安装空根视图，不保留另一套生产导航、焦点或隐私视图树；专项用例自行安装真实生产视图。首个手机导航用例使用完整 JournalPrivacyGate → ContentView 组合和独立关闭的锁，先等待真实活跃 scene 且无遮罩，再执行全部打开、返回、重开和截图断言。宿主也不自动查询订阅，防止测试配置建立前的 Sandbox 查询与本地 StoreKit 会话竞争；每个交易测试仍显式创建真实订阅 Store 和会话，自动 transaction listener 也单独实测。普通开发启动和 Release 保持完整生产界面、自动加载、监听和回前台刷新。
 
-签名失败回归先完成真实购买，再要求 StoreKit 的 latest/currentEntitlements 返回未验证交易及精确签名错误，由生产权益读取器拒绝；这不等同于购买 API 的未验证文案分支已执行。冷启动批准、退款与到期等待真实状态传播后才断言。最近提交 `e76f69f` 的功能日志为 149 项启动、144 项通过、1 项场景前置失败、3 项 watchdog 和 1 项未结束；xcresult 未封口，不能验收完整图片。现代设备 Release archive 独立通过，仍 unsigned、未上传。本轮追加的数据保护、导出内存/取消、真实场景夹具与 StoreKit 专用计划须以新的同 SHA 云端结果核验，尚不宣称超时已消除。
+签名失败回归先完成真实购买，再要求 StoreKit 的 latest/currentEntitlements 返回未验证交易及精确签名错误，由生产权益读取器拒绝；这不等同于购买 API 的未验证文案分支已执行。冷启动批准、退款与到期等待真实状态传播后才断言。最近提交 `2fc7182` / run `40166218300` 的三项预检均触发 watchdog，完整 306 项和图片矩阵未执行，不能放行。现代设备 Release archive 已下载核对通过，仍 unsigned、未上传。采样证明 focused values 在编辑器布局中持续请求新布局，现将五个命令移到稳定外层并保留固定弱引用闭包，目标随真实 entry/layout 更新且离场清除。原 iOS 18.5 本地 StoreKit 服务收到空快照请求但未完成，功能 job 明确改为已有 iOS 26.2 设备作受控验证；不改交易验证或降低断言。后续新 SHA 仍须自己的完整结果。
 
 本机 iOS 编译/运行必须人工明确要求，而且只能使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止创建或选择其他设备。云端不受此限制。Mac 人工开发入口为 `./script/build_and_run.sh`；本轮未启动本机 App 或模拟器。
 

@@ -20,6 +20,8 @@ flowchart TD
   State --> ListStats["列表、概览、统计 / 只消费展示值"]
   State --> Save["450ms debounce / revision快照 / actor atomic JSON"]
   Save --> File["私有Documents / iOS系统文件保护 / OS设备备份"]
+  Editor --> Commands["稳定外层scene命令 / 固定弱闭包 / 当前绑定和布局 / 离场清空"]
+  Commands --> Editor
   Editor --> Preview["150ms latest-wins / parser + 同文档inline cache"]
   Editor --> Share["实际分享时生成完整UTF-8 Markdown"]
 ```
@@ -73,7 +75,7 @@ flowchart TD
   Safety --> Integrate
   Pro --> Integrate
   Integrate --> TestHost["仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及三项预检"]
-  TestHost --> Regression["Xcode16.4/iOS18.5 / 306项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
+  TestHost --> Regression["Xcode26.2/iOS26.2 / 306项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results
