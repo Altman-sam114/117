@@ -17,7 +17,7 @@
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前回归目标：302项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release，另有现代设备Release archive。最新e7b398e/run40076916307/attempt1现代归档独立通过，功能包147项启动、143通过、3项watchdog、1项未完成，未放行；最近完整功能包8d74296的301项也有4失败。v0.94的257项/16图仅为已通过历史基线，不能替代当前SHA。
+- 当前回归目标：306项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release，另有现代设备Release archive。最近e76f69f/run40078798703/attempt1现代归档独立通过，功能日志149项启动、144通过、1项真实场景前置失败、3项watchdog、1项未结束，未放行。本次并行复核已补数据恢复/不可访问保护、导出内存与取消、真实scene画布及本地StoreKit test plan和三项预检，等待新SHA自己的完整结果。v0.94的257项/16图仅为已通过历史基线。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
@@ -77,6 +77,14 @@
 - 下一次有限修正只收敛测试隔离：DEBUG XCTest默认窗口不建立原生产导航、焦点或隐私视图树，避免临时替换root时恢复闭包仍保留原树；普通DEBUG与Release不变。首个真实NavLink夹具保留生产JournalPrivacyGate→ContentView组合、独立关闭锁与显式订阅依赖，先等真实活跃scene且无遮罩，再执行全部原断言与截图。没有移除生产隐私层、伪设active或减少原301项/25图/3素材门槛；是否解除挂起等待新SHA实测，不预填修复结论。
 - 同次修复独立收敛生产订阅查询：只从已验证当前白名单交易提取group ID，不再union可售Product目录。Apple currentEntitlements明确包含subscribed/inGracePeriod自动续期交易，status(for:)对从未订阅组返回空数组；空快照无需为不存在的权益等待第二次SDK查询，仍立即撤权，冷启宽限期/verified renewal/终态覆盖保持。新增真实两商品目录加受控空权益reader回归，要求组查询0且无Pro/expiry，原真实交易用例不替换；总302项。不是假定免费分支修复可以解决所有StoreKit服务挂起，付费状态链仍须完整云端结果。
 - 本次9文件集成本机轻检实际退出0：全应用DEBUG/普通分支及全测试Swift parse、三plist、31/31纯Pythonfixtures、workflow YAML和全部14个bash块/3个Python heredoc/脚本AST、9份资源JSON、58份Swift注册、302项声明及git diff --check。Swift parse不代替类型或运行检查；未运行本机完整build、XCTest、App或模拟器。新提交继续全套云端验证，不复用e7b结果。
+- 后续安全复查发现可证明的缓存边界：到期timer只await刷新，若系统await悬而未决，旧isPremium可滞留，而导出只核布尔标志。现刷新首次await前同步清过期缓存，返回后重读时间；导出生成前后统一核实际accessExpirationDate（含有效grace），不取消正在执行的到期task。新增受控clock/continuation回归覆盖挂起撤权、有限grace恢复及等待期间跨截止，总303项，不使用墙钟sleep。没有声称该挂起已在真实StoreKit网络重现，所有真实交易测试和无目录宽限期测试保留；下一SHA仍需自己的全套结果。
+- `e76f69f167329dd9a9e3a35f25e1c41363f4961f`已推main，run`40078798703`/attempt`1`现代设备归档独立严格通过：artifact `mdjournal-ios-release-v0.95-main-e76f69f167329dd9a9e3a35f25e1c41363f4961f-run40078798703-attempt1`（ID12554551498，2479037bytes，SHA256 1ec0ec606569d2909523e3b776f7aa3e78f3b353d608cbfbaf41a4e5bbf4a503）。外13/内25项目与11归档文件的双下载、身份、未加密、CRC和哈希均通过；实际1.0(build213.1)/arm64/iPhoneOS26.2/Xcode2620(17C52)/最低iOS16，两URL及月年ID正确，JUnit1/0/0/0，archive/action成功且warning0。仍unsigned、未上传；功能job须另核，不能由现代job代替。
+
+- 2026-10-25 按人工模块并行继续收敛：三个子智能体分别审查手机写作、数据安全、订阅/导出；无ABC阶段。安全修复首次读失败只在明确不存在时建库、受保护重读永不创建替代文件、超25MiB坏文件完整恢复导出、迟到旧LAContext不清掉新认证。新增真实POSIX不可访问回归并扩恢复测试。
+- 导出按64KiB UTF8块构建Data，PDF按篇framesetter/新页、逐页autoreleasepool及取消检查；界面可取消生成且忙时冻结筛选格式，不声称恒定内存。保留Markdown精确语义对照，扩跨块Unicode/CRLF、多篇长PDF最后marker；新增确定性取消回归。
+- 最新e76功能包本次经gh auth login后重新下载至/private/tmp/mdjournal-c-review-40078798703/artifacts/，日志明确149项启动/144pass/1场景前置失败/3watchdog/1未结束。它没有完整xcresult和25图，不能放行，也不冒充本次新SHA结果。根因待实跑：测试独立UIHostingController缺App scene环境；窗口被改小仍与scene原生尺寸不同；真实StoreKit首次currentEntitlements停住。分别改为同一真实scene状态/通知传入生产Gate、所有导航用包含画布保留native window、专用MDJournalCI scheme/test plan显式激活本地StoreKit。普通scheme/Release不带本地商店。
+- 新增真实StoreKit预检先在无商品/UI时枚举空快照，再要求生产购买返回verified且environment==.xcode。保留原真实交易用例；连同安全及取消回归总306项。CI独立交易/两项导航预检任一失败便阻止全套并保持终门失败，两者仍各自执行取证；全部预检通过才跑306项/25图/3素材/平台构建。每25秒采样存活宿主，防watchdog后无栈，不能以预检替代全测。
+- 本机实际轻检：git diff --check、三项plist、全生产/测试swiftc -parse、31/31纯Pythonfixture、workflow YAML/全部bash run块、脚本Python AST、asset/StoreKit/testplan JSON及shared scheme XML均退出0。只做语法检查，不代替类型或运行；未本机build/XCTest/App/simctl。security find-identity只显示Apple Development，无Distribution；GitHub secret list为空，无默认App Store Connect private_keys。仍需真实发布团队、商品及签名，不能宣布已上传。新提交/push/run/attempt/artifact随后按实际记录。
 
 ### v0.94 / 界面验收收尾（实现云端通过）
 

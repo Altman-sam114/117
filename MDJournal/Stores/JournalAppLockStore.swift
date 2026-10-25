@@ -14,7 +14,9 @@ final class LocalJournalOwnerAuthenticator: JournalOwnerAuthenticating {
     func authenticate(reason: String) async throws -> Bool {
         let context = LAContext()
         self.context = context
-        defer { self.context = nil }
+        defer {
+            if self.context === context { self.context = nil }
+        }
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
             throw error ?? NSError(

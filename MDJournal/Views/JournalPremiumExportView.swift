@@ -47,12 +47,14 @@ struct JournalPremiumExportView: View {
                     Text("已选择 \(selectedEntries.count) 篇日记，按日期从早到晚排列。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
+                .disabled(isPreparing)
                 Section("文件格式") {
                     Picker("导出格式", selection: $format) {
                         ForEach(JournalPremiumExportFormat.allCases) { format in
                             Text(format.rawValue).tag(format)
                         }
                     }
+                    .disabled(isPreparing)
                     Button(action: prepareExport) {
                         HStack {
                             Label("生成导出文件", systemImage: "square.and.arrow.up")
@@ -61,6 +63,10 @@ struct JournalPremiumExportView: View {
                         .frame(minHeight: 44)
                     }
                     .disabled(isPreparing || selectedEntries.isEmpty)
+                    if isPreparing {
+                        Button("取消生成") { preparationTask?.cancel() }
+                            .frame(minHeight: 44)
+                    }
                 }
             } else {
                 Section {
@@ -102,17 +108,24 @@ struct JournalPremiumExportView: View {
     }
 
     private func prepareExport() {
-        guard subscriptions.isPremium, !isPreparing else { return }
+        guard !isPreparing else { return }
+        guard subscriptions.hasPremiumAccess() else {
+            message = "当前 Pro 权益已到期，请恢复购买或查看订阅状态后重试。"
+            return
+        }
         let snapshot = selectedEntries
         let requestedFormat = format
         message = nil
         isPreparing = true
         preparationTask = Task { @MainActor in
-            defer { isPreparing = false }
+            defer { isPreparing = false; preparationTask = nil }
             do {
                 let data = try await JournalPremiumExportBuilder().build(entries: snapshot, format: requestedFormat)
                 try Task.checkCancellation()
-                guard subscriptions.isPremium else { return }
+                guard subscriptions.hasPremiumAccess() else {
+                    message = "生成期间 Pro 权益已失效，文件尚未导出。请查看订阅状态后重试。"
+                    return
+                }
                 format = requestedFormat
                 document = JournalPremiumExportDocument(data: data)
                 isExporting = true

@@ -49,12 +49,13 @@ flowchart TD
   Products["Apple Product / 实际价格与周期"] --> Paywall["Pro页 / 隐私、EULA、恢复、管理"]
   Paywall --> Purchase["purchase / pending、cancel、verified、unverified"]
   Updates["Transaction.updates / currentEntitlements / 前台与到期刷新"] --> Groups["只查询已验证当前交易所属组 / 不按可售目录补组"]
-  Groups --> Verify["白名单 / 已验证 / 未撤销升级 / 有限期限与宽限期"]
+  Groups --> Verify["白名单 / 已验证 / 未撤销升级 / 有限期限与宽限期 / await前清过期缓存"]
   Purchase --> Verify
   Verify --> Entitled{"有效 Pro？"}
   Entitled -- "是" --> Filter["日期与分类选择 / 稳定日期排序"]
-  Filter --> Actor["导出actor / 完整Markdown / CoreText分页PDF"]
-  Actor --> Recheck["生成后仍有权益且未取消"]
+  Filter --> Deadline["生成前hasPremiumAccess / 当前时刻早于实际截止日期"]
+  Deadline --> Actor["导出actor / 完整Markdown / CoreText逐篇分页PDF / 取消检查"]
+  Actor --> Recheck["生成后重查hasPremiumAccess且未取消"]
   Recheck --> Files["用户选定目的地 / fileExporter"]
   Entitled -- "否" --> Free["保留免费编辑、预览、统计、单篇分享和JSON备份"]
 ```
@@ -67,12 +68,12 @@ flowchart TD
 flowchart TD
   User["人工目标 / 模块并行 / 云端编译"] --> Mobile["手机导航、焦点、长文派生"]
   User --> Safety["设置、备份、隐私、应用锁、原文件保护"]
-  User --> Pro["StoreKit 2 / Markdown与PDF高级导出"]
+  User --> Pro["StoreKit 2 / UTF8分块与逐篇分页PDF / 可取消"]
   Mobile --> Integrate["主线程工程集成 / main直推"]
   Safety --> Integrate
   Pro --> Integrate
-  Integrate --> TestHost["仅DEBUG XCTest空宿主 / 用例安装真实生产根 / NavLink组合隐私门并等待真实活跃scene"]
-  TestHost --> Regression["Xcode16.4/iOS18.5 / 302项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / iOS与Mac构建"]
+  Integrate --> TestHost["仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及三项预检"]
+  TestHost --> Regression["Xcode16.4/iOS18.5 / 306项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results

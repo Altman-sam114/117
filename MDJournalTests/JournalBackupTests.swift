@@ -110,7 +110,7 @@ final class JournalBackupTests: XCTestCase {
         _ = await store.flushPendingSave()
     }
 
-    func testBoundedFileReaderRejectsAnOversizeFileWithoutChangingIt() throws {
+    func testBoundedFileReaderRejectsAnOversizeFileWithoutChangingIt() async throws {
         let fixture = try makeFixture(entries: [])
         defer { fixture.cleanup() }
         let oversized = Data(repeating: 0x20, count: JournalBackupCodec.maximumBytes + 1)
@@ -118,6 +118,13 @@ final class JournalBackupTests: XCTestCase {
         XCTAssertThrowsError(try JournalBackupCodec.readBoundedData(from: fixture.file)) { error in
             XCTAssertEqual(error as? JournalBackupError, .tooLarge)
         }
+        let store = JournalStore(storageURL: fixture.file)
+        XCTAssertFalse(store.canMutate)
+        let recovery = try await store.exportOriginalDataForRecovery()
+        XCTAssertEqual(recovery, oversized, "Recovery must preserve original bytes even above the import limit")
+        XCTAssertEqual(store.revision, 0)
+        let flush = await store.flushPendingSave()
+        XCTAssertNil(flush)
         XCTAssertEqual(try Data(contentsOf: fixture.file), oversized)
     }
 

@@ -42,20 +42,41 @@ final class JournalPremiumExportTests: XCTestCase {
             XCTFail("Empty exports must be rejected")
         } catch JournalPremiumExportError.emptySelection {
         }
-        let record = entry("中文", date: Date(timeIntervalSince1970: 100))
+        var record = entry("中文", date: Date(timeIntervalSince1970: 100))
+        record.body = String(repeating: "a", count: 65_535) + "👨‍👩‍👧‍👦\r\n"
+            + String(repeating: "### 完整正文\n末尾保留 e\u{301}\n", count: 4000)
         let data = try await builder.build(entries: [record], format: .markdown)
         XCTAssertEqual(String(data: data, encoding: .utf8), JournalPremiumExportBuilder.markdown(entries: [record]))
+    }
+
+    @MainActor
+    func testCancelledBuilderNeverReturnsPartialOutput() async throws {
+        let record = entry("取消导出", date: Date(timeIntervalSince1970: 100))
+        for format in JournalPremiumExportFormat.allCases {
+            let task = Task { try await JournalPremiumExportBuilder().build(entries: [record], format: format) }
+            task.cancel()
+            do {
+                _ = try await task.value
+                XCTFail("A cancelled \(format) export must not return a partial file")
+            } catch is CancellationError {
+            }
+        }
     }
 
     func testPDFPaginatesLongChineseBodyAndRetainsLastLine() async throws {
         let body = (1...180).map { "第\($0)行：把普通的一天慢慢写下来，保留每一个细节。" }.joined(separator: "\n")
             + "\nFINAL_EXPORT_MARKER"
         let record = JournalEntry(title: "长篇日记", body: body)
-        let data = try await JournalPremiumExportBuilder().build(entries: [record], format: .pdf)
+        let final = JournalEntry(
+            title: "下一篇日记", body: String(repeating: "接着记录新的片段。\n", count: 120) + "LAST_ENTRY_EXPORT_MARKER"
+        )
+        let data = try await JournalPremiumExportBuilder().build(entries: [record, final], format: .pdf)
         let document = try XCTUnwrap(PDFDocument(data: data))
         XCTAssertGreaterThan(document.pageCount, 1)
         XCTAssertTrue(document.string?.contains("长篇日记") == true)
         XCTAssertTrue(document.string?.contains("FINAL_EXPORT_MARKER") == true)
+        XCTAssertTrue(document.string?.contains("下一篇日记") == true)
+        XCTAssertTrue(document.page(at: document.pageCount - 1)?.string?.contains("LAST_ENTRY_EXPORT_MARKER") == true)
         XCTAssertEqual(record.body, body)
         XCTAssertTrue((0..<document.pageCount).allSatisfy { document.page(at: $0)?.bounds(for: .mediaBox).size == CGSize(width: 595, height: 842) })
     }

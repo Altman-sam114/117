@@ -109,6 +109,92 @@ final class JournalSubscriptionTests: XCTestCase {
     }
 
     @MainActor
+    func testStoreKitCurrentEntitlementsPreflightUsesLocalSession() async throws {
+        executionTimeAllowance = 60
+        let session = try session()
+        defer { reset(session) }
+        XCTAssertTrue(session.allTransactions().isEmpty)
+
+        let initialCount = await step("preflight raw empty current entitlements before catalog or UI") {
+            var count = 0
+            for await _ in Transaction.currentEntitlements { count += 1 }
+            return count
+        }
+        XCTAssertEqual(initialCount, 0, "A cleared local StoreKit session must finish its empty transaction snapshot")
+
+        let store = tracedStore()
+        await step("preflight load production catalog and entitlements") { await store.loadProducts() }
+        XCTAssertEqual(store.products.count, 2)
+        XCTAssertFalse(store.isPremium)
+        let product = try XCTUnwrap(store.products.first { $0.id == productID })
+        await step("preflight purchase through production store") { await store.purchase(product) }
+        let result = await step("preflight inspect real transaction environment") {
+            await Transaction.latest(for: productID)
+        }
+        guard case let .verified(transaction)? = result else {
+            XCTFail("The preflight must receive a verified StoreKit test transaction")
+            return
+        }
+        XCTAssertEqual(transaction.environment, .xcode, "Local fixtures must never fall through to Sandbox or production")
+        XCTAssertEqual(transaction.productID, productID)
+        XCTAssertTrue(store.hasPremiumAccess())
+        XCTAssertNotNil(store.accessExpirationDate)
+    }
+
+    @MainActor
+    func testExpiredAccessIsRevokedDuringSuspendedRefreshAndVerifiedGraceCanResume() async {
+        let clock = SubscriptionTestClock(date: now)
+        let expiration = now.addingTimeInterval(3600)
+        let transaction = entitlement(expiration: expiration)
+        let reader = SuspendedGroupEntitlementReader(transaction: transaction)
+        let store = JournalSubscriptionStore(
+            productIDs: [productID], startsAutomatically: false, entitlementReader: reader,
+            now: { clock.date }
+        )
+        await store.refreshEntitlements()
+        XCTAssertTrue(store.isPremium)
+        XCTAssertTrue(store.hasPremiumAccess())
+        XCTAssertEqual(store.accessExpirationDate, expiration)
+
+        clock.date = expiration
+        XCTAssertFalse(store.hasPremiumAccess(), "Export access must end at the verified deadline even before the timer runs")
+        await reader.suspendNextCurrentResponse()
+        let expiredRefresh = Task { await store.refreshEntitlements() }
+        await reader.waitUntilCurrentResponseIsSuspended()
+        XCTAssertFalse(store.isPremium, "An expired cached entitlement must be cleared before awaiting current entitlements")
+        XCTAssertNil(store.accessExpirationDate)
+        XCTAssertFalse(store.hasPremiumAccess())
+        await reader.suspendNextGroupResponse()
+        await reader.resumeCurrentResponse()
+        await reader.waitUntilGroupResponseIsSuspended()
+        XCTAssertFalse(store.isPremium, "Expired access must stay disabled while awaiting subscription group status")
+        XCTAssertNil(store.accessExpirationDate)
+        XCTAssertFalse(store.hasPremiumAccess())
+
+        var grace = transaction
+        let graceExpiration = expiration.addingTimeInterval(1800)
+        grace.gracePeriodExpirationDate = graceExpiration
+        clock.date = expiration.addingTimeInterval(600)
+        await reader.resumeGroupResponse(with: grace)
+        await expiredRefresh.value
+        XCTAssertTrue(store.isPremium)
+        XCTAssertEqual(store.accessExpirationDate, graceExpiration)
+        XCTAssertTrue(store.hasPremiumAccess(), "Verified finite grace must restore access after the original transaction expires")
+
+        await reader.suspendNextGroupResponse()
+        let graceRefresh = Task { await store.refreshEntitlements() }
+        await reader.waitUntilGroupResponseIsSuspended()
+        XCTAssertTrue(store.isPremium, "Refreshing must preserve a verified grace period that is still valid")
+        XCTAssertTrue(store.hasPremiumAccess())
+        clock.date = graceExpiration
+        XCTAssertFalse(store.hasPremiumAccess(), "Export completion must reject access that expires during an await")
+        await reader.resumeGroupResponse(with: grace)
+        await graceRefresh.value
+        XCTAssertFalse(store.isPremium, "Refresh must re-read the clock after awaiting the group response")
+        XCTAssertNil(store.accessExpirationDate)
+    }
+
+    @MainActor
     func testStoreKitUpdatesAutomaticallyApplyApprovalAndRefund() async throws {
         guard #available(iOS 17.0, *) else { return }
         let session = try session()
@@ -517,5 +603,83 @@ private actor EmptyCurrentEntitlementReader: JournalSubscriptionEntitlementReadi
         return JournalSubscriptionGroupEntitlements(
             activeEntitlements: [unexpectedEntitlement], inactiveProductIDs: []
         )
+    }
+}
+
+@MainActor
+private final class SubscriptionTestClock {
+    var date: Date
+
+    init(date: Date) { self.date = date }
+}
+
+private actor SuspendedGroupEntitlementReader: JournalSubscriptionEntitlementReading {
+    private let transaction: JournalSubscriptionEntitlement
+    private var groupEntitlement: JournalSubscriptionEntitlement
+    private var suspendsNextCurrentResponse = false
+    private var pendingCurrentResponse: CheckedContinuation<JournalSubscriptionCurrentEntitlements, Never>?
+    private var currentSuspensionWaiter: CheckedContinuation<Void, Never>?
+    private var suspendsNextResponse = false
+    private var pendingResponse: CheckedContinuation<JournalSubscriptionGroupEntitlements, Never>?
+    private var suspensionWaiter: CheckedContinuation<Void, Never>?
+
+    init(transaction: JournalSubscriptionEntitlement) {
+        self.transaction = transaction
+        groupEntitlement = transaction
+    }
+
+    func currentEntitlements(for productIDs: Set<String>) async -> JournalSubscriptionCurrentEntitlements {
+        guard suspendsNextCurrentResponse else { return currentSnapshot }
+        suspendsNextCurrentResponse = false
+        return await withCheckedContinuation { continuation in
+            pendingCurrentResponse = continuation
+            currentSuspensionWaiter?.resume()
+            currentSuspensionWaiter = nil
+        }
+    }
+
+    private var currentSnapshot: JournalSubscriptionCurrentEntitlements {
+        JournalSubscriptionCurrentEntitlements(entitlements: [transaction], subscriptionGroupIDs: ["controlled-group"])
+    }
+
+    func groupEntitlements(for groupID: String) async -> JournalSubscriptionGroupEntitlements {
+        guard suspendsNextResponse else {
+            return JournalSubscriptionGroupEntitlements(activeEntitlements: [groupEntitlement], inactiveProductIDs: [])
+        }
+        suspendsNextResponse = false
+        return await withCheckedContinuation { continuation in
+            pendingResponse = continuation
+            suspensionWaiter?.resume()
+            suspensionWaiter = nil
+        }
+    }
+
+    func suspendNextCurrentResponse() { suspendsNextCurrentResponse = true }
+
+    func waitUntilCurrentResponseIsSuspended() async {
+        guard pendingCurrentResponse == nil else { return }
+        await withCheckedContinuation { currentSuspensionWaiter = $0 }
+    }
+
+    func resumeCurrentResponse() {
+        let response = pendingCurrentResponse
+        pendingCurrentResponse = nil
+        response?.resume(returning: currentSnapshot)
+    }
+
+    func suspendNextGroupResponse() { suspendsNextResponse = true }
+
+    func waitUntilGroupResponseIsSuspended() async {
+        guard pendingResponse == nil else { return }
+        await withCheckedContinuation { suspensionWaiter = $0 }
+    }
+
+    func resumeGroupResponse(with entitlement: JournalSubscriptionEntitlement) {
+        groupEntitlement = entitlement
+        let response = pendingResponse
+        pendingResponse = nil
+        response?.resume(returning: JournalSubscriptionGroupEntitlements(
+            activeEntitlements: [entitlement], inactiveProductIDs: []
+        ))
     }
 }

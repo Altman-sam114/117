@@ -50,6 +50,14 @@ final class JournalSecurityTests: XCTestCase {
         store.dismissError()
         XCTAssertFalse(store.retryReadingProtectedFile())
         XCTAssertFalse(store.canMutate)
+        let recoveryFile = fixture.directory.appendingPathComponent("original-for-recovery.json")
+        try FileManager.default.moveItem(at: fixture.file, to: recoveryFile)
+        XCTAssertFalse(store.retryReadingProtectedFile())
+        XCTAssertFalse(store.canMutate)
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertEqual(store.revision, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.file.path))
+        XCTAssertEqual(try Data(contentsOf: recoveryFile), Data("bad json".utf8))
         let restored = makeEntry()
         try JournalBackupCodec.encode([restored]).write(to: fixture.file)
         XCTAssertTrue(store.retryReadingProtectedFile())
@@ -61,6 +69,34 @@ final class JournalSecurityTests: XCTestCase {
         _ = await store.flushPendingSave()
         XCTAssertTrue(try JournalBackupCodec.decode(Data(contentsOf: fixture.file)).contains { $0.id == created })
         XCTAssertEqual(store.entry(with: restored.id), restored)
+    }
+
+    func testUnreadableDirectoryDoesNotCreateAStarterOrScheduleWrites() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = try JournalBackupCodec.encode([makeEntry()])
+        try original.write(to: fixture.file)
+        let counter = SecurityWriteCounter()
+        let writer = JSONJournalPersistenceWriter(storageURL: fixture.file, onWriteAttempt: { counter.increment() })
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: fixture.directory.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fixture.directory.path)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.file.path), "Fixture must hide the inaccessible file from the Boolean existence check")
+        XCTAssertThrowsError(try Data(contentsOf: fixture.file))
+        let store = JournalStore(storageURL: fixture.file, persistenceWriter: writer)
+        XCTAssertFalse(store.canMutate)
+        XCTAssertNotNil(store.readFailureMessage)
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertEqual(store.revision, 0)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fixture.directory.path)
+        let flush = await store.flushPendingSave()
+        XCTAssertNil(flush)
+        XCTAssertEqual(counter.value, 0)
+        XCTAssertEqual(try Data(contentsOf: fixture.file), original)
+        XCTAssertTrue(store.retryReadingProtectedFile())
+        XCTAssertEqual(store.entries.count, 1)
+        XCTAssertEqual(store.revision, 0)
     }
 
     func testMissingFileAndValidEmptyCollectionRemainWritable() async throws {

@@ -17,9 +17,10 @@ final class JournalInterfaceTests: XCTestCase {
         defaults.set(false, forKey: JournalAppLockStore.enabledDefaultsKey)
         let appLock = JournalAppLockStore(defaults: defaults)
         let subscriptions = JournalSubscriptionStore(startsAutomatically: false)
+        let hostScene = try foregroundWindowScene()
         var observedScenePhase: ScenePhase?
         let controller = UIHostingController(rootView: NavigationPrivacyHostRoot(
-            store: fixture.store, appLock: appLock, subscriptions: subscriptions,
+            store: fixture.store, appLock: appLock, subscriptions: subscriptions, scene: hostScene,
             observeScenePhase: { observedScenePhase = $0 }
         )
             .environment(\.horizontalSizeClass, .compact))
@@ -39,7 +40,7 @@ final class JournalInterfaceTests: XCTestCase {
             self.navigationController(in: controller)?.viewControllers.count == 1
         }
         let navigation = try XCTUnwrap(navigationController(in: controller))
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         XCTAssertNil(bodyInput(in: controller.view, text: entries[0].body))
         traceCompactNavigation("library capture begin")
         try attachHostImage(controller.view, name: "content-390x844-compact-library", size: size)
@@ -56,7 +57,7 @@ final class JournalInterfaceTests: XCTestCase {
                 && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
         traceCompactNavigation("inputs wait end; destination settled wait begin")
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         traceCompactNavigation("destination settled wait end; detail capture begin")
         try attachHostImage(controller.view, name: "content-390x844-compact-detail", size: size)
         traceCompactNavigation("detail capture end")
@@ -67,13 +68,13 @@ final class JournalInterfaceTests: XCTestCase {
             navigation.viewControllers.count == 1
                 && self.bodyInput(in: controller.view, text: entries[0].body) == nil
         }
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         try await activateFirstProductionEntry(in: controller.view)
         try await waitForHost("The same selected row must remain openable after pop") {
             navigation.viewControllers.count == 2
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
         }
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         XCTAssertEqual(fixture.store.entries, entries)
         XCTAssertEqual(fixture.store.revision, 0, "Navigation must not mutate persisted journals")
 
@@ -83,8 +84,8 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(nativeBounds.size, nativeSize, "Capture requires the actual configured iPhone scene")
         XCTAssertEqual(window.screen.scale, 3, "Capture requires the actual configured iPhone display scale")
         guard nativeBounds.size == nativeSize, window.screen.scale == 3 else { return }
-        window.frame = nativeBounds
-        window.setNeedsLayout()
+        let canvas = try XCTUnwrap(window.rootViewController as? NavigationHostCanvasController)
+        canvas.updateContentSize(nativeSize)
         controller.view.setNeedsLayout()
         try await waitForHost("The iPhone destination must fill its restored native scene") {
             window.frame == nativeBounds && window.bounds.size == nativeSize
@@ -92,7 +93,7 @@ final class JournalInterfaceTests: XCTestCase {
                 && self.titleInput(in: controller.view, title: entries[0].title) != nil
                 && self.bodyInput(in: controller.view, text: entries[0].body) != nil
         }
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         try attachNativeAppStoreImage(
             window, name: "appstore-iphone-detail-1179x2556", pointSize: nativeSize,
             pixelSize: CGSize(width: 1179, height: 2556)
@@ -104,7 +105,7 @@ final class JournalInterfaceTests: XCTestCase {
                 && self.bodyInput(in: controller.view, text: entries[0].body) == nil
                 && collection.numberOfSections == 2 && collection.numberOfItems(inSection: 1) == 2
         }
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         try attachNativeAppStoreImage(
             window, name: "appstore-iphone-library-1179x2556", pointSize: nativeSize,
             pixelSize: CGSize(width: 1179, height: 2556)
@@ -190,7 +191,7 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(saved.count, entries.count + 1)
         print("Compact create regression: persistence verified; awaiting native navigation cleanup")
         let navigation = try XCTUnwrap(navigationController(in: controller))
-        try await waitForSettledNavigation(navigation, in: window)
+        try await waitForSettledNavigation(navigation, in: window, viewport: controller.view)
         XCTAssertEqual(navigation.viewControllers.count, 2)
         XCTAssertNotNil(titleInput(in: controller.view, title: created.title))
         XCTAssertNotNil(bodyInput(in: controller.view, text: created.body))
@@ -417,14 +418,19 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
-    private func makeWindow(
-        controller: UIViewController, size: CGSize, keepsSceneGeometry: Bool = false
-    ) throws -> (window: UIWindow, restore: @MainActor () -> Void) {
-        let scene = try XCTUnwrap(
+    private func foregroundWindowScene() throws -> UIWindowScene {
+        try XCTUnwrap(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
                 .first { $0.activationState == .foregroundActive },
             "Navigation and responder tests require the test host's foreground scene"
         )
+    }
+
+    @MainActor
+    private func makeWindow(
+        controller: UIViewController, size: CGSize, keepsSceneGeometry: Bool = false
+    ) throws -> (window: UIWindow, restore: @MainActor () -> Void) {
+        let scene = try foregroundWindowScene()
         let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow }, "A foreground key window must exist")
         let originalRoot = window.rootViewController
         let originalFrame = window.frame
@@ -436,24 +442,25 @@ final class JournalInterfaceTests: XCTestCase {
         // Keep only one active SwiftUI root publishing focused values into the foreground scene.
         print("Interface host: detaching the original app root")
         window.rootViewController = nil
-        if !keepsSceneGeometry { window.frame = CGRect(origin: .zero, size: size) }
+        let root = keepsSceneGeometry ? controller : NavigationHostCanvasController(content: controller, size: size)
         window.overrideUserInterfaceStyle = .light
         if #available(iOS 17.0, *) {
             controller.traitOverrides.horizontalSizeClass = .compact
         }
         print("Interface host: installing the fixture root")
-        window.rootViewController = controller
+        window.rootViewController = root
         print("Interface host: making the existing window key and visible")
         window.makeKeyAndVisible()
-        controller.view.frame = window.bounds
-        controller.view.setNeedsLayout()
+        root.view.frame = window.bounds
+        root.view.setNeedsLayout()
         print("Interface host: laying out the fixture root")
-        controller.view.layoutIfNeeded()
+        root.view.layoutIfNeeded()
+        XCTAssertEqual(window.frame, scene.coordinateSpace.bounds, "Test canvases must preserve the real scene geometry")
         print("Interface host: fixture layout returned")
 
         return (window, {
             print("Interface host: restoring the original app root")
-            controller.dismiss(animated: false)
+            root.dismiss(animated: false)
             window.endEditing(true)
             window.rootViewController = nil
             window.overrideUserInterfaceStyle = originalStyle
@@ -526,7 +533,8 @@ final class JournalInterfaceTests: XCTestCase {
             diagnostic = "The native navigation transition is active or its top view is not visible"
             return nil
         }
-        let viewportFrame = viewport.map { $0.convert($0.bounds, to: window) } ?? window.bounds
+        let viewportView: UIView = viewport ?? navigation.view
+        let viewportFrame = viewportView.convert(viewportView.bounds, to: window)
         let frame = top.view.convert(top.view.bounds, to: window)
         let displayedFrame = top.view.layer.presentation().map {
             parent.convert($0.frame, to: window)
@@ -1262,21 +1270,61 @@ final class JournalInterfaceTests: XCTestCase {
     }
 }
 
+@MainActor
 private struct NavigationPrivacyHostRoot: View {
-    @Environment(\.scenePhase) private var scenePhase
+    @State private var scenePhase: ScenePhase
     let store: JournalStore
     let appLock: JournalAppLockStore
     let subscriptions: JournalSubscriptionStore
+    let scene: UIWindowScene
     let observeScenePhase: (ScenePhase) -> Void
+
+    init(
+        store: JournalStore, appLock: JournalAppLockStore, subscriptions: JournalSubscriptionStore,
+        scene: UIWindowScene, observeScenePhase: @escaping (ScenePhase) -> Void
+    ) {
+        self.store = store
+        self.appLock = appLock
+        self.subscriptions = subscriptions
+        self.scene = scene
+        self.observeScenePhase = observeScenePhase
+        _scenePhase = State(initialValue: Self.phase(for: scene.activationState))
+    }
 
     var body: some View {
         JournalPrivacyGate {
             ContentView(store: store)
         }
+        // A replacement UIHostingController is outside App's scene environment propagation.
+        .environment(\.scenePhase, scenePhase)
         .environmentObject(appLock)
         .environmentObject(subscriptions)
-        .onAppear { observeScenePhase(scenePhase) }
+        .onAppear {
+            scenePhase = Self.phase(for: scene.activationState)
+            observeScenePhase(scenePhase)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.didActivateNotification, object: scene)) { _ in
+            scenePhase = Self.phase(for: scene.activationState)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.willDeactivateNotification, object: scene)) { _ in
+            scenePhase = .inactive
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.didEnterBackgroundNotification, object: scene)) { _ in
+            scenePhase = .background
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.willEnterForegroundNotification, object: scene)) { _ in
+            scenePhase = .inactive
+        }
         .onChange(of: scenePhase) { observeScenePhase($0) }
+    }
+
+    private static func phase(for state: UIScene.ActivationState) -> ScenePhase {
+        switch state {
+        case .foregroundActive: return .active
+        case .foregroundInactive: return .inactive
+        case .background, .unattached: return .background
+        @unknown default: return .background
+        }
     }
 }
 

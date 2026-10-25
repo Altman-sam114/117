@@ -54,15 +54,19 @@ JournalSubscriptionStore 通过真实 Product 查询白名单月/年自动续期
 
 组状态只查询 currentEntitlements 中已验证白名单交易给出的 subscriptionGroupID，不从可售商品目录补组。Apple 的 currentEntitlements 包含 subscribed 和 inGracePeriod 的自动续期交易，因此无目录的冷启宽限期仍能查询已验证 renewalInfo；终态仍覆盖旧交易。没有已验证当前交易时以空候选撤权，不为从未订阅的用户额外等待一个只会返回空数组的目录组查询。
 
-Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；日期和分类过滤使用同一 Calendar，按日期从早到晚稳定排序。导出在 actor 生成，视图只在生成前后权益仍有效时交给 fileExporter，撤销权益取消在途输出。没有改写 Store。基础写作、统计、单篇分享和 JSON 备份继续免费。
+刷新首次 await 前同步清除已到期的缓存权限，不取消正在执行的到期刷新任务；返回后重新读取当前时刻才提交状态。所有截止判断和定时器使用同一时钟，生产默认系统时间，测试可确定性推进。统一 hasPremiumAccess 同时核对 Pro 标志和包含有限宽限期的 accessExpirationDate，截止时刻严格拒绝。
+
+Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 KiB UTF-8 块直接构建 Data，PDF 只对当前篇建立 framesetter、逐页释放临时对象，新篇从新页开始，两种格式均检查取消。单篇排版及最终输出仍使用内存。日期和分类过滤使用同一 Calendar，按日期从早到晚稳定排序。导出在 actor 生成，视图生成前后均调用 hasPremiumAccess，系统查询等待或生成期间到期不能沿用过期布尔缓存；撤销权益取消在途输出。没有改写 Store。基础写作、统计、单篇分享和 JSON 备份继续免费。
 
 ## 云端执行与发布边界
 
 main push 同时触发：
 
-1. macos-15/Xcode16.4/iOS18.5：31 项纯 Python fixture、静态检查、既有设备准备、独立 build-for-testing、同 UDID 串行全部 302 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；宽窄测试只改变包含式画布及 traits，不改系统窗口原生几何。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode16.4/iOS18.5：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境预检、两项导航预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 306 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
 
-功能包另从相同 302 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+功能包另从相同 306 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+
+首次本地加载直接读取，仅明确的文件不存在错误才创建示例；暂不可访问和解码失败保持独立写保护。保护重读从不建替代文件。恢复导出后台读取完整原字节，不沿用正常导入的 25 MiB 限制。系统认证完成只清除自身 LAContext 引用，迟到旧请求不会使新请求失去取消入口。

@@ -1,0 +1,32 @@
+{
+  "configurations": [
+    {
+      "id": "A1F4C91A-FEA7-4D6A-B35B-4B31939BE181",
+      "name": "Local StoreKit",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "codeCoverage": false,
+    "mainThreadCheckerEnabled": true,
+    "storeKitConfigurationFileReference": {
+      "identifier": "MDJournalTests/JournalSubscriptions.storekit"
+    },
+    "targetForVariableExpansion": {
+      "containerPath": "container:MDJournal.xcodeproj",
+      "identifier": "A50000000000000000000001",
+      "name": "MDJournal"
+    }
+  },
+  "testTargets": [
+    {
+      "parallelizable": false,
+      "target": {
+        "containerPath": "container:MDJournal.xcodeproj",
+        "identifier": "B50000000000000000000001",
+        "name": "MDJournalTests"
+      }
+    }
+  ],
+  "version": 1
+}

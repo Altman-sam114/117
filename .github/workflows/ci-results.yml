@@ -21,7 +21,7 @@ jobs:
       TEST_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-18-5
       PYTHONDONTWRITEBYTECODE: '1'
       PROJECT_NAME: MD Journal
-      SCHEME: MDJournal
+      SCHEME: MDJournalCI
       BUILD_DESTINATION: generic/platform=iOS
       MACCATALYST_BUILD_DESTINATION: generic/platform=macOS,variant=Mac Catalyst
 
@@ -103,6 +103,44 @@ jobs:
           set -euo pipefail
           destination="${RESOLVED_TEST_DESTINATION:-}"
           {
+            test_sampler=""
+            stop_test_sampling() {
+              if [[ -n "$test_sampler" ]]; then
+                kill "$test_sampler" 2>/dev/null || true
+                wait "$test_sampler" 2>/dev/null || true
+                test_sampler=""
+              fi
+            }
+            start_test_sampling() {
+              local phase="$1"
+              (
+                iteration=0
+                while sleep 25; do
+                  iteration=$((iteration + 1))
+                  while IFS= read -r host_pid; do
+                    [[ -n "$host_pid" ]] || continue
+                    /usr/bin/perl -e 'alarm shift; exec @ARGV' 10 \
+                      /usr/bin/sample "$host_pid" 2 \
+                      -file "$RESULT_DIR/${phase}-host-${host_pid}-${iteration}.sample.txt" || true
+                  done < <(/usr/bin/pgrep -x MDJournal || true)
+                done
+              ) &
+              test_sampler=$!
+            }
+            trap stop_test_sampling EXIT
+            collect_test_diagnostics() {
+              local result_bundle="$1"
+              local diagnostics_dir="$2"
+              while IFS= read -r host_pid; do
+                [[ -n "$host_pid" ]] || continue
+                /usr/bin/perl -e 'alarm shift; exec @ARGV' 15 \
+                  /usr/bin/sample "$host_pid" 3 \
+                  -file "$RESULT_DIR/xctest-host-${host_pid}.sample.txt" || true
+              done < <(/usr/bin/pgrep -x MDJournal || true)
+              /usr/bin/perl -e 'alarm shift; exec @ARGV' 30 \
+                xcrun xcresulttool export diagnostics \
+                --path "$result_bundle" --output-path "$diagnostics_dir" || true
+            }
             echo "## XCTest destination"
             echo "$destination"
             echo
@@ -124,8 +162,74 @@ jobs:
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
               xcrun simctl bootstatus "$device_id" -b
             echo
+            echo "## Isolated local StoreKit preflight (180 second limit; not the full suite)"
+            preflight_failed=0
+            storekit_status=0
+            start_test_sampling storekit-preflight
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 180 \
+              xcrun xcodebuild \
+              -project MDJournal.xcodeproj -scheme "$SCHEME" -configuration Debug \
+              -destination "$destination" -destination-timeout 60 \
+              -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+              -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
+              -only-testing:MDJournalTests/JournalSubscriptionTests/testStoreKitCurrentEntitlementsPreflightUsesLocalSession \
+              -enableCodeCoverage NO -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+              -resultBundlePath "$RESULT_DIR/MDJournalStoreKitPreflight.xcresult" \
+              CODE_SIGNING_ALLOWED=NO test-without-building \
+              > "$RESULT_DIR/storekit-preflight.log" 2>&1 || storekit_status=$?
+            stop_test_sampling
+            xcrun xcresulttool get test-results summary \
+              --path "$RESULT_DIR/MDJournalStoreKitPreflight.xcresult" \
+              > "$RESULT_DIR/storekit-preflight-summary.json" || storekit_status=$?
+            if [[ "$storekit_status" -eq 0 ]]; then
+              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":1,"passedTests":1,"failedTests":0,"skippedTests":0}, s' \
+                "$RESULT_DIR/storekit-preflight-summary.json" || storekit_status=$?
+            fi
+            if [[ "$storekit_status" -ne 0 ]]; then
+              echo "Local StoreKit preflight failed. Navigation preflight will still run to preserve independent diagnostics."
+              collect_test_diagnostics "$RESULT_DIR/MDJournalStoreKitPreflight.xcresult" \
+                "$RESULT_DIR/storekit-preflight-diagnostics"
+              preflight_failed=1
+            fi
+            echo "## App Scene navigation preflight (240 second limit; not the full suite)"
+            preflight_status=0
+            start_test_sampling navigation-preflight
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
+              xcrun xcodebuild \
+              -project MDJournal.xcodeproj -scheme "$SCHEME" -configuration Debug \
+              -destination "$destination" -destination-timeout 60 \
+              -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+              -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
+              -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID \
+              -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionNavigationLinkOpensPopsAndReopensTheSameEntry \
+              -enableCodeCoverage NO -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+              -resultBundlePath "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
+              CODE_SIGNING_ALLOWED=NO test-without-building \
+              > "$RESULT_DIR/navigation-preflight.log" 2>&1 || preflight_status=$?
+            stop_test_sampling
+            xcrun xcresulttool get test-results summary \
+              --path "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
+              > "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
+            if [[ "$preflight_status" -eq 0 ]]; then
+              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":2,"passedTests":2,"failedTests":0,"skippedTests":0}, s' \
+                "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
+            fi
+            if [[ "$preflight_status" -ne 0 ]]; then
+              echo "App Scene navigation preflight failed. See navigation-preflight.log."
+              collect_test_diagnostics "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
+                "$RESULT_DIR/navigation-preflight-diagnostics"
+              preflight_failed=1
+            fi
+            if [[ "$preflight_failed" -ne 0 ]]; then
+              echo "Preflight failed; the complete suite was not run and this revision cannot pass the release gate."
+              exit 1
+            fi
+            echo "Local StoreKit and App Scene navigation preflight passed; running the complete declared suite."
             # Bound simulator boot/test so a hung destination cannot block the result package forever.
             test_status=0
+            start_test_sampling full-suite
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
               xcrun xcodebuild \
               -project MDJournal.xcodeproj \
@@ -143,18 +247,10 @@ jobs:
               -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
               CODE_SIGNING_ALLOWED=NO \
               test-without-building || test_status=$?
+            stop_test_sampling
             if [[ "$test_status" -ne 0 ]]; then
               # Preserve a stuck host's stack before runner cleanup, even if xcresult did not finish.
-              while IFS= read -r host_pid; do
-                [[ -n "$host_pid" ]] || continue
-                /usr/bin/perl -e 'alarm shift; exec @ARGV' 15 \
-                  /usr/bin/sample "$host_pid" 3 \
-                  -file "$RESULT_DIR/xctest-host-${host_pid}.sample.txt" || true
-              done < <(/usr/bin/pgrep -x MDJournal || true)
-              /usr/bin/perl -e 'alarm shift; exec @ARGV' 30 \
-                xcrun xcresulttool export diagnostics \
-                --path "$RESULT_DIR/MDJournalTests.xcresult" \
-                --output-path "$RESULT_DIR/xctest-diagnostics" || true
+              collect_test_diagnostics "$RESULT_DIR/MDJournalTests.xcresult" "$RESULT_DIR/xctest-diagnostics"
             fi
             xcrun xcresulttool get test-results summary \
               --path "$RESULT_DIR/MDJournalTests.xcresult" > "$RESULT_DIR/xctest-summary.json"
@@ -383,6 +479,14 @@ jobs:
               "testDefaultExecutionTimeAllowanceSeconds": 180,
               "testMaximumExecutionTimeAllowanceSeconds": 180,
               "navigationHostExecutionTimeAllowanceSeconds": 60,
+              "navigationPreflightTestCount": 2,
+              "navigationPreflightSummaryPath": "ci-results/navigation-preflight-summary.json",
+              "navigationPreflightResultBundlePath": "ci-results/MDJournalNavigationPreflight.xcresult",
+              "storeKitPreflightTestCount": 1,
+              "storeKitPreflightSummaryPath": "ci-results/storekit-preflight-summary.json",
+              "storeKitPreflightResultBundlePath": "ci-results/MDJournalStoreKitPreflight.xcresult",
+              "testPlanPath": "MDJournalCI.xctestplan",
+              "testHostSampleIntervalSeconds": 25,
               "ciRunner": "macos-15",
               "developerDirectory": os.environ["DEVELOPER_DIR"],
               "testRuntime": os.environ["TEST_RUNTIME"],

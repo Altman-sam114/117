@@ -148,11 +148,7 @@ final class JournalStore: ObservableObject {
     @discardableResult
     func retryReadingProtectedFile() -> Bool {
         guard !canMutate else { return true }
-        guard FileManager.default.fileExists(atPath: storageURL.path) else {
-            publishError("原日记文件暂不可访问，未创建替代文件。", source: .read)
-            return false
-        }
-        load()
+        load(createsStarterIfMissing: false)
         return canMutate
     }
 
@@ -167,7 +163,8 @@ final class JournalStore: ObservableObject {
     func exportOriginalDataForRecovery() async throws -> Data {
         let url = storageURL
         return try await Task.detached(priority: .userInitiated) {
-            try JournalBackupCodec.readBoundedData(from: url)
+            // Import limits must never prevent preserving a larger original file.
+            try Data(contentsOf: url, options: .mappedIfSafe)
         }.value
     }
 
@@ -207,16 +204,7 @@ final class JournalStore: ObservableObject {
         return false
     }
 
-    private func load() {
-        guard FileManager.default.fileExists(atPath: storageURL.path) else {
-            let starter = JournalEntry.starterEntry()
-            bodyPresentations[starter.id] = makeBodyPresentation(starter)
-            entries = [starter]
-            recordMutation()
-            submitImmediately(currentSnapshot())
-            return
-        }
-
+    private func load(createsStarterIfMissing: Bool = true) {
         do {
             let data = try Data(contentsOf: storageURL)
             let decoder = JSONDecoder()
@@ -235,6 +223,17 @@ final class JournalStore: ObservableObject {
                 errorSource = nil
             }
         } catch {
+            let readError = error as NSError
+            if createsStarterIfMissing,
+               readError.domain == NSCocoaErrorDomain,
+               readError.code == NSFileReadNoSuchFileError {
+                let starter = JournalEntry.starterEntry()
+                bodyPresentations[starter.id] = makeBodyPresentation(starter)
+                entries = [starter]
+                recordMutation()
+                submitImmediately(currentSnapshot())
+                return
+            }
             let message = "读取本地日记失败：\(error.localizedDescription)"
             readFailureMessage = message
             publishError(message, source: .read)

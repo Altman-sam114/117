@@ -100,6 +100,7 @@ final class JournalSubscriptionStore: ObservableObject {
 
     let productIDs: Set<String>
     private let entitlementReader: any JournalSubscriptionEntitlementReading
+    private let now: () -> Date
     private var hasLoadedProducts = false
     private var updatesTask: Task<Void, Never>?
     private var startupTask: Task<Void, Never>?
@@ -113,11 +114,13 @@ final class JournalSubscriptionStore: ObservableObject {
 
     init(
         productIDs: Set<String>? = nil, startsAutomatically: Bool = true,
-        entitlementReader: any JournalSubscriptionEntitlementReading = JournalStoreKitEntitlementReader()
+        entitlementReader: any JournalSubscriptionEntitlementReading = JournalStoreKitEntitlementReader(),
+        now: @escaping () -> Date = Date.init
     ) {
         let configured = Bundle.main.object(forInfoDictionaryKey: "JournalSubscriptionProductIDs") as? [String]
         self.productIDs = productIDs ?? configured.map(Set.init) ?? Self.defaultProductIDs
         self.entitlementReader = entitlementReader
+        self.now = now
         guard startsAutomatically else { return }
 
         updatesTask = Task { [weak self] in
@@ -210,9 +213,18 @@ final class JournalSubscriptionStore: ObservableObject {
         }
     }
 
+    func hasPremiumAccess(at date: Date? = nil) -> Bool {
+        guard isPremium, let accessExpirationDate else { return false }
+        return accessExpirationDate > (date ?? now())
+    }
+
     func refreshEntitlements() async {
         refreshGeneration += 1
         let generation = refreshGeneration
+        if let accessExpirationDate, accessExpirationDate <= now() {
+            self.accessExpirationDate = nil
+            isPremium = false
+        }
         let current = await entitlementReader.currentEntitlements(for: productIDs)
         var candidates = current.entitlements
         // Current entitlements include billing grace periods; catalog groups alone do not imply access.
@@ -224,9 +236,9 @@ final class JournalSubscriptionStore: ObservableObject {
             candidates.append(contentsOf: state.activeEntitlements)
         }
         guard generation == refreshGeneration, !Task.isCancelled else { return }
-        let now = Date()
+        let currentDate = now()
         accessExpirationDate = candidates
-            .filter { $0.grantsAccess(productIDs: productIDs, now: now) }
+            .filter { $0.grantsAccess(productIDs: productIDs, now: currentDate) }
             .compactMap(\.accessExpirationDate).max()
         isPremium = accessExpirationDate != nil
         scheduleExpirationRefresh()
@@ -251,7 +263,7 @@ final class JournalSubscriptionStore: ObservableObject {
     private func scheduleExpirationRefresh() {
         expirationTask?.cancel()
         guard let accessExpirationDate else { return }
-        let delay = max(0.1, min(accessExpirationDate.timeIntervalSinceNow + 0.1, 86400))
+        let delay = max(0.1, min(accessExpirationDate.timeIntervalSince(now()) + 0.1, 86400))
         expirationTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(delay)) } catch { return }
             await self?.refreshEntitlements()
