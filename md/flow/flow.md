@@ -42,7 +42,7 @@ JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问�
 
 ## 编辑与预览
 
-标题节点保持固定位置并使用 FocusState，正文沿用 UIKit bridge。完成同时清除标题/正文焦点；进入预览也清除两者；聚焦正文、专注写作、插入与缩进命令先清标题再走原正文入口。UTF-16 范围、marked text 延迟覆盖、一次性正文/选区 token 和异步焦点代数不改变。
+标题节点保持固定位置并使用 FocusState，正文沿用 UIKit bridge。完成同时清除标题/正文焦点；进入预览也清除两者；聚焦正文、专注写作、插入与缩进命令先清标题再走原正文入口。正文桥先完成初始正文与 UTF-16 选区配置再安装 delegate；外部程序化更新期间只更新 UIKit，不回写 Binding，用户输入及选区回调照常发布。UTF-16 范围、marked text 延迟覆盖、一次性正文/选区 token 和异步焦点代数不改变。
 
 低高度、辅助字号与宽度控制纸面和头部预算；单栏上限 760pt，实际详情 >=1120pt 且非辅助字号才双栏。单/双栏切换保留编辑器内部输入节点。分享用 Transferable 在实际导出时构造完整 UTF-8 Markdown，布局和选区更新不预先拼接全文。
 
@@ -62,7 +62,7 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 
 
 main push 同时触发：
 
-1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境预检、两项导航预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 308 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境预检、两项导航预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 309 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。

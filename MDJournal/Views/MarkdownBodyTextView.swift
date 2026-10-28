@@ -56,7 +56,6 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = MarkdownIndentingTextView()
-        textView.delegate = context.coordinator
         textView.indentationAction = { [weak textView, weak coordinator = context.coordinator] direction in
             guard let textView else { return }
             coordinator?.applyIndentation(direction, to: textView)
@@ -72,6 +71,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         textView.textContainer.lineFragmentPadding = 0
         textView.text = text
         textView.selectedRange = Self.clampedRange(selectedRange, in: text)
+        // Initial configuration must not publish UIKit selection changes back into SwiftUI.
+        textView.delegate = context.coordinator
         return textView
     }
 
@@ -79,6 +80,8 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         context.coordinator.text = $text
         context.coordinator.selectedRange = $selectedRange
         context.coordinator.isFocused = $isFocused
+        context.coordinator.isApplyingSwiftUISynchronization = true
+        defer { context.coordinator.isApplyingSwiftUISynchronization = false }
 
         Self.configureBodyFontIfNeeded(textView, category: Self.contentSizeCategory(for: dynamicTypeSize))
         Self.configureMarkdownInputTraits(textView)
@@ -91,9 +94,6 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         )
 
         if syncDecision == .synchronizeBodyAndSelection {
-            context.coordinator.isApplyingSwiftUISynchronization = true
-            defer { context.coordinator.isApplyingSwiftUISynchronization = false }
-
             if textView.text != text {
                 textView.text = text
             }
@@ -195,12 +195,14 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
+            guard !isApplyingSwiftUISynchronization else { return }
             publishText(textView.text)
             updateSelectedRangeIfNeeded(textView.selectedRange)
             recordLocalPublication(body: textView.text, selectedRange: textView.selectedRange)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
+            guard !isApplyingSwiftUISynchronization else { return }
             updateSelectedRangeIfNeeded(textView.selectedRange)
         }
 

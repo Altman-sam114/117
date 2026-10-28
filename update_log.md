@@ -17,7 +17,7 @@
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前回归目标：308项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。647687f/run40169268199/attempt1已下载：StoreKit预检1/1通过、现代archive通过，但导航focused-values反馈仍阻止完整回归。现改原生FocusedObject并补同scene隐私与有限后台保存；新SHA结果待云端，尚未放行。v0.94基线仅作历史证据。
+- 当前回归目标：309项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。02fe8a4/run40621962623/attempt1已下载：三项预检通过，完整306/308、25图/3素材与现代archive齐；两项切篇和交易夹具失败不放行。现追加程序化选区保护和干净StoreKit会话边界，须新SHA结果。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
@@ -37,6 +37,10 @@
 - Store新增同步flushForBackground：首次离开active先申请有限系统后台执行时间、共享Store在途去重，原actor负责保存；完成/到期幂等释放，invalid仍flush、不无限续期。新增确定性回归覆盖完成/到期竞争、同步到期与去重。两项新测试使声明306→308，未动原JSON格式和数据边界。
 - 关键文件：ContentView、MDJournalApp、EntryEditorView、JournalPrivacyGate、JournalStore及四份相关测试；README/test/flow/flowchart同步。本机仅轻检，完整构建、308项、图片与现代Release仍须新SHA自己的云端结果，未预填通过。
 - 本机实际轻检退出0：git diff --check、project/Info/PrivacyInfo三项plist、全应用及测试swiftc -parse、31/31纯Pythonfixture、14个workflow run块bash语法/3个Python heredoc/全部脚本AST、asset/StoreKit/testplan JSON与shared scheme XML、308项XCTest声明统计。Ruby另有本机PATH目录权限警告，不属于应用编译结果；未本机build/XCTest/App/simctl或Instruments。
+- `02fe8a4481fbd7edd27eec6f6e5f30b15fef51b9`已推origin/main，run`40621962623`/attempt`1`两包均经主线程下载和独立gh下载逐hash复核。功能artifact`mdjournal-ci-v0.95-main-02fe8a4-run40621962623-attempt1`（ID12787314983，296426606bytes，SHA256 45560de89f21b3887174aa1478de13b3a3716ef28dc736cd327b769ba5e236eb），4028文件身份/未加密/CRC/双下载哈希通过；真实xcresult预检1/1及2/2通过，完整308项306pass/2fail/0skip，JUnit六阶段4失败（静态与图片通过，构建按失败跳过），未放行。原导航反馈已解除，真实宽窄/新建/重开与安全/后台用例通过。
+- 同run设备artifact`mdjournal-ios-release-v0.95-main-02fe8a4481fbd7edd27eec6f6e5f30b15fef51b9-run40621962623-attempt1`（ID12788360142，2508921bytes，SHA256 202ed1ad9178943fbb6abb68bf586527a7e7bf886001421c5a25f243d81fe7c8），13文件和内部11归档文件哈希/CRC/只读verifier/xcresult succeeded均通过，1.0(216.1)、arm64、iphoneos26.2、0编译错误/0编译警告，仍unsigned未上传。xcresult初读因未设置DEVELOPER_DIR找不到工具，显式指定现有Xcode后只读复判成功，未启动本机App或模拟器。
+- 同run的25张图均已联系表查看，regular/split及3张商店图另按原图检查；尺寸/PNG完整性/无alpha/原始来源与SHA通过，无新增阻断布局问题，iPad仍仅生产画布证据。Debug等价派生测量159190字符/40小节、各3次，旧路径中位204.014ms、有界53.367ms；不外推真实输入延迟/帧率/分配。缓存`/private/tmp/mdjournal-c-review-40621962623/`保留核对报告。
+- 完整回归暴露两处：切篇新增断言未等UTF16新选区完成，且程序化UIKit更新可回写Binding（日志20次SwiftUI state-update警告）；取消注入虽清为nil，旧StoreKit购买批次仍返回cancel。按模块并行修复：输入初始化后装delegate、既有程序化同步区间禁止didChange/selection回写，保留marked/token规则；新增真实桥零setter/用户选区一次回写测试，切篇要求完整正文和纯算法选区精确相等。订阅取消与验签使用各自干净真实session/Store/Product，先verified购买再invalidSignature的全部原断言不减。总声明增至309，新SHA仍须自身完整云端结果。
 - 现有签名只发现Apple Development，没有Distribution，GitHub secrets为空，无默认App Store Connect私钥目录。真实团队/App记录/商品/价格/合同税务与银行、发布联系信息、Distribution签名、Sandbox/TestFlight、真机输入/VoiceOver/认证和锁屏保存仍需实际证据；不能宣布可直接上传或已通过审核。
 
 ### v0.95 / iOS 发布候选并行集成（功能已集成，回归收敛中）

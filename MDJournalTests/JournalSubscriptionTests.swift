@@ -319,30 +319,51 @@ final class JournalSubscriptionTests: XCTestCase {
     @MainActor
     func testStoreKitCancelledAndUnverifiedPurchasesDoNotUnlockPro() async throws {
         guard #available(iOS 17.0, *) else { return }
+        do {
+            let session = try session()
+            defer { reset(session) }
+            let store = tracedStore()
+            await step("load catalog for cancellation") { await store.loadProducts() }
+            XCTAssertEqual(store.products.count, 2)
+            let product = try XCTUnwrap(store.products.first { $0.id == productID })
+            try await step("inject purchase cancellation") {
+                try await session.setSimulatedError(.generic(.userCancelled), forAPI: .purchase)
+            }
+            let cancellation = await step("read purchase cancellation injection") {
+                await session.simulatedError(forAPI: .purchase)
+            }
+            XCTAssertEqual(cancellation, .generic(.userCancelled))
+            await step("purchase with cancellation") { await store.purchase(product) }
+            XCTAssertFalse(store.isPremium)
+            XCTAssertFalse(store.isPurchasing)
+            XCTAssertNil(store.statusMessage, "A purchase error must not count as a successfully handled cancellation")
+            try await step("clear purchase cancellation injection") {
+                try await session.setSimulatedError(nil, forAPI: .purchase)
+            }
+            let purchaseError = await step("read cleared purchase injection") {
+                await session.simulatedError(forAPI: .purchase)
+            }
+            XCTAssertNil(purchaseError)
+        }
+
+        // The test service can retain a cancelled purchase batch after its error setting clears.
+        // Use a fresh session and Product so signature verification starts with a clean transaction.
         let session = try session()
         defer { reset(session) }
         let store = tracedStore()
-        await step("load catalog and refresh entitlements") { await store.loadProducts() }
+        await step("load fresh catalog for signature verification") { await store.loadProducts() }
         XCTAssertEqual(store.products.count, 2)
-        let product = try XCTUnwrap(store.products.first { $0.id == productID })
-        try await step("inject purchase cancellation") {
-            try await session.setSimulatedError(.generic(.userCancelled), forAPI: .purchase)
-        }
-        let cancellation = await step("read purchase cancellation injection") {
-            await session.simulatedError(forAPI: .purchase)
-        }
-        XCTAssertEqual(cancellation, .generic(.userCancelled))
-        await step("purchase with cancellation") { await store.purchase(product) }
+        XCTAssertTrue(session.allTransactions().isEmpty)
         XCTAssertFalse(store.isPremium)
-        XCTAssertFalse(store.isPurchasing)
-        XCTAssertNil(store.statusMessage, "A purchase error must not count as a successfully handled cancellation")
-        try await step("clear purchase cancellation injection") {
-            try await session.setSimulatedError(nil, forAPI: .purchase)
-        }
-        let purchaseError = await step("read cleared purchase injection") {
+        let purchaseError = await step("check fresh session purchase injection") {
             await session.simulatedError(forAPI: .purchase)
+        }
+        let verificationError = await step("check fresh session verification injection") {
+            await session.simulatedError(forAPI: .verification)
         }
         XCTAssertNil(purchaseError)
+        XCTAssertNil(verificationError)
+        let product = try XCTUnwrap(store.products.first { $0.id == productID })
         await step("purchase verified transaction before signature failure") { await store.purchase(product) }
         let verified = await step("read verified transaction before signature failure") {
             await Transaction.latest(for: productID)

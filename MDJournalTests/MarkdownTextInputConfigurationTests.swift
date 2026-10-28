@@ -4,6 +4,73 @@ import XCTest
 @testable import MDJournal
 
 final class MarkdownTextInputConfigurationTests: XCTestCase {
+    @MainActor
+    func testProductionBridgeInitializationAndExternalSynchronizationDoNotPublishBindings() async throws {
+        let initialBody = "正文 📝 与 e\u{301}"
+        let textProbe = BindingProbe(value: initialBody)
+        let selectionProbe = BindingProbe(value: NSRange(location: NSNotFound, length: 0))
+        let focusProbe = BindingProbe(value: false)
+        func bridge() -> MarkdownBodyTextView {
+            MarkdownBodyTextView(
+                text: textProbe.binding, selectedRange: selectionProbe.binding, isFocused: focusProbe.binding
+            )
+        }
+        let controller = UIHostingController(rootView: bridge())
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 480))
+        window.rootViewController = controller
+        window.isHidden = false
+        defer { window.isHidden = true; window.rootViewController = nil }
+        controller.view.frame = window.bounds
+        controller.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
+        let input = try XCTUnwrap(findBodyInput(in: controller.view))
+        let coordinator = try XCTUnwrap(input.delegate as? MarkdownBodyTextView.Coordinator)
+        XCTAssertEqual(input.text, initialBody)
+        XCTAssertEqual(input.selectedRange, NSRange(location: initialBody.utf16.count, length: 0))
+        XCTAssertEqual(textProbe.setterCount, 0)
+        XCTAssertEqual(selectionProbe.setterCount, 0)
+        XCTAssertEqual(focusProbe.setterCount, 0)
+
+        let externalBody = "新正文：👨‍👩‍👧‍👦 e\u{301} 与末尾"
+        let externalSelection = (externalBody as NSString).range(of: "正文")
+        textProbe.value = externalBody
+        selectionProbe.value = externalSelection
+        controller.rootView = bridge()
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(try XCTUnwrap(findBodyInput(in: controller.view)) === input)
+        XCTAssertEqual(input.text, externalBody)
+        XCTAssertEqual(input.selectedRange, externalSelection)
+        XCTAssertEqual(textProbe.value, externalBody)
+        XCTAssertEqual(selectionProbe.value, externalSelection)
+        XCTAssertEqual(textProbe.setterCount, 0, "External body synchronization must not become a local edit")
+        XCTAssertEqual(selectionProbe.setterCount, 0, "Programmatic selection changes must not feed back into SwiftUI")
+        XCTAssertEqual(focusProbe.setterCount, 0)
+
+        let userSelection = (externalBody as NSString).range(of: "末尾")
+        input.selectedRange = userSelection
+        coordinator.textViewDidChangeSelection(input)
+        XCTAssertEqual(selectionProbe.value, userSelection)
+        XCTAssertEqual(selectionProbe.setterCount, 1)
+        XCTAssertEqual(textProbe.setterCount, 0)
+        XCTAssertEqual(focusProbe.setterCount, 0)
+        XCTAssertEqual(
+            coordinator.syncState.decision(for: externalBody, selectedRange: userSelection, hasMarkedText: false),
+            .synchronizeBodyAndSelection,
+            "A user selection callback must still not create a body-publication fast path"
+        )
+    }
+
+    @MainActor
+    private func findBodyInput(in view: UIView) -> UITextView? {
+        if let input = view as? UITextView { return input }
+        for child in view.subviews {
+            if let input = findBodyInput(in: child) { return input }
+        }
+        return nil
+    }
+
     func testMarkdownBodyTextViewSyncStateNeedsBodyPublicationForFastPath() {
         var state = MarkdownBodyTextViewSyncState()
         let body = "正文"

@@ -10,7 +10,7 @@ flowchart TD
   Content --> Regular["iPad regular、Catalyst / NavigationSplitView"]
   Compact --> Library["年月资料库 / NavigationLink / 新建 / 设置"]
   Regular --> Library
-  Library --> Editor["标题 FocusState / 正文 UIKit / UTF-16"]
+  Library --> Editor["标题 FocusState / 正文 UIKit / UTF-16 / 程序化更新不回写Binding"]
   Editor --> Mutation["JournalStore 唯一 mutation"]
   Library --> Mutation
   Mutation --> Health{"原文件读取成功？"}
@@ -77,7 +77,7 @@ flowchart TD
   Safety --> Integrate
   Pro --> Integrate
   Integrate --> TestHost["仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及三项预检"]
-  TestHost --> Regression["Xcode26.2/iOS26.2 / 308项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
+  TestHost --> Regression["Xcode26.2/iOS26.2 / 309项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results

@@ -395,15 +395,21 @@ final class JournalInterfaceTests: XCTestCase {
 
         let sceneActions = actions.sceneActions
         state.selectedEntryID = nextEntry.id
+        let nextSelection = NSRange(location: nextEntry.body.utf16.count, length: 0)
         try await waitForHost("Changing the production binding must display the next journal without replacing its router") {
             self.titleInput(in: controller.view, title: nextEntry.title) != nil
-                && self.bodyInput(in: controller.view, text: nextEntry.body) != nil
+                && self.bodyInput(in: controller.view, text: nextEntry.body)?.selectedRange == nextSelection
         }
         XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
+        let expectedInsertion = MarkdownSnippetInsertion.apply(
+            snippet: .heading, to: nextEntry.body, selectedRange: nextSelection
+        )
         sceneActions.insertMarkdownSnippet(.heading)
+        print("Editor command binding regression: firstUnchanged=\(state.entries[0] == entry), nextBody=\(String(reflecting: state.entries[1].body)), expected=\(String(reflecting: expectedInsertion.body))")
         try await waitForHost("A previously published command must mutate only the newly bound journal") {
-            state.entries[1].body.contains("### 小节标题")
-                && self.bodyInput(in: controller.view, text: state.entries[1].body) != nil
+            state.entries[1].body == expectedInsertion.body
+                && self.bodyInput(in: controller.view, text: state.entries[1].body)?.selectedRange
+                    == expectedInsertion.selectedRange
         }
         XCTAssertEqual(state.entries[0], entry, "A retained scene command must not edit the previous journal")
         XCTAssertEqual(state.entries[1].id, nextEntry.id)

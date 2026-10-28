@@ -42,7 +42,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -v
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
-功能回归固定 macos-15 / Xcode 26.2 / iOS 26.2，使用一个已存在的云端 iPhone，提前启动后，专用 MDJournalCI scheme/test plan 显式选择本地 StoreKit 配置，先独立检查真实交易环境与两项导航，再串行执行全部 308 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；所有手机导航用例均使用包含式测试画布，保留系统窗口的原生尺寸。隐私门夹具按被测真实 UIWindowScene 的状态和通知传递生命周期。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。预检失败会阻止完整回归并保留失败状态，仍执行另一项预检取证；测试期间每 25 秒采样存活宿主，失败时保留可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
+功能回归固定 macos-15 / Xcode 26.2 / iOS 26.2，使用一个已存在的云端 iPhone，提前启动后，专用 MDJournalCI scheme/test plan 显式选择本地 StoreKit 配置，先独立检查真实交易环境与两项导航，再串行执行全部 309 项测试并导出 25 张图片，成功再构建两平台，测试失败跳过重复构建且终门仍失败。手机生产 host 临时替换既有前台 key window 的根控制器并完整恢复；所有手机导航用例均使用包含式测试画布，保留系统窗口的原生尺寸。隐私门夹具按被测真实 UIWindowScene 的状态和通知传递生命周期。筛选空态同时检查数据、导航和真实渲染文字，详情图片等待导航转场结束。预检失败会阻止完整回归并保留失败状态，仍执行另一项预检取证；测试期间每 25 秒采样存活宿主，失败时保留可导出的诊断。另一个并行 job 使用 Xcode 26.2 / iPhoneOS 26.2 构建并检查 Release 设备 archive，完全不启动模拟器。
 
 验收需要下载最新同 SHA/run/attempt 的两个未加密 artifact，核对 manifest、JUnit、日志、xcresult、PNG、ZIP digest/CRC/逐文件哈希及 archive SDK/架构/资源。实际计数和结果见 [测试规范](md/test/test.md) 与 [更新日志](update_log.md)。StoreKitTest 是本地商店配置测试，不能冒充 Apple Sandbox 或真实付费交易。
 
@@ -50,7 +50,11 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 
 DEBUG 的 XCTest 宿主默认窗口只安装空根视图，不保留另一套生产导航、焦点或隐私视图树；专项用例自行安装真实生产视图。首个手机导航用例使用完整 JournalPrivacyGate → ContentView 组合和独立关闭的锁，先等待真实活跃 scene 且无遮罩，再执行全部打开、返回、重开和截图断言。宿主也不自动查询订阅，防止测试配置建立前的 Sandbox 查询与本地 StoreKit 会话竞争；每个交易测试仍显式创建真实订阅 Store 和会话，自动 transaction listener 也单独实测。普通开发启动和 Release 保持完整生产界面、自动加载、监听和回前台刷新。
 
-签名失败回归先完成真实购买，再要求 StoreKit 的 latest/currentEntitlements 返回未验证交易及精确签名错误，由生产权益读取器拒绝；这不等同于购买 API 的未验证文案分支已执行。冷启动批准、退款与到期等待真实状态传播后才断言。最近 `647687f` / run `40169268199` 的 StoreKit 预检已核对为 1/1 通过，现代设备 archive 已核对通过；导航仍出现 Observation tracking feedback loop，完整回归和图片未执行，不能放行。采样仍捕获函数型 focused-value setter，因此本轮将内容与编辑命令统一改为原生 FocusedObject，保留当前绑定及离场清空，并补充真实切篇、旧句柄和后台执行时间边界测试。新 SHA 必须以自己的完整云端结果为准，不把已有 archive 或单项预检当作发布验收。
+最近 `02fe8a4` / run `40621962623` 的 StoreKit 预检 1/1、导航预检 2/2 均通过，完整 308 项实际为 306 通过、2 失败、无跳过；25 张界面图与 3 张商店尺寸素材已下载核对和视觉检查，现代设备 archive 也已核对通过，仍 unsigned、未上传。原生 FocusedObject 已解除导航反馈；新暴露的切篇选区回写和取消交易测试批次残留分别做最小修复，不降低完整测试门槛。
+
+正文输入桥在初始正文/选区配置完成后才安装 delegate，程序化同步期间不回写 SwiftUI Binding；marked text、UTF-16 和一次性发布 token 规则保留。新增真实桥回归要求初始化及外部同步零 setter，用户选区仍准确回写；当前源码共 309 项。取消和签名失败使用各自干净的真实 StoreKit 会话，后者仍须先实际购买并验证 Pro，再注入精确签名错误并要求生产权益读取器拒绝。新 SHA 必须以自己的完整云端结果为准。
+
+该 run 的三次等价 Debug 模型派生测量中，约 15.9 万字符正文的旧路径中位数 204.01ms、有界路径 53.37ms；这只测同步模型派生，不代表输入延迟、UI 帧率或内存分配。
 
 本机 iOS 编译/运行必须人工明确要求，而且只能使用 UDID 以 `FAC4325D` 开头的那台既有模拟器；禁止创建或选择其他设备。云端不受此限制。Mac 人工开发入口为 `./script/build_and_run.sh`；本轮未启动本机 App 或模拟器。
 
