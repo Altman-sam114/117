@@ -10,6 +10,8 @@
 
 ## 应用与状态所有权
 
+外观与排版使用 app-owned UserDefaults / AppStorage，只存偏好，不写入日记 JSON。每个生产窗口由 journalPreferences 注入同一环境值与 preferredColorScheme，设置可免费修改字体/字号/行距。UIKit 正文只在样式改变或外部替换正文时应用段落属性，marked text 期间推迟任何字体/段落更新，已存在的 UTF-16 选区与输入实例不因此替换；预览复用相同字体与辅助字号。
+
 `MDJournalApp` 创建共享的 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。主窗口以及 Catalyst 统计窗口均经过 `JournalPrivacyGate` 并注入同一权益/应用锁对象；App 回到活跃态刷新订阅权益。没有日记服务器或登录账号。
 
 仅 DEBUG 的 XCTest 宿主默认窗口返回空根视图，不调用生产内容闭包，避免原 App 树在夹具临时替换 root 后仍被恢复闭包保留。专项用例显式安装各自的真实生产视图；首个手机导航用例组合 JournalPrivacyGate 与 ContentView，注入独立关闭的锁和不自动启动的订阅 Store，等待真实 scenePhase 活跃、window scene 前台且无需隐私遮罩后才导航，不伪设 active。宿主同时关闭全局订阅 Store 的自动查询和 scenePhase 刷新，避免本地测试会话建立前查询 Sandbox；交易测试仍显式使用真实 StoreKit Store、Product 和 transaction listener。普通开发启动与 Release 保持完整生产视图和正常自动启动路径。
@@ -22,11 +24,13 @@
 
 ## 日记与持久化
 
+保存状态由 Store 持有：载入成功为 saved，真实 mutation 后为 saving，只有当前 revision 的写盘确认才回到 saved，当前失败为 failed，读取错误为 readProtected。关闭提示不改变状态；编辑器/设置和错误弹窗都提供实际 flush 重试。无变化的标题/正文/日期/分类/心情回写（包括仅更新时间戳）不发布集合、不派生、不增 revision、不延后已有 debounce；迟到旧保存结果不能改变当前状态。
+
 JournalEntry 保持原有 Codable 格式、分类/心情兼容解码和 ISO-8601 日期。JSON 位于私有 Documents/md-journal-entries.json。
 
 Store 是唯一集合修改入口：加载/创建构建正文展示投影，正文变更只重建当前篇，元数据更新复用，删除释放。展示投影只保留词数、可见性、有限摘要和小节信息；生产有界派生不先保留完整 summary 或 section markdown，旧纯 summary API 保留作语义对照。完整词数仍扫描全文，统计/概览仍聚合元数据，不宣称整体常数复杂度。
 
-更新先同步发布内存，再以 450ms debounce 合并保存；创建、删除、确认合并导入立即提交快照。JournalPersistenceWriter actor 串行 JSON 编码及 atomic 写入，以 revision 拒绝过时请求。iOS 使用首次解锁后可访问的系统文件保护；这允许设备首次解锁后的锁屏保存，不是自定义密码加密。离开活跃态同步调用 Store.flushForBackground，先申请有限系统后台执行时间、再异步 flush；共享 Store 只保留一个在途任务，完成与系统到期幂等释放，申请失败也照常尝试保存，不无限续期。系统到期不伪造写入结果，也不能中断 actor 内编码；强制终止和超大文件仍无必然保存保证。durableRevision、写入错误仲裁和重试规则保持。界面的“仅在本机”不是已落盘声明，系统设备备份可能包含用户日记。
+更新先同步发布内存，再以 450ms debounce 合并保存；创建、删除、确认合并导入立即提交快照。JournalPersistenceWriter actor 串行 JSON 编码及 atomic 写入，以 revision 拒绝过时请求。iOS 使用首次解锁后可访问的系统文件保护；这允许设备首次解锁后的锁屏保存，不是自定义密码加密。离开活跃态同步调用 Store.flushForBackground，先申请有限系统后台执行时间、再异步 flush；共享 Store 只保留一个在途任务，完成与系统到期幂等释放，申请失败也照常尝试保存，不无限续期。系统到期不伪造写入结果，也不能中断 actor 内编码；强制终止和超大文件仍无必然保存保证。durableRevision、写入错误仲裁和重试规则保持。生产编辑器消费当前 Store 的真实保存状态，不用存储位置冒充写入成功；系统设备备份可能包含用户日记。
 
 读取异常或重复日记 ID 设置独立 readFailureMessage，原文件保持不动。关闭错误 alert 只关闭展示，不清写保护；create/update/delete/import/flush 均拒绝写入。设置提供原始字节恢复导出及重新读取，只有完整解码和校验成功才解除保护。不存在文件与合法空数组仍可正常创建。
 
@@ -39,6 +43,8 @@ Store 是唯一集合修改入口：加载/创建构建正文展示投影，正�
 ## 应用锁与隐私
 
 JournalAppLockStore 默认关闭，偏好只存本应用 UserDefaults。启用、关闭与解锁均通过 LAContext.deviceOwnerAuthentication，系统可选择 Face ID、Touch ID 或设备密码。应用不接收生物特征或设备密码。generation 防止后台或新请求后迟到的认证结果解锁；后台取消在途认证并锁定，inactive 只遮挡以免取消系统验证页。
+
+隐藏多任务预览独立且默认开启，不要求应用锁或购买；非活跃时同一窗口级遮罩覆盖内容及 sheet，回到活跃态在未开启锁时直接恢复、不调用认证。用户可关闭该预览偏好，但不能用它绕过已开启的锁。预览遮罩不会阻止主动截屏/录屏或导出。
 
 JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；同一 UIWindowScene 的 willDeactivate 同步遮挡，didEnterBackground 立即锁定并取消过期认证，didActivate 不能绕过锁，其他 scene 通知不影响本窗口。inactive 不取消系统验证。遮罩的纸面和解锁按钮使用应用的动态主题色。JSON 保存与遮罩独立，未增加第二份日记状态。
 
@@ -53,6 +59,8 @@ JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问�
 MarkdownPreviewUpdateModel 的 document 与 inline cache 为同一 Published 快照。150ms trailing debounce、entry ID 与 generation 保证 latest-wins，隐藏/离开/切篇使旧请求失效。parser 保持轻量逐行 Markdown、### 小节与现有 fenced code 规则；预览只读结果，不保存日记。
 
 ## 订阅与高级导出
+
+PDF 在用户选择时生成独立纸本封面，显示自定义名称（清理空白、最多 80 Character）、所选日期范围与篇数；正文逐篇分页及完整 Markdown 原文保持不变，封面不开启也可导出。封面与输出在同一个 actor 内生成，不触碰 Store，不放宽生成前后的权益核验。
 
 JournalSubscriptionStore 通过真实 Product 查询白名单月/年自动续期商品，显示 Apple 本地化名称、价格和周期。没有商品或隐私链接时购买不可用，不伪造价格/成功。Transaction.updates 启动监听，verified 交易完成后刷新 currentEntitlements；未知商品、未验证、已撤销、已升级或无有效期限不能解锁。宽限期还需已验证 renewalInfo 且有限 grace 到期日。状态刷新用 generation，定时到期/回前台重查；恢复只在用户主动操作时 AppStore.sync，管理走系统订阅页。
 

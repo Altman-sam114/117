@@ -235,6 +235,8 @@ struct MarkdownPreviewView: View {
     var accent: Color = JournalTheme.accent
     var maxContentWidth: CGFloat = 720
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.journalWritingPreferences) private var writingPreferences
+    @ScaledMetric(relativeTo: .body) private var bodyFontScale: CGFloat = 1
     @StateObject private var updateModel: MarkdownPreviewUpdateModel
 
     init(
@@ -304,6 +306,10 @@ struct MarkdownPreviewView: View {
         JournalTheme.paper.ignoresSafeArea()
     }
 
+    private var paragraphFont: Font {
+        .system(size: writingPreferences.size.basePointSize * bodyFontScale, design: writingPreferences.font.design)
+    }
+
     @ViewBuilder
     private func sectionGroupView(
         _ group: MarkdownSectionGroup,
@@ -333,7 +339,7 @@ struct MarkdownPreviewView: View {
 
                 if group.blocks.isEmpty {
                     Text("这个小节还没有内容")
-                        .font(.body)
+                        .font(paragraphFont)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(group.blocks.indices, id: \.self) { index in
@@ -364,8 +370,8 @@ struct MarkdownPreviewView: View {
 
         case let .paragraph(text):
             Text(inlineCache[text] ?? AttributedString(text))
-                .font(.body)
-                .lineSpacing(5)
+                .font(paragraphFont)
+                .lineSpacing(5 + writingPreferences.spacing.extraLineSpacing * bodyFontScale)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
         case let .quote(text):
@@ -375,9 +381,9 @@ struct MarkdownPreviewView: View {
                     .frame(width: 4)
 
                 Text(inlineCache[text] ?? AttributedString(text))
-                    .font(.body.italic())
+                    .font(paragraphFont.italic())
                     .foregroundStyle(.secondary)
-                    .lineSpacing(4)
+                    .lineSpacing(4 + writingPreferences.spacing.extraLineSpacing * bodyFontScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(12)
@@ -393,7 +399,8 @@ struct MarkdownPreviewView: View {
                             .font(.body.weight(.bold))
                             .foregroundStyle(accent)
                         Text(inlineCache[item] ?? AttributedString(item))
-                            .font(.body)
+                            .font(paragraphFont)
+                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -412,7 +419,8 @@ struct MarkdownPreviewView: View {
                             .frame(minWidth: 28, alignment: .trailing)
 
                         Text(inlineCache[item.text] ?? AttributedString(item.text))
-                            .font(.body)
+                            .font(paragraphFont)
+                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -427,7 +435,8 @@ struct MarkdownPreviewView: View {
                         Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(item.isChecked ? accent : .secondary)
                         Text(inlineCache[item.text] ?? AttributedString(item.text))
-                            .font(.body)
+                            .font(paragraphFont)
+                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
                             .strikethrough(item.isChecked)
                             .foregroundStyle(item.isChecked ? .secondary : .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)

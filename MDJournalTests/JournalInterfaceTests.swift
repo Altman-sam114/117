@@ -490,6 +490,12 @@ final class JournalInterfaceTests: XCTestCase {
         }
         XCTAssertNotNil(original.markedTextRange, "An update to the same journal must preserve its composition")
         let originalAfterComposition = state.entries[0]
+        let composingFont = original.font
+        state.writingPreferences = JournalWritingPreferences(font: .serif, size: .large, spacing: .relaxed)
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertNotNil(original.markedTextRange, "Changing writing preferences must defer until IME composition ends")
+        XCTAssertEqual(original.text, composedBody)
+        XCTAssertEqual(original.font, composingFont)
 
         state.selectedEntryID = entries[1].id
         try await waitForHost("A different journal must receive a separate native input and coordinator") {
@@ -502,6 +508,7 @@ final class JournalInterfaceTests: XCTestCase {
         let currentCoordinator = try XCTUnwrap(current.delegate as? MarkdownBodyTextView.Coordinator)
         XCTAssertFalse(currentCoordinator === originalCoordinator)
         XCTAssertNil(current.markedTextRange)
+        XCTAssertGreaterThan(try XCTUnwrap(current.font).pointSize, try XCTUnwrap(composingFont).pointSize)
         try await waitForHost("The new journal must retain the requested writing focus") { current.isFirstResponder }
         XCTAssertEqual(state.entries[0], originalAfterComposition)
         XCTAssertEqual(state.entries[1], entries[1], "Changing journals must not copy the old composition into the new body")
@@ -1344,6 +1351,20 @@ final class JournalInterfaceTests: XCTestCase {
             EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body)),
             name: "editor-390x720-light-accessibility3", size: CGSize(width: 390, height: 720), typeSize: .accessibility3
         )
+        let writingSuite = "mdjournal-writing-review-\(UUID().uuidString)"
+        let writingDefaults = try XCTUnwrap(UserDefaults(suiteName: writingSuite))
+        defer { writingDefaults.removePersistentDomain(forName: writingSuite) }
+        let writingSettings = NavigationStack { JournalWritingSettingsView() }.defaultAppStorage(writingDefaults)
+        try await render(writingSettings, name: "writing-390x844-light", size: CGSize(width: 390, height: 844))
+        try await render(
+            writingSettings, name: "writing-390x844-light-accessibility3", size: CGSize(width: 390, height: 844),
+            typeSize: .accessibility3
+        )
+        try await render(
+            EntryEditorView(entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body))
+                .environment(\.journalWritingPreferences, JournalWritingPreferences(font: .serif, size: .large, spacing: .relaxed)),
+            name: "editor-390x720-light-relaxed", size: CGSize(width: 390, height: 720)
+        )
         let library = EntryListView(
             overviewSnapshot: JournalListOverviewSnapshot(
                 entries: entries, bodyPresentations: store.bodyPresentations, calendar: reviewCalendar, now: reviewDate("2026-10-22T12:00:00Z")
@@ -1513,6 +1534,7 @@ private final class EditorInteractionHostState: ObservableObject {
     @Published var entries: [JournalEntry]
     @Published var selectedEntryID: JournalEntry.ID
     @Published var showsEditor = true
+    @Published var writingPreferences = JournalWritingPreferences()
 
     init(entries: [JournalEntry]) {
         self.entries = entries
@@ -1542,6 +1564,7 @@ private struct EditorInteractionHostRoot: View {
                 bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
                 interactionObserver: observer
             )
+            .environment(\.journalWritingPreferences, state.writingPreferences)
         } else {
             Color.clear
         }

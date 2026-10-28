@@ -92,7 +92,7 @@ gh workflow run ci-results.yml --ref main -f validation_profile=full
 2. 固定 runtime 中选择一台已有云端 iPhone，查询各限 60 秒、准备步骤 4 分钟；复用库存 initialState，不创建克隆或回退 runtime。
 3. MDJournalCI scheme/test plan 显式本地 StoreKit；build-for-testing 600 秒、bootstatus 240 秒；商店 3 项及导航/输入 4 项预检分别有界，任一失败保留另一组诊断并阻止全测。
 4. 预检通过后，同 UDID 串行执行全部源码声明测试，实际数量匹配、零失败/跳过；test-without-building 720 秒、逐用例 watchdog 180 秒，生产导航/输入 host 的 60 秒预算保留。测试期间按阶段每 25 秒保存有界采样，失败保留可用 xcresult/diagnostics。
-5. 校验 25 张审查图及性能附件、另 3 张商店尺寸素材的完整性、来源、尺寸和摘要；商店 PNG 必须无 alpha/tRNS，普通审查图不套用这一限制。iPhone 商店图原生窗口 3x，iPad 是完整生产画布 2x，不把画布当设备运行。
+5. 校验 28 张审查图（包括外观设置/辅助字号和疏朗大字正文）及性能附件、另 3 张商店尺寸素材的完整性、来源、尺寸和摘要；核对高级导出的实际 PDF 附件。商店 PNG 必须无 alpha/tRNS，普通审查图不套用这一限制。iPhone 商店图原生窗口 3x，iPad 是完整生产画布 2x，不把画布当设备运行。
 6. 测试与图片成功才执行 generic iOS Debug、Catalyst Debug、universal Mac Release 内部包；完整六阶段均须成功，因失败跳过仍不放行。
 7. 独立 `ios-release` job 同 SHA 使用 iPhoneOS 26.2 执行 generic iOS unsigned Release archive，不启动模拟器；核实际 SDK、arm64/device 平台、版本、图标、隐私/Face ID/链接/商品 ID 与内部文件哈希。
 

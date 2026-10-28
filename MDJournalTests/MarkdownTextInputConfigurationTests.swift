@@ -10,10 +10,15 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
         let textProbe = BindingProbe(value: initialBody)
         let selectionProbe = BindingProbe(value: NSRange(location: NSNotFound, length: 0))
         let focusProbe = BindingProbe(value: false)
-        func bridge() -> MarkdownBodyTextView {
+        let suite = "mdjournal-bridge-preferences-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        func bridge() -> some View {
             MarkdownBodyTextView(
                 text: textProbe.binding, selectedRange: selectionProbe.binding, isFocused: focusProbe.binding
             )
+            .journalPreferences()
+            .defaultAppStorage(defaults)
         }
         let controller = UIHostingController(rootView: bridge())
         let scene = try XCTUnwrap(
@@ -74,6 +79,22 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
             .synchronizeBodyAndSelection,
             "A user selection callback must still not create a body-publication fast path"
         )
+
+        defaults.set(JournalWritingFont.serif.rawValue, forKey: JournalPreferenceKey.writingFont)
+        defaults.set(JournalWritingSize.large.rawValue, forKey: JournalPreferenceKey.writingSize)
+        defaults.set(JournalWritingSpacing.relaxed.rawValue, forKey: JournalPreferenceKey.writingSpacing)
+        controller.rootView = bridge()
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(try XCTUnwrap(findBodyInput(in: controller.view)) === input)
+        XCTAssertEqual(input.text, externalBody)
+        XCTAssertEqual(input.selectedRange, userSelection)
+        XCTAssertEqual(textProbe.setterCount, 0)
+        XCTAssertEqual(selectionProbe.setterCount, 1)
+        XCTAssertEqual(focusProbe.setterCount, 0)
+        XCTAssertGreaterThan(try XCTUnwrap(input.font).pointSize, 17)
+        XCTAssertGreaterThan((input.typingAttributes[.paragraphStyle] as? NSParagraphStyle)?.lineSpacing ?? 0, 0)
 
         XCTAssertTrue(input.becomeFirstResponder(), "The fixture must support actual keyboard focus before testing cancellation")
         XCTAssertTrue(input.isFirstResponder)

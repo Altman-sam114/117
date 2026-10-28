@@ -25,6 +25,7 @@ struct MDJournalApp: App {
                 }
                 .environmentObject(subscriptions)
                 .environmentObject(appLock)
+                .journalPreferences()
                 .onChange(of: scenePhase) { phase in
                     if phase == .active && !JournalApplicationRuntime.isUnitTestHost {
                         Task { await subscriptions.refreshEntitlements() }
@@ -47,6 +48,7 @@ struct MDJournalApp: App {
                 }
                 .environmentObject(subscriptions)
                 .environmentObject(appLock)
+                .journalPreferences()
             }
         }
         #endif

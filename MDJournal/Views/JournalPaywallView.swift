@@ -27,7 +27,7 @@ struct JournalPaywallView: View {
                 }
                 VStack(alignment: .leading, spacing: 18) {
                     feature("批量 Markdown 导出", detail: "按日期与分类筛选，保留完整正文。", image: "doc.text")
-                    feature("分页 PDF 日记集", detail: "自动分页，中文与长文也能从容阅读。", image: "doc.richtext")
+                    feature("分页 PDF 日记集", detail: "自定义封面、日期范围与篇数，中文长文自动分页。", image: "doc.richtext")
                 }
                 .padding(20).frame(maxWidth: .infinity, alignment: .leading).journalSurface()
 

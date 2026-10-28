@@ -5,6 +5,7 @@
 ```mermaid
 flowchart TD
   App["MDJournalApp / 共享 Store、订阅、应用锁"] --> Gate["JournalPrivacyGate / 窗口级隐私遮罩"]
+  App --> Preferences["本机AppStorage / 免费外观与排版 / 环境注入 / IME期间推迟样式"]
   Gate --> Content["ContentView / 唯一选中、筛选、sheet"]
   Content --> Compact["手机 compact / NavigationStack直接绑定State UUID数组 / 路径与选中同步 / 列表无原生selection回写"]
   Content --> Regular["iPad regular、Catalyst / NavigationSplitView"]
@@ -20,6 +21,7 @@ flowchart TD
   State --> ListStats["列表、概览、统计 / 只消费展示值"]
   State --> Save["450ms debounce / revision快照 / actor atomic JSON"]
   Save --> File["私有Documents / iOS系统文件保护 / OS设备备份"]
+  Save --> SaveStatus["当前revision真实保存状态 / 关闭提示不清失败 / 主动重试"]
   BackgroundSave["非active同步入口 / 单Store去重 / 有限系统后台lease / 完成或到期只释放一次"] --> Save
   Content --> Commands["原生FocusedObject稳定对象 / task捕获当前绑定 / 取消拒旧任务 / geometry只改布局 / ID不符拒绝 / 离场清空"]
   Editor --> Commands
@@ -42,6 +44,8 @@ flowchart LR
   Lock --> LA["系统设备所有者认证 / 无生物数据读取"]
   Background["后台 / 过期请求"] --> Generation["锁定 / invalidate / generation拒迟到结果"]
   Inactive["应用willResignActive / 同scene willDeactivate"] --> Shield["窗口顶层遮罩 / 收键盘 / 覆盖sheet / 同scene后台同步锁定"]
+  Settings --> PreviewPrivacy["默认隐藏多任务预览 / 不需购买或认证 / 关闭也不能绕过应用锁"]
+  PreviewPrivacy --> Shield
   LA --> Active["认证成功且generation有效才显示日记"]
   Generation --> Shield
 ```
@@ -58,7 +62,7 @@ flowchart TD
   Verify --> Entitled{"有效 Pro？"}
   Entitled -- "是" --> Filter["日期与分类选择 / 稳定日期排序"]
   Filter --> Deadline["生成前hasPremiumAccess / 当前时刻早于实际截止日期"]
-  Deadline --> Actor["导出actor / 完整Markdown / CoreText逐篇分页PDF / 取消检查"]
+  Deadline --> Actor["导出actor / 完整Markdown / 可选自定义封面 / CoreText逐篇分页PDF / 取消检查"]
   Actor --> Recheck["生成后重查hasPremiumAccess且未取消"]
   Recheck --> Files["用户选定目的地 / fileExporter"]
   Entitled -- "否" --> Free["保留免费编辑、预览、统计、单篇分享和JSON备份"]

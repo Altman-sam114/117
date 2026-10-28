@@ -37,6 +37,16 @@ struct JournalPremiumExportSelection {
     }
 }
 
+struct JournalPremiumPDFOptions: Equatable, Sendable {
+    var includesCover = false
+    var title = "我的日记集"
+
+    var displayTitle: String {
+        let cleaned = title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return cleaned.isEmpty ? "我的日记集" : String(cleaned.prefix(80))
+    }
+}
+
 struct JournalPremiumExportDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.pdf, .plainText, UTType(filenameExtension: "md") ?? .plainText] }
     let data: Data
@@ -66,12 +76,15 @@ enum JournalPremiumExportError: LocalizedError {
 }
 
 actor JournalPremiumExportBuilder {
-    func build(entries: [JournalEntry], format: JournalPremiumExportFormat) throws -> Data {
+    func build(
+        entries: [JournalEntry], format: JournalPremiumExportFormat,
+        pdfOptions: JournalPremiumPDFOptions = JournalPremiumPDFOptions()
+    ) throws -> Data {
         guard !entries.isEmpty else { throw JournalPremiumExportError.emptySelection }
         try Task.checkCancellation()
         switch format {
         case .markdown: return try Self.markdownData(entries: entries)
-        case .pdf: return try Self.pdf(entries: entries)
+        case .pdf: return try Self.pdf(entries: entries, options: pdfOptions)
         }
     }
 
@@ -108,13 +121,13 @@ actor JournalPremiumExportBuilder {
         return "\(date) · \(entry.category.rawValue) · \(entry.mood.rawValue)"
     }
 
-    private static func pdf(entries: [JournalEntry]) throws -> Data {
+    private static func pdf(entries: [JournalEntry], options: JournalPremiumPDFOptions) throws -> Data {
         let output = NSMutableData()
         guard let consumer = CGDataConsumer(data: output as CFMutableData) else {
             throw JournalPremiumExportError.cannotCreatePDF
         }
         var page = CGRect(x: 0, y: 0, width: 595, height: 842)
-        guard let context = CGContext(consumer: consumer, mediaBox: &page, [kCGPDFContextTitle: "MD Journal"] as CFDictionary) else {
+        guard let context = CGContext(consumer: consumer, mediaBox: &page, [kCGPDFContextTitle: options.displayTitle] as CFDictionary) else {
             throw JournalPremiumExportError.cannotCreatePDF
         }
         let font = CTFontCreateWithName("PingFangSC-Regular" as CFString, 12, nil)
@@ -122,9 +135,18 @@ actor JournalPremiumExportBuilder {
         let textColor = CGColor(gray: 0.12, alpha: 1)
         let fontKey = NSAttributedString.Key(kCTFontAttributeName as String)
         let colorKey = NSAttributedString.Key(kCTForegroundColorAttributeName as String)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 4
+        let bodyAttributes: [NSAttributedString.Key: Any] = [
+            fontKey: font, colorKey: textColor, .paragraphStyle: paragraphStyle
+        ]
         let bodyRect = CGRect(x: 48, y: 52, width: page.width - 96, height: page.height - 104)
         var pageNumber = 1
         do {
+            if options.includesCover {
+                try Task.checkCancellation()
+                drawCover(in: context, page: page, entries: entries, title: options.displayTitle)
+            }
             for entry in entries {
                 try Task.checkCancellation()
                 // Keep layout storage bounded to one entry; each new entry begins on a fresh page.
@@ -132,7 +154,6 @@ actor JournalPremiumExportBuilder {
                     let text = NSMutableAttributedString(
                         string: entry.displayTitle + "\n\n", attributes: [fontKey: headingFont, colorKey: textColor]
                     )
-                    let bodyAttributes: [NSAttributedString.Key: Any] = [fontKey: font, colorKey: textColor]
                     text.append(NSAttributedString(string: Self.metadata(for: entry) + "\n\n", attributes: bodyAttributes))
                     text.append(NSAttributedString(string: entry.body, attributes: bodyAttributes))
                     text.append(NSAttributedString(string: "\n", attributes: bodyAttributes))
@@ -152,7 +173,7 @@ actor JournalPremiumExportBuilder {
                             let visible = CTFrameGetVisibleStringRange(frame)
                             guard visible.length > 0 else { throw JournalPremiumExportError.paginationFailed }
                             CTFrameDraw(frame, context)
-                            let footer = NSAttributedString(string: "MD Journal · \(pageNumber)", attributes: bodyAttributes)
+                            let footer = NSAttributedString(string: "MD Journal · \(pageNumber)", attributes: [fontKey: font, colorKey: textColor])
                             let line = CTLineCreateWithAttributedString(footer as CFAttributedString)
                             context.textPosition = CGPoint(x: 48, y: 28)
                             CTLineDraw(line, context)
@@ -169,5 +190,40 @@ actor JournalPremiumExportBuilder {
         }
         context.closePDF()
         return output as Data
+    }
+
+    private static func drawCover(in context: CGContext, page: CGRect, entries: [JournalEntry], title: String) {
+        context.beginPDFPage(nil)
+        context.saveGState()
+        defer { context.restoreGState(); context.endPDFPage() }
+        context.setFillColor(CGColor(red: 0.97, green: 0.96, blue: 0.93, alpha: 1))
+        context.fill(page)
+        let accent = CGColor(red: 0.13, green: 0.32, blue: 0.26, alpha: 1)
+        context.setFillColor(accent)
+        context.fill(CGRect(x: 56, y: 606, width: 48, height: 3))
+        context.textMatrix = .identity
+
+        func draw(_ string: String, size: CGFloat, rect: CGRect, color: CGColor) {
+            let font = CTFontCreateWithName("PingFangSC-Regular" as CFString, size, nil)
+            let style = NSMutableParagraphStyle()
+            style.lineSpacing = 8
+            let text = NSAttributedString(string: string, attributes: [
+                NSAttributedString.Key(kCTFontAttributeName as String): font,
+                NSAttributedString.Key(kCTForegroundColorAttributeName as String): color,
+                .paragraphStyle: style
+            ])
+            let framesetter = CTFramesetterCreateWithAttributedString(text as CFAttributedString)
+            let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), CGPath(rect: rect, transform: nil), nil)
+            CTFrameDraw(frame, context)
+        }
+
+        draw("MD JOURNAL / 私人日记集", size: 11, rect: CGRect(x: 56, y: 638, width: 480, height: 30), color: accent)
+        draw(title, size: 30, rect: CGRect(x: 56, y: 300, width: 483, height: 278), color: CGColor(gray: 0.12, alpha: 1))
+        let dates = entries.map(\.createdAt)
+        let first = dates.min()?.formatted(date: .abbreviated, time: .omitted) ?? ""
+        let last = dates.max()?.formatted(date: .abbreviated, time: .omitted) ?? ""
+        let range = first == last ? first : "\(first) — \(last)"
+        draw("\(range)\n\(entries.count) 篇记录 · 按日珍藏", size: 12, rect: CGRect(x: 56, y: 160, width: 483, height: 90), color: accent)
+        draw("留给自己的文字，请妥善保管。", size: 10, rect: CGRect(x: 56, y: 48, width: 483, height: 32), color: CGColor(gray: 0.4, alpha: 1))
     }
 }

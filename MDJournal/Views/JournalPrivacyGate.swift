@@ -26,12 +26,12 @@ struct JournalPrivacyGate<Content: View>: View {
                             .accessibilityHidden(true)
                         Text("留给自己的文字")
                             .font(.system(.title2, design: .serif))
-                        Text("使用设备密码或生物识别解锁日记。")
+                        Text(appLock.isEnabled ? "使用设备密码或生物识别解锁日记。" : "返回应用，继续自己的记录。")
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         if appLock.isAuthenticating {
                             ProgressView("正在验证身份")
-                        } else if scenePhase == .active {
+                        } else if scenePhase == .active && appLock.isEnabled {
                             Button("解锁日记") { Task { await appLock.unlock() } }
                                 .buttonStyle(.borderedProminent)
                                 .tint(JournalTheme.accent)
@@ -216,7 +216,10 @@ private final class JournalShieldAnchor: UIView {
             window.addSubview(shield)
         }
         window.bringSubviewToFront(shield)
-        unlockButton.isHidden = !active || appLock.isAuthenticating
-        messageLabel.text = appLock.isAuthenticating ? "正在验证身份…" : (appLock.message ?? "使用设备密码或生物识别继续。")
+        titleLabel.text = appLock.isEnabled ? "日记已锁定" : "日记已隐藏"
+        unlockButton.isHidden = !appLock.isEnabled || !active || appLock.isAuthenticating
+        messageLabel.text = appLock.isEnabled
+            ? (appLock.isAuthenticating ? "正在验证身份…" : (appLock.message ?? "使用设备密码或生物识别继续。"))
+            : "返回应用，继续自己的记录。"
     }
 }

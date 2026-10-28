@@ -49,6 +49,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     @Binding var selectedRange: NSRange
     @Binding var isFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.journalWritingPreferences) private var writingPreferences
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text, selectedRange: $selectedRange, isFocused: $isFocused)
@@ -61,7 +62,6 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             coordinator?.applyIndentation(direction, to: textView)
         }
         textView.backgroundColor = .clear
-        Self.configureBodyFontIfNeeded(textView, category: Self.contentSizeCategory(for: dynamicTypeSize))
         Self.configureMarkdownInputTraits(textView)
         textView.adjustsFontForContentSizeCategory = true
         textView.alwaysBounceVertical = true
@@ -71,6 +71,10 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         textView.textContainer.lineFragmentPadding = 0
         textView.text = text
         textView.selectedRange = Self.clampedRange(selectedRange, in: text)
+        Self.configureWritingStyleIfNeeded(
+            textView, category: Self.contentSizeCategory(for: dynamicTypeSize), preferences: writingPreferences,
+            bodyWasReplaced: true
+        )
         // Initial configuration must not publish UIKit selection changes back into SwiftUI.
         textView.delegate = context.coordinator
         return textView
@@ -83,7 +87,6 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         context.coordinator.isApplyingSwiftUISynchronization = true
         defer { context.coordinator.isApplyingSwiftUISynchronization = false }
 
-        Self.configureBodyFontIfNeeded(textView, category: Self.contentSizeCategory(for: dynamicTypeSize))
         Self.configureMarkdownInputTraits(textView)
 
         let hasMarkedText = textView.markedTextRange != nil
@@ -93,9 +96,11 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             hasMarkedText: hasMarkedText
         )
 
+        var bodyWasReplaced = false
         if syncDecision == .synchronizeBodyAndSelection {
             if textView.text != text {
                 textView.text = text
+                bodyWasReplaced = true
             }
 
             if textView.selectedRange != selectedRange {
@@ -104,6 +109,14 @@ struct MarkdownBodyTextView: UIViewRepresentable {
                     textView.selectedRange = clampedSelection
                 }
             }
+        }
+
+        // Changing text attributes during an IME composition can commit or discard marked text.
+        if !hasMarkedText {
+            Self.configureWritingStyleIfNeeded(
+                textView, category: Self.contentSizeCategory(for: dynamicTypeSize), preferences: writingPreferences,
+                bodyWasReplaced: bodyWasReplaced
+            )
         }
 
         context.coordinator.synchronizeFocus(textView, shouldBeFocused: isFocused)
@@ -273,14 +286,34 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         }
     }
 
-    static func configureBodyFontIfNeeded(_ textView: UITextView, category: UIContentSizeCategory? = nil) {
-        let traits = category.map { UITraitCollection(preferredContentSizeCategory: $0) }
-        let baseFont = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits)
-        let descriptor = baseFont.fontDescriptor.withDesign(.rounded) ?? baseFont.fontDescriptor
-        let bodyFont = UIFont(descriptor: descriptor, size: baseFont.pointSize)
+    static func configureBodyFontIfNeeded(
+        _ textView: UITextView, category: UIContentSizeCategory? = nil,
+        preferences: JournalWritingPreferences = JournalWritingPreferences()
+    ) {
+        let bodyFont = preferences.uiFont(category: category ?? textView.traitCollection.preferredContentSizeCategory)
         if textView.font != bodyFont {
             textView.font = bodyFont
         }
+    }
+
+    static func configureWritingStyleIfNeeded(
+        _ textView: UITextView, category: UIContentSizeCategory,
+        preferences: JournalWritingPreferences, bodyWasReplaced: Bool = false
+    ) {
+        guard textView.markedTextRange == nil else { return }
+        configureBodyFontIfNeeded(textView, category: category, preferences: preferences)
+        let traits = UITraitCollection(preferredContentSizeCategory: category)
+        let spacing = UIFontMetrics(forTextStyle: .body).scaledValue(
+            for: preferences.spacing.extraLineSpacing, compatibleWith: traits
+        )
+        let current = textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle
+        guard bodyWasReplaced || current?.lineSpacing != spacing else { return }
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = spacing
+        textView.textStorage.addAttribute(
+            .paragraphStyle, value: style, range: NSRange(location: 0, length: textView.textStorage.length)
+        )
+        textView.typingAttributes[.paragraphStyle] = style
     }
 
     static func configureMarkdownInputTraits(_ textView: UITextView) {

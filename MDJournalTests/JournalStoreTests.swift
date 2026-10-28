@@ -1,8 +1,85 @@
+import Combine
 import XCTest
 @testable import MDJournal
 
 @MainActor
 final class JournalStoreTests: XCTestCase {
+    func testUnchangedEditsDoNotPublishDeriveOrDelayAPendingSave() async throws {
+        let writer = makeGatePersistenceWriter()
+        let scheduler = ManualSaveScheduler()
+        var derivationCount = 0
+        let fixture = try makeStoreFixture(writer: writer, scheduler: scheduler) { entry in
+            derivationCount += 1
+            return JournalEntryBodyPresentation(body: entry.body)
+        }
+        defer { fixture.cleanup() }
+        var publicationCount = 0
+        let observation = fixture.store.$entries.dropFirst().sink { _ in publicationCount += 1 }
+        defer { observation.cancel() }
+        let original = try XCTUnwrap(fixture.store.entries.first)
+        let originalBytes = try Data(contentsOf: fixture.storageURL)
+        var unchanged = original
+        unchanged.updatedAt = .distantFuture
+        for _ in 0..<100 { fixture.store.update(unchanged) }
+        XCTAssertEqual(fixture.store.revision, 0)
+        XCTAssertEqual(fixture.store.entries, [original])
+        XCTAssertEqual(fixture.store.saveState, .saved)
+        XCTAssertEqual(scheduler.pendingCount, 0)
+        XCTAssertEqual(derivationCount, 1)
+        XCTAssertEqual(publicationCount, 0)
+        XCTAssertEqual(try Data(contentsOf: fixture.storageURL), originalBytes)
+
+        var changed = original
+        changed.body += "\n真正的修改"
+        fixture.store.update(changed)
+        for _ in 0..<100 { fixture.store.update(changed) }
+        XCTAssertEqual(fixture.store.revision, 1)
+        XCTAssertEqual(scheduler.pendingCount, 1)
+        XCTAssertEqual(derivationCount, 2)
+        XCTAssertEqual(publicationCount, 1)
+        let saving = try XCTUnwrap(scheduler.fireNext())
+        let snapshot = await writer.nextRequest()
+        XCTAssertEqual(snapshot.revision, 1)
+        await writer.complete(revision: 1, with: .written(revision: 1))
+        await saving.value
+        XCTAssertEqual(fixture.store.saveState, .saved)
+    }
+
+    func testSaveStateTracksDurabilityFailureDismissalAndExplicitRetry() async throws {
+        let writer = makeGatePersistenceWriter()
+        let fixture = try makeStoreFixture(writer: writer, scheduler: ManualSaveScheduler())
+        defer { fixture.cleanup() }
+        XCTAssertEqual(fixture.store.saveState, .saved)
+        var entry = try XCTUnwrap(fixture.store.entries.first)
+        entry.body = "尚未写盘"
+        fixture.store.update(entry)
+        XCTAssertEqual(fixture.store.saveState, .saving)
+        let saving = Task { await fixture.store.flushPendingSave() }
+        _ = await writer.nextRequest()
+        XCTAssertEqual(fixture.store.saveState, .saving)
+        await writer.complete(revision: 1, with: .failed(revision: 1, message: "disk full"))
+        _ = await saving.value
+        XCTAssertEqual(fixture.store.saveState, .failed)
+        fixture.store.dismissError()
+        XCTAssertEqual(fixture.store.saveState, .failed, "Dismissing an alert must not imply a successful disk write")
+        let retry = Task { await fixture.store.flushPendingSave() }
+        let retried = await writer.nextRequest()
+        XCTAssertEqual(retried.revision, 1)
+        XCTAssertEqual(fixture.store.saveState, .saving)
+        await writer.complete(revision: 1, with: .written(revision: 1))
+        _ = await retry.value
+        XCTAssertEqual(fixture.store.saveState, .saved)
+        XCTAssertEqual(fixture.store.durableRevision, fixture.store.revision)
+
+        let corrupt = try makeCorruptStoreFixture(writer: writer, scheduler: ManualSaveScheduler())
+        defer { corrupt.cleanup() }
+        XCTAssertEqual(corrupt.store.saveState, .readProtected)
+        corrupt.store.dismissError()
+        let ignored = await corrupt.store.flushPendingSave()
+        XCTAssertNil(ignored)
+        XCTAssertEqual(corrupt.store.saveState, .readProtected)
+    }
+
     func testBodyPresentationCacheDerivesOnlyTheChangedEntry() async throws {
         let entries = [makeEntry(title: "甲", createdAt: Date(timeIntervalSince1970: 200)),
                        makeEntry(title: "乙", createdAt: Date(timeIntervalSince1970: 100))]
@@ -385,6 +462,7 @@ final class JournalStoreTests: XCTestCase {
         await oldTask.value
 
         XCTAssertNil(fixture.store.errorMessage)
+        XCTAssertEqual(fixture.store.saveState, .saving, "A stale failure cannot replace the latest save state")
 
         let flushTask = Task { @MainActor in await fixture.store.flushPendingSave() }
         _ = await writer.nextRequest()
@@ -414,6 +492,7 @@ final class JournalStoreTests: XCTestCase {
         await debouncedTask.value
         XCTAssertNil(fixture.store.errorMessage)
         XCTAssertEqual(fixture.store.durableRevision, 1)
+        XCTAssertEqual(fixture.store.saveState, .saved)
     }
 
     func testLatestFailureRetriesSameRevisionAndReadErrorSurvivesNoOpFlush() async throws {

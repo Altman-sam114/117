@@ -9,6 +9,8 @@ struct JournalPremiumExportView: View {
     @State private var endDate = Date()
     @State private var selectedCategory: JournalEntry.Category?
     @State private var format = JournalPremiumExportFormat.markdown
+    @State private var includesCover = true
+    @State private var collectionTitle = "我的日记集"
     @State private var document: JournalPremiumExportDocument?
     @State private var isExporting = false
     @State private var isPreparing = false
@@ -24,6 +26,7 @@ struct JournalPremiumExportView: View {
     }
 
     var body: some View {
+        let selectionCount = selectedEntries.count
         Form {
             Section {
                 Text("把记录整理成册")
@@ -44,7 +47,7 @@ struct JournalPremiumExportView: View {
                             Text(category.rawValue).tag(Optional(category))
                         }
                     }
-                    Text("已选择 \(selectedEntries.count) 篇日记，按日期从早到晚排列。")
+                    Text("已选择 \(selectionCount) 篇日记，按日期从早到晚排列。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 .disabled(isPreparing)
@@ -55,6 +58,16 @@ struct JournalPremiumExportView: View {
                         }
                     }
                     .disabled(isPreparing)
+                    if format == .pdf {
+                        Toggle("添加日记集封面", isOn: $includesCover)
+                            .disabled(isPreparing)
+                        if includesCover {
+                            TextField("日记集名称", text: $collectionTitle)
+                                .disabled(isPreparing)
+                            Text("封面显示名称、日期范围和篇数。名称最多使用前 80 个字符，日记原文不受影响。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
                     Button(action: prepareExport) {
                         HStack {
                             Label("生成导出文件", systemImage: "square.and.arrow.up")
@@ -62,7 +75,7 @@ struct JournalPremiumExportView: View {
                         }
                         .frame(minHeight: 44)
                     }
-                    .disabled(isPreparing || selectedEntries.isEmpty)
+                    .disabled(isPreparing || selectionCount == 0)
                     if isPreparing {
                         Button("取消生成") { preparationTask?.cancel() }
                             .frame(minHeight: 44)
@@ -115,12 +128,15 @@ struct JournalPremiumExportView: View {
         }
         let snapshot = selectedEntries
         let requestedFormat = format
+        let pdfOptions = JournalPremiumPDFOptions(includesCover: includesCover, title: collectionTitle)
         message = nil
         isPreparing = true
         preparationTask = Task { @MainActor in
             defer { isPreparing = false; preparationTask = nil }
             do {
-                let data = try await JournalPremiumExportBuilder().build(entries: snapshot, format: requestedFormat)
+                let data = try await JournalPremiumExportBuilder().build(
+                    entries: snapshot, format: requestedFormat, pdfOptions: pdfOptions
+                )
                 try Task.checkCancellation()
                 guard subscriptions.hasPremiumAccess() else {
                     message = "生成期间 Pro 权益已失效，文件尚未导出。请查看订阅状态后重试。"

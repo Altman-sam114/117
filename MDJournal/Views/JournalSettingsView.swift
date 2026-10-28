@@ -57,6 +57,7 @@ struct JournalSettingsView: View {
     private var settingsForm: some View {
         Form {
             introductionSection
+            writingSection
             readProtectionSection
             backupSection
             appLockSection
@@ -64,6 +65,8 @@ struct JournalSettingsView: View {
             aboutSection
             if isBusy { ProgressView("正在准备文件") }
         }
+        .scrollContentBackground(.hidden)
+        .background { JournalBackdrop().ignoresSafeArea() }
     }
 
     private var introductionSection: some View {
@@ -72,6 +75,24 @@ struct JournalSettingsView: View {
                 .font(.system(.headline, design: .serif))
             Text("本机保存 · 原生写作 · 随时备份")
                 .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private var writingSection: some View {
+        Section("你的写作空间") {
+            NavigationLink {
+                JournalWritingSettingsView()
+            } label: {
+                Label("外观与写作", systemImage: "textformat.size")
+            }
+            Label(store.saveState.title, systemImage: store.saveState.systemImage)
+                .foregroundStyle(store.saveState == .failed ? .red : .secondary)
+                .accessibilityIdentifier("journal.settings.save-status")
+            if store.saveState == .failed {
+                Text("最新修改尚未写入磁盘。请勿卸载应用；可以重试保存，或先导出当前 JSON 备份。")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button("重试保存") { Task { await store.flushPendingSave() } }
+            }
         }
     }
 
@@ -115,6 +136,8 @@ struct JournalSettingsView: View {
 
     private var appLockSection: some View {
         Section {
+            Toggle("隐藏多任务预览", isOn: $appLock.hidesInactiveContent)
+                .accessibilityIdentifier("journal.privacy.hide-preview")
             Toggle("应用锁", isOn: Binding(
                 get: { appLock.isEnabled },
                 set: { enabled in Task { await appLock.setEnabled(enabled) } }
@@ -130,7 +153,7 @@ struct JournalSettingsView: View {
         } header: {
             Text("本地访问保护")
         } footer: {
-            Text("使用系统设备密码或生物识别验证。进入后台后再次验证，并遮挡非活跃界面；导出文件不受应用锁保护。")
+            Text("默认在离开应用时遮挡内容，不要求开启应用锁。应用锁另使用系统设备密码或生物识别验证，进入后台后再次验证；开启锁时始终遮挡非活跃界面。导出文件不受这些保护。")
         }
     }
 

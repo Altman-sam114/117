@@ -214,6 +214,9 @@ struct ContentView: View {
         .focusedSceneObject(sceneActions)
         .onDisappear { sceneActions.clearTarget() }
         .alert(store.canMutate ? "无法保存日记" : "无法读取日记", isPresented: errorAlertBinding) {
+            if store.canMutate {
+                Button("重试保存") { Task { await store.flushPendingSave() } }
+            }
             Button("好", role: .cancel) {
                 store.dismissError()
             }
@@ -252,7 +255,10 @@ struct ContentView: View {
     private func detail(for entryID: JournalEntry.ID?, using snapshot: JournalEntryListSnapshot) -> some View {
         if let entryBinding = selectedEntryBinding(for: entryID, using: snapshot),
            let presentation = store.bodyPresentations[entryBinding.wrappedValue.id] {
-            EntryEditorView(entry: entryBinding, bodyPresentation: presentation)
+            EntryEditorView(
+                entry: entryBinding, bodyPresentation: presentation, saveState: store.saveState,
+                onRetrySave: { Task { await store.flushPendingSave() } }
+            )
         } else {
             EmptyStateView(onCreate: createEntry)
                 .disabled(!store.canMutate)

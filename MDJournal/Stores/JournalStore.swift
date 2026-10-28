@@ -4,11 +4,37 @@ import Foundation
 import UIKit
 #endif
 
+enum JournalSaveState: Equatable {
+    case saved
+    case saving
+    case failed
+    case readProtected
+
+    var title: String {
+        switch self {
+        case .saved: return "已存到本机"
+        case .saving: return "正在保存"
+        case .failed: return "保存失败"
+        case .readProtected: return "原文件已保护"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .saved: return "checkmark.circle"
+        case .saving: return "arrow.triangle.2.circlepath"
+        case .failed: return "exclamationmark.arrow.triangle.2.circlepath"
+        case .readProtected: return "lock.shield"
+        }
+    }
+}
+
 @MainActor
 final class JournalStore: ObservableObject {
     @Published private(set) var entries: [JournalEntry] = []
     @Published private(set) var errorMessage: String?
     @Published private(set) var readFailureMessage: String?
+    @Published private(set) var saveState: JournalSaveState = .saved
     private(set) var bodyPresentations: [JournalEntry.ID: JournalEntryBodyPresentation] = [:]
 
     private enum ErrorSource: Equatable {
@@ -102,9 +128,14 @@ final class JournalStore: ObservableObject {
         guard allowMutation() else { return }
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
 
+        let original = entries[index]
+        let bodyChanged = original.body != entry.body
+        guard bodyChanged || original.title != entry.title || original.createdAt != entry.createdAt
+                || original.category != entry.category || original.mood != entry.mood else { return }
+
         cancelPendingSave()
-        let shouldSortEntries = entries[index].createdAt != entry.createdAt
-        if entries[index].body != entry.body {
+        let shouldSortEntries = original.createdAt != entry.createdAt
+        if bodyChanged {
             bodyPresentations[entry.id] = makeBodyPresentation(entry)
         }
         var updatedEntry = entry
@@ -133,6 +164,7 @@ final class JournalStore: ObservableObject {
         cancelPendingSave()
         guard canMutate else { return nil }
         guard revision > 0 else { return nil }
+        if durableRevision != revision && saveState != .saving { saveState = .saving }
 
         while true {
             let snapshot = currentSnapshot()
@@ -242,6 +274,7 @@ final class JournalStore: ObservableObject {
             entries = loadedEntries
             sortEntries()
             readFailureMessage = nil
+            saveState = .saved
             if case .read = errorSource {
                 errorMessage = nil
                 errorSource = nil
@@ -260,6 +293,7 @@ final class JournalStore: ObservableObject {
             }
             let message = "读取本地日记失败：\(error.localizedDescription)"
             readFailureMessage = message
+            saveState = .readProtected
             publishError(message, source: .read)
             bodyPresentations.removeAll()
             entries = []
@@ -268,6 +302,7 @@ final class JournalStore: ObservableObject {
 
     private func recordMutation() {
         revision += 1
+        if saveState != .saving { saveState = .saving }
         clearSupersededWriteError()
     }
 
@@ -313,9 +348,11 @@ final class JournalStore: ObservableObject {
         switch result {
         case let .written(resultRevision), let .alreadyDurable(resultRevision):
             durableRevision = max(durableRevision ?? resultRevision, resultRevision)
+            if saveState != .saved { saveState = .saved }
             clearWriteError(through: resultRevision)
         case let .failed(resultRevision, message):
             guard durableRevision.map({ resultRevision > $0 }) ?? true else { return }
+            saveState = .failed
             publishError("写入本地日记失败：\(message)", source: .write(revision: resultRevision))
         case .rejectedStale:
             break

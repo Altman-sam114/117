@@ -303,6 +303,8 @@ struct EntryEditorView: View {
 
     @Binding var entry: JournalEntry
     let bodyPresentation: JournalEntryBodyPresentation
+    var saveState: JournalSaveState? = nil
+    var onRetrySave: () -> Void = {}
     @State private var workspaceState = EntryEditorWorkspaceState()
     @StateObject private var sceneActions = EntryEditorSceneActions()
     @State private var showsDetails = false
@@ -579,7 +581,7 @@ struct EntryEditorView: View {
             HStack(spacing: 16) {
                 Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
                 Spacer(minLength: 12)
-                Label("仅在本机", systemImage: "internaldrive")
+                saveStatus
             }
             Text("\(metrics.wordCount) 词 · \(metrics.sectionCount) 小节")
         }
@@ -592,6 +594,25 @@ struct EntryEditorView: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .top) {
             Rectangle().fill(JournalTheme.separator).frame(height: 0.5)
+        }
+    }
+
+    @ViewBuilder
+    private var saveStatus: some View {
+        if let saveState {
+            if saveState == .failed {
+                Button(action: onRetrySave) {
+                    Label("保存失败 · 重试", systemImage: saveState.systemImage)
+                        .frame(minHeight: 44)
+                }
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("journal.save.retry")
+            } else {
+                Label(saveState.title, systemImage: saveState.systemImage)
+                    .accessibilityIdentifier("journal.save.status")
+            }
+        } else {
+            Label("仅在本机", systemImage: "internaldrive")
         }
     }
 

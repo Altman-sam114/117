@@ -81,6 +81,33 @@ final class JournalPremiumExportTests: XCTestCase {
         XCTAssertTrue((0..<document.pageCount).allSatisfy { document.page(at: $0)?.bounds(for: .mediaBox).size == CGSize(width: 595, height: 842) })
     }
 
+    func testPDFCoverUsesCustomTitleAndDateRangeWithoutReplacingAnyEntry() async throws {
+        let records = [entry("第一篇", date: Date(timeIntervalSince1970: 1_700_000_000)),
+                       entry("最后一篇", date: Date(timeIntervalSince1970: 1_710_000_000))]
+        let options = JournalPremiumPDFOptions(includesCover: true, title: "  秋天的记录\n 留给自己  ")
+        XCTAssertEqual(options.displayTitle, "秋天的记录 留给自己")
+        let builder = JournalPremiumExportBuilder()
+        let plainData = try await builder.build(entries: records, format: .pdf)
+        let plain = try XCTUnwrap(PDFDocument(data: plainData))
+        let data = try await builder.build(entries: records, format: .pdf, pdfOptions: options)
+        let document = try XCTUnwrap(PDFDocument(data: data))
+        XCTAssertEqual(document.pageCount, plain.pageCount + 1)
+        XCTAssertTrue(document.page(at: 0)?.string?.contains(options.displayTitle) == true)
+        XCTAssertTrue(document.page(at: 0)?.string?.contains("2 篇记录") == true)
+        for record in records {
+            XCTAssertTrue(document.string?.contains(record.title) == true)
+            XCTAssertTrue(document.string?.contains(record.body) == true)
+            XCTAssertTrue(document.page(at: 0)?.string?.contains(record.createdAt.formatted(date: .abbreviated, time: .omitted)) == true)
+        }
+        XCTAssertEqual(document.documentAttributes?[PDFDocumentAttribute.titleAttribute] as? String, options.displayTitle)
+        XCTAssertEqual(JournalPremiumPDFOptions(title: " \n\t").displayTitle, "我的日记集")
+        XCTAssertEqual(JournalPremiumPDFOptions(title: String(repeating: "字", count: 100)).displayTitle.count, 80)
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "com.adobe.pdf")
+        attachment.name = "review-premium-pdf-collection"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     private func entry(_ title: String, date: Date, category: JournalEntry.Category = .daily) -> JournalEntry {
         JournalEntry(title: title, body: "### 今天\n原文 \(title)", createdAt: date, category: category)
     }

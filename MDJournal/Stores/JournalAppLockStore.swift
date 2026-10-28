@@ -42,7 +42,11 @@ final class JournalAppLockStore: ObservableObject {
     }
 
     static let enabledDefaultsKey = "journal.appLock.enabled"
+    static let hidesInactiveContentDefaultsKey = "journal.privacy.hidesInactiveContent"
     @Published private(set) var isEnabled: Bool
+    @Published var hidesInactiveContent: Bool {
+        didSet { defaults.set(hidesInactiveContent, forKey: Self.hidesInactiveContentDefaultsKey) }
+    }
     @Published private(set) var state: State
     @Published private(set) var message: String?
 
@@ -55,13 +59,14 @@ final class JournalAppLockStore: ObservableObject {
         self.authenticator = authenticator ?? LocalJournalOwnerAuthenticator()
         let enabled = defaults.bool(forKey: Self.enabledDefaultsKey)
         isEnabled = enabled
+        hidesInactiveContent = defaults.object(forKey: Self.hidesInactiveContentDefaultsKey) as? Bool ?? true
         state = enabled ? .locked : .unlocked
     }
 
     var isAuthenticating: Bool { state == .authenticating }
 
     func needsPrivacyCover(sceneIsActive: Bool) -> Bool {
-        isEnabled && (!sceneIsActive || state != .unlocked)
+        (!sceneIsActive && hidesInactiveContent) || (isEnabled && (!sceneIsActive || state != .unlocked))
     }
 
     func setEnabled(_ enabled: Bool) async {

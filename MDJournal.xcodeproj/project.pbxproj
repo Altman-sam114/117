@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F6D8534A8D217A2185892F78 /* JournalWritingPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22D77815DE36AB852C28FFA3 /* JournalWritingPreferencesTests.swift */; };
+		00238F864587C17D2EA36E71 /* JournalWritingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8C07A291078E40EF76CF16 /* JournalWritingSettingsView.swift */; };
+		2AE2AF12B176D52EE9A07AF6 /* JournalWritingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C02FDCAEF11E2A6F15C108 /* JournalWritingPreferences.swift */; };
 		D10000000000000000000001 /* JournalEntryBodyPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000001 /* JournalEntryBodyPresentation.swift */; };
 		A10000000000000000000001 /* MDJournalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* MDJournalApp.swift */; };
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
@@ -81,6 +84,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		22D77815DE36AB852C28FFA3 /* JournalWritingPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalWritingPreferencesTests.swift; sourceTree = "<group>"; };
+		BC8C07A291078E40EF76CF16 /* JournalWritingSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalWritingSettingsView.swift; sourceTree = "<group>"; };
+		D1C02FDCAEF11E2A6F15C108 /* JournalWritingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalWritingPreferences.swift; sourceTree = "<group>"; };
 		D20000000000000000000001 /* JournalEntryBodyPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntryBodyPresentation.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* MDJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MDJournalApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -213,6 +219,7 @@
 		A40000000000000000000005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				BC8C07A291078E40EF76CF16 /* JournalWritingSettingsView.swift */,
 				E1EAA30086816E045938A9F1 /* JournalSettingsView.swift */,
 				E11644336846C5B5E892346D /* JournalPrivacyView.swift */,
 				E1A884A57F238990FDB85C29 /* JournalPrivacyGate.swift */,
@@ -236,6 +243,7 @@
 		A40000000000000000000006 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				D1C02FDCAEF11E2A6F15C108 /* JournalWritingPreferences.swift */,
 				E121525B9AE8711A16D0F9BE /* JournalPremiumExport.swift */,
 				E1A0E3C681429439FA79AFC7 /* JournalBoundedBodyDerivation.swift */,
 				E1EBB4038FB3EC61976736BF /* JournalBackup.swift */,
@@ -268,6 +276,7 @@
 		B40000000000000000000001 /* MDJournalTests */ = {
 			isa = PBXGroup;
 			children = (
+				22D77815DE36AB852C28FFA3 /* JournalWritingPreferencesTests.swift */,
 				E1EE88272686AC7094AB8449 /* JournalSubscriptions.storekit */,
 				E10D3E0C9AE6980B56964E3D /* JournalSubscriptionTests.swift */,
 				E1A7F5EB7C208570AC94B7EF /* JournalSecurityTests.swift */,
@@ -396,6 +405,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00238F864587C17D2EA36E71 /* JournalWritingSettingsView.swift in Sources */,
+				2AE2AF12B176D52EE9A07AF6 /* JournalWritingPreferences.swift in Sources */,
 				E2EAA30086816E045938A9F1 /* JournalSettingsView.swift in Sources */,
 				E21644336846C5B5E892346D /* JournalPrivacyView.swift in Sources */,
 				E2A884A57F238990FDB85C29 /* JournalPrivacyGate.swift in Sources */,
@@ -443,6 +454,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F6D8534A8D217A2185892F78 /* JournalWritingPreferencesTests.swift in Sources */,
 				E20D3E0C9AE6980B56964E3D /* JournalSubscriptionTests.swift in Sources */,
 				E2A7F5EB7C208570AC94B7EF /* JournalSecurityTests.swift in Sources */,
 				E23398B29BFF1CA92FF7FF0F /* JournalPremiumExportTests.swift in Sources */,

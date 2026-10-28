@@ -121,7 +121,9 @@ final class JournalSecurityTests: XCTestCase {
         let authenticator = SecurityAuthenticationStub(results: [false, true, true])
         let store = JournalAppLockStore(defaults: defaults, authenticator: authenticator)
         XCTAssertFalse(store.isEnabled)
-        XCTAssertFalse(store.needsPrivacyCover(sceneIsActive: false))
+        XCTAssertTrue(store.hidesInactiveContent)
+        XCTAssertTrue(store.needsPrivacyCover(sceneIsActive: false), "App-switcher privacy must not depend on purchasing or enabling a lock")
+        XCTAssertFalse(store.needsPrivacyCover(sceneIsActive: true))
         await store.setEnabled(true)
         XCTAssertFalse(store.isEnabled)
         await store.setEnabled(true)
@@ -136,6 +138,59 @@ final class JournalSecurityTests: XCTestCase {
         XCTAssertFalse(store.isEnabled)
         XCTAssertFalse(defaults.bool(forKey: JournalAppLockStore.enabledDefaultsKey))
         XCTAssertEqual(authenticator.calls, 3)
+    }
+
+    func testPreviewPrivacyPreferencePersistsButCannotBypassAnEnabledLock() async {
+        let suite = "mdjournal-preview-privacy-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = JournalAppLockStore(defaults: defaults, authenticator: SecurityAuthenticationStub(results: [true]))
+        store.hidesInactiveContent = false
+        XCTAssertFalse(store.needsPrivacyCover(sceneIsActive: false))
+        let reloaded = JournalAppLockStore(defaults: defaults)
+        XCTAssertFalse(reloaded.hidesInactiveContent)
+        XCTAssertFalse(reloaded.isEnabled)
+        await store.setEnabled(true)
+        XCTAssertTrue(store.needsPrivacyCover(sceneIsActive: false))
+        XCTAssertFalse(store.needsPrivacyCover(sceneIsActive: true))
+        store.lock()
+        XCTAssertTrue(store.needsPrivacyCover(sceneIsActive: true))
+        XCTAssertTrue(store.needsPrivacyCover(sceneIsActive: false))
+    }
+
+    func testDefaultPreviewShieldCoversSheetsWithoutRequiringAuthenticationOnReturn() async throws {
+        let suite = "mdjournal-preview-window-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let authenticator = SecurityAuthenticationStub(results: [])
+        let store = JournalAppLockStore(defaults: defaults, authenticator: authenticator)
+        let host = UIHostingController(rootView: JournalPrivacyGate { Text("私人记录") }
+            .environmentObject(store).environment(\.scenePhase, .active))
+        let window = try makeForegroundWindow(size: CGSize(width: 390, height: 844))
+        let previousKeyWindow = window.windowScene?.windows.first(where: \.isKeyWindow)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKeyWindow?.makeKey()
+        }
+        host.view.layoutIfNeeded()
+        let sheet = UIViewController()
+        host.present(sheet, animated: false)
+        try await Task.sleep(for: .milliseconds(100))
+        let scene = try XCTUnwrap(window.windowScene)
+        NotificationCenter.default.post(name: UIScene.willDeactivateNotification, object: scene)
+        let cover = try XCTUnwrap(window.subviews.last)
+        XCTAssertEqual(cover.accessibilityIdentifier, "journal.window-privacy-cover")
+        XCTAssertEqual(cover.frame, window.bounds)
+        XCTAssertTrue(cover.accessibilityViewIsModal)
+        XCTAssertEqual(store.state, .unlocked)
+        NotificationCenter.default.post(name: UIScene.didEnterBackgroundNotification, object: scene)
+        NotificationCenter.default.post(name: UIScene.didActivateNotification, object: scene)
+        XCTAssertFalse(window.subviews.contains { $0.accessibilityIdentifier == "journal.window-privacy-cover" })
+        XCTAssertEqual(authenticator.calls, 0, "A preview cover is not an application lock")
+        sheet.dismiss(animated: false)
     }
 
     func testFailedAuthenticationKeepsEnabledDiaryCovered() async {
