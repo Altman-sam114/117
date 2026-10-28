@@ -72,6 +72,7 @@ jobs:
       - name: Prepare cloud simulator
         id: test_destination
         continue-on-error: true
+        timeout-minutes: 4
         shell: bash
         run: |
           set -euo pipefail
@@ -79,16 +80,22 @@ jobs:
             echo "## Pinned toolchain and runner"
             uname -m
             xcrun xcodebuild -version
-            xcrun simctl list runtimes
-            xcrun simctl list devices available --json > "$RESULT_DIR/simulator-devices.json"
+            echo "## Available runtimes (60 second limit)"
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 60 xcrun simctl list runtimes
+            echo "## Available devices (60 second limit)"
+            /usr/bin/perl -e 'alarm shift; exec @ARGV' 60 \
+              xcrun simctl list devices available --json > "$RESULT_DIR/simulator-devices.json"
             destination=$(python3 script/ci_simulator.py \
               --devices "$RESULT_DIR/simulator-devices.json" --runtime "$TEST_RUNTIME" \
               --report "$RESULT_DIR/simulator-selection.json")
             echo "destination=${destination}" >> "$GITHUB_OUTPUT"
             echo "Resolved XCTest destination: ${destination}"
             device_id="${destination##*id=}"
-            # Start the one selected device early while the build steps compile; never create clones.
-            if ! xcrun simctl list devices booted | grep -Fq "$device_id"; then
+            initial_state=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["initialState"])' \
+              "$RESULT_DIR/simulator-selection.json")
+            # Reuse the captured inventory instead of making another service request.
+            if [[ "$initial_state" != "Booted" ]]; then
+              echo "## Boot selected device (60 second limit): $device_id"
               /usr/bin/perl -e 'alarm shift; exec @ARGV' 60 xcrun simctl boot "$device_id"
             fi
           } 2>&1 | tee "$RESULT_DIR/xctest-destination.log"
@@ -99,6 +106,7 @@ jobs:
         shell: bash
         env:
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
+          SIMULATOR_PREPARATION_OUTCOME: ${{ steps.test_destination.outcome }}
         run: |
           set -euo pipefail
           destination="${RESOLVED_TEST_DESTINATION:-}"
@@ -150,6 +158,10 @@ jobs:
             echo "## XCTest destination"
             echo "$destination"
             echo
+            if [[ "$SIMULATOR_PREPARATION_OUTCOME" != "success" ]]; then
+              echo "Cloud simulator preparation failed; see xctest-destination.log. No tests were run."
+              exit 1
+            fi
             # Boot the selected cloud device once; serial tests avoid clone startup contention.
             if [[ "$destination" != "platform=iOS Simulator,id="* ]]; then
               echo "A resolved simulator UDID is required for bounded CI preparation."
@@ -217,6 +229,7 @@ jobs:
               -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID \
               -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionNavigationLinkOpensPopsAndReopensTheSameEntry \
               -only-testing:MDJournalTests/JournalInterfaceTests/testProductionDoneAndWritingActionsCoordinateTitleAndBodyFirstResponders \
+              -only-testing:MDJournalTests/JournalInterfaceTests/testProductionMarkedCompositionStaysWithItsJournalWhenBindingsChange \
               -enableCodeCoverage NO -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
               CODE_SIGNING_ALLOWED=NO test-without-building \
@@ -226,7 +239,7 @@ jobs:
               --path "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
               > "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
             if [[ "$preflight_status" -eq 0 ]]; then
-              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":3,"passedTests":3,"failedTests":0,"skippedTests":0}, s' \
+              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":4,"passedTests":4,"failedTests":0,"skippedTests":0}, s' \
                 "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
             fi
             if [[ "$preflight_status" -ne 0 ]]; then
@@ -485,6 +498,8 @@ jobs:
               "macCatalystBuildDestination": os.environ["MACCATALYST_BUILD_DESTINATION"],
               "testDestination": test_destination,
               "testExecutionPolicy": "serial-on-resolved-simulator",
+              "simulatorInventoryTimeoutSeconds": 60,
+              "simulatorPreparationStepTimeoutSeconds": 240,
               "testSimulatorBootTimeoutSeconds": 240,
               "testBuildTimeoutSeconds": 600,
               "testProcessTimeoutSeconds": 720,
@@ -492,7 +507,7 @@ jobs:
               "testDefaultExecutionTimeAllowanceSeconds": 180,
               "testMaximumExecutionTimeAllowanceSeconds": 180,
               "navigationHostExecutionTimeAllowanceSeconds": 60,
-              "navigationPreflightTestCount": 3,
+              "navigationPreflightTestCount": 4,
               "navigationPreflightSummaryPath": "ci-results/navigation-preflight-summary.json",
               "navigationPreflightResultBundlePath": "ci-results/MDJournalNavigationPreflight.xcresult",
               "storeKitPreflightTestCount": 3,

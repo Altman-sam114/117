@@ -17,12 +17,26 @@
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前回归目标：310项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。5c3ad48/run40624082017/attempt1完整303/309且0skip、输入/导航警告均归零，但旧命令绑定及同方法双商店会话仍导致失败，不放行。现修稳定外层当前绑定并拆单会话测试，先两组各3项针对性预检再全测；账号团队按人工最新要求后置。
+- 当前回归目标：311项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。07c0317/run40628750871/attempt1商店预检2/3，设备归档通过；状态滞后误判后取消，完整回归未完成不放行。现增加组合输入跨篇隔离并按真实验签失败收敛，继续两组各3项预检后全测；账号团队按人工最新要求后置。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
+
+### v0.95 / 组合输入文档隔离与发布回归收敛
+
+日期：2026-10-28。
+
+- 继续按人工高速模块并行，由三个子智能体分别审查手机写作、设置安全及订阅导出，主线程集成；不走 ABC。设置/安全与订阅生产静态审查暂未发现新增可证明缺陷，不为制造改动重写现有界面。
+- 手机审查证明正文 bridge 在旧 UITextView 仍有 marked text 时先重绑新篇 Binding、再延迟正文同步，存在旧组合输入串篇风险。正文现以 entry UUID 隔离原生会话，同篇布局身份不变；卸载先使 coordinator/焦点代数失效、清 delegate/缩进闭包再 resign，全部迟到回调拒写。新增真实生产编辑器 + setMarkedText 跨篇回归，原桥用例扩排队焦点卸载；总 311 项，未删旧断言。不称真实中文输入法已验收。
+- `07c03171d3c45d0fa6d7386e91051dfccf6b6fb9` 的 run `40628750871`/attempt `1` 两包经现有有效 gh 授权登录后独立双下载，缓存 `/private/tmp/mdjournal-c-review-40628750871/`；身份、API 大小/digest、未加密、CRC 与逐文件哈希均通过。功能 artifact `mdjournal-ci-v0.95-main-07c0317-run40628750871-attempt1`（ID12790419729，110760673 bytes，SHA256 a211d954e5c039d275e0b5972b0dedba55d95cb0d3ab386ae0009a5c54f0c315），1325 文件。真实商店预检 3 项 2pass/1fail，失败为 verified 购买后注入 invalidSignature，Transaction.latest 未返回预期 unverified；不能将失败吞作通过。
+- 主线程先前读取 GitHub 阶段状态滞后，误以为卡模拟器准备而取消 run；包内真实日志证明准备和 test build 已成功、导航前两项已通过、焦点用例切篇触发旧 Binding 断言，随后被中断，完整 310 项/25 图/3 素材/平台构建未完成。该 run 最终 cancelled，不能作通过证据，也不声称“准备卡死”为已证根因。CI 另给 runtime/设备查询各 60 秒、准备 step 4 分钟上限，复用库存 initialState，准备失败保留日志且不继续构建；这是有界执行改进，不是已证产品根因修复。
+- 下载导航日志进一步确认稳定外层 onChange 捕获旧渲染 Binding 的前提仍有缺陷，正常切篇触发 stale-binding 断言；不是靠去掉断言放行。目标安装与选区改按当前渲染生命周期接线，旧回调只可使不匹配目标失效，保留双向切篇、旧句柄和离场全部断言。订阅测试保留先 verified+Pro，注入后官方 forceRenewal 创建新交易，latest/current 只在 nil/旧 ID 时等传播；新 ID 必须同一且精确 unverified/invalidSignature/SKU/.xcode，再由生产 reader 撤权，不伪造结果。商店预检3项、导航/输入预检4项，完整311项门槛不减。
+- 同 run 设备 artifact `mdjournal-ios-release-v0.95-main-07c03171d3c45d0fa6d7386e91051dfccf6b6fb9-run40628750871-attempt1`（ID12789599919，2510829 bytes，SHA256 a321bbd857eca8639dee36cb062651a22bbc79065ad0b8c467a5138f8fbff80a），13 外层文件/25 内 ZIP 条目/11 实际归档文件双下载哈希、只读 verifier 与 xcresult succeeded 通过，JUnit1/0/0/0、0error/0warning。实际 1.0(218.1)、arm64、iphoneos26.2/Xcode17C52、最低 iOS16，隐私/FaceID/两公开链接与月年商品 ID 正确，App 图标无 alpha；公开隐私与支持 URL 实测 HTTP200。仍 unsigned，未上传。
+- 关键文件为 EntryEditorView、MarkdownBodyTextView、两个输入/界面测试、workflow 及 README/测试/核心流程/流程图。本轮新补丁的轻检、提交和完整云端结果按后续实际记录，绝不复用 07c 的部分结果。
+- 最终按当前渲染 task(id:) 安装目标，取消检查到安装无 await；installCurrentBinding 验证 ID、以当前正文设 UTF-16 末尾并保留最新 geometry。原纯 router 回归扩失效/布局先行/拒旧 Binding，真实双向切篇不减断言；原桥测试改真实 key window 并先证明实际获得与退出焦点，补齐交叉审查指出的假绿前置缺口。完成实施后的安全模块只读交叉审查未发现可证明阻塞。
+- 本次集成轻检实际全部退出0：普通/DEBUG全应用及全测试 swiftc -parse、project/Info/PrivacyInfo三项plist、31/31纯Pythonfixture、workflow YAML与14个bash块/3个Python heredoc/全部脚本AST/bash、58份Swift注册、10份JSON及scheme XML、311项声明、git diff --check。Swift parse不是类型或运行检查；Ruby另有本机PATH目录权限警告。未本机build/XCTest/App/simctl，下一提交仍须自身商店3/3、导航输入4/4和完整311项/图片/平台构建/设备归档结果。
 
 ### v0.95 / 原生场景命令、隐私与后台保存收敛
 

@@ -42,7 +42,7 @@ JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问�
 
 ## 编辑与预览
 
-标题节点保持固定位置并使用 FocusState，正文沿用 UIKit bridge。完成同时清除标题/正文焦点；进入预览也清除两者；聚焦正文、专注写作、插入与缩进命令先清标题再走原正文入口。正文桥先完成初始正文与 UTF-16 选区配置再安装 delegate；外部程序化更新期间只更新 UIKit，不回写 Binding，用户输入及选区回调照常发布。UTF-16 范围、marked text 延迟覆盖、一次性正文/选区 token 和异步焦点代数不改变。
+标题节点保持固定位置并使用 FocusState，正文沿用 UIKit bridge。完成同时清除标题/正文焦点；进入预览也清除两者；聚焦正文、专注写作、插入与缩进命令先清标题再走原正文入口。正文桥先完成初始正文与 UTF-16 选区配置再安装 delegate；外部程序化更新期间只更新 UIKit，不回写 Binding，用户输入及选区回调照常发布。同篇的 UTF-16 范围、marked text 延迟覆盖和一次性正文/选区 token 保持；正文 bridge 按 entry UUID 隔离，切篇卸载先失效 coordinator 与排队焦点、清 delegate/缩进闭包再结束 responder。旧篇迟到回调不能触及任一篇，共享 workspace 不因布局变化重建。
 
 低高度、辅助字号与宽度控制纸面和头部预算；单栏上限 760pt，实际详情 >=1120pt 且非辅助字号才双栏。单/双栏切换保留编辑器内部输入节点。分享用 Transferable 在实际导出时构造完整 UTF-8 Markdown，布局和选区更新不预先拼接全文。
 
@@ -62,15 +62,15 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 
 
 main push 同时触发：
 
-1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境/取消/验签三项预检、两项导航和一项真实焦点/切篇预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 310 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、各 60 秒 runtime/设备库存查询与 4 分钟准备上限、复用 initialState 的既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境/取消/验签三项预检、两项导航、真实焦点/切篇与 marked-text 跨篇预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 311 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
 
-功能包另从相同 308 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+功能包另从相同 311 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
 
 首次本地加载直接读取，仅明确的文件不存在错误才创建示例；暂不可访问和解码失败保持独立写保护。保护重读从不建替代文件。恢复导出后台读取完整原字节，不沿用正常导入的 25 MiB 限制。系统认证完成只清除自身 LAContext 引用，迟到旧请求不会使新请求失去取消入口。
 
-内容与编辑命令分别由 StateObject 持有的 JournalContentSceneActions 和 EntryEditorSceneActions 管理，通过原生 focusedSceneObject / FocusedObject 传递稳定引用，不再向焦点图发布函数型值。内容目标持 Store 与当前选择、筛选、路径绑定；动作执行时重新读取可见快照，菜单可用性仅在生命周期或真实状态变化时按 Equatable 标量发布。编辑完整目标只由稳定外层 onAppear / entry ID 回调安装，显式使用本轮当前 entry Binding，并持 workspace、titleFocus、details 绑定；ID 不匹配则清目标拒绝命令。GeometryReader 仅更新 Equatable 布局，绝不重建或覆写日记 Binding；按钮、菜单、插入与缩进都走同一 router。两者离场清空目标，旧命令不能修改离场文档，应用锁继续逐次拦截菜单操作。该改动针对实际采样中的 focused-values 布局反馈，新 SHA 仍需自己的云端运行证据。
+内容与编辑命令分别由 StateObject 持有的 JournalContentSceneActions 和 EntryEditorSceneActions 管理，通过原生 focusedSceneObject / FocusedObject 传递稳定引用，不再向焦点图发布函数型值。内容目标持 Store 与当前选择、筛选、路径绑定；动作执行时重新读取可见快照，菜单可用性仅在生命周期或真实状态变化时按 Equatable 标量发布。编辑完整目标由稳定外层 task(id: entry.id) 捕获当前渲染的 entry/workspace/titleFocus/details 绑定；已取消任务拒安装，安装段不跨 await，选区从本轮绑定正文算 UTF-16 末尾。旧 onChange 只使不匹配的新 ID 目标失效，不重装旧 Binding 或读取旧正文；安装时保留最新几何布局。GeometryReader 仅更新 Equatable 布局，绝不重建或覆写日记 Binding；按钮、菜单、插入与缩进都走同一 router。两者离场清空目标，旧命令不能修改离场文档，应用锁继续逐次拦截菜单操作。该改动针对实际采样中的 focused-values 布局反馈，新 SHA 仍需自己的云端运行证据。
 
 本轮按人工最新指令只完成发布前软件，账号/开发者团队/正式签名后置；结果真实性与 unsigned 边界保持，不把后置账号当作软件回归阻塞。

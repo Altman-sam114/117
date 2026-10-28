@@ -16,10 +16,24 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
             )
         }
         let controller = UIHostingController(rootView: bridge())
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 480))
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive },
+            "The production bridge requires the test host's foreground scene"
+        )
+        let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow })
+        let originalRoot = window.rootViewController
+        let wasHidden = window.isHidden
+        window.rootViewController = nil
         window.rootViewController = controller
-        window.isHidden = false
-        defer { window.isHidden = true; window.rootViewController = nil }
+        window.makeKeyAndVisible()
+        defer {
+            window.endEditing(true)
+            window.rootViewController = nil
+            window.rootViewController = originalRoot
+            window.isHidden = wasHidden
+            window.makeKey()
+        }
         controller.view.frame = window.bounds
         controller.view.layoutIfNeeded()
         try await Task.sleep(for: .milliseconds(100))
@@ -60,6 +74,34 @@ final class MarkdownTextInputConfigurationTests: XCTestCase {
             .synchronizeBodyAndSelection,
             "A user selection callback must still not create a body-publication fast path"
         )
+
+        XCTAssertTrue(input.becomeFirstResponder(), "The fixture must support actual keyboard focus before testing cancellation")
+        XCTAssertTrue(input.isFirstResponder)
+        XCTAssertTrue(focusProbe.value, "The production delegate must observe the real focus transition")
+        XCTAssertTrue(input.resignFirstResponder())
+        XCTAssertFalse(input.isFirstResponder)
+        XCTAssertFalse(focusProbe.value)
+        focusProbe.value = true
+        coordinator.synchronizeFocus(input, shouldBeFocused: true)
+        MarkdownBodyTextView.dismantleUIView(input, coordinator: coordinator)
+        XCTAssertNil(input.delegate, "A detached bridge must no longer receive UIKit callbacks")
+        let setterCounts = (textProbe.setterCount, selectionProbe.setterCount, focusProbe.setterCount)
+        input.text = "Detached text must never become a journal edit"
+        input.selectedRange = NSRange(location: 0, length: 0)
+        coordinator.textViewDidChange(input)
+        coordinator.textViewDidChangeSelection(input)
+        coordinator.textViewDidBeginEditing(input)
+        coordinator.textViewDidEndEditing(input)
+        coordinator.applyIndentation(.indent, to: input)
+        XCTAssertFalse(coordinator.textView(input, shouldChangeTextIn: input.selectedRange, replacementText: "\n"))
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertFalse(input.isFirstResponder, "Dismantling must invalidate a focus request queued on the main queue")
+        XCTAssertEqual(textProbe.value, externalBody)
+        XCTAssertEqual(selectionProbe.value, userSelection)
+        XCTAssertTrue(focusProbe.value)
+        XCTAssertEqual(textProbe.setterCount, setterCounts.0)
+        XCTAssertEqual(selectionProbe.setterCount, setterCounts.1)
+        XCTAssertEqual(focusProbe.setterCount, setterCounts.2)
     }
 
     @MainActor

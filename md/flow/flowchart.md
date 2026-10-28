@@ -10,7 +10,7 @@ flowchart TD
   Content --> Regular["iPad regular、Catalyst / NavigationSplitView"]
   Compact --> Library["年月资料库 / NavigationLink / 新建 / 设置"]
   Regular --> Library
-  Library --> Editor["标题 FocusState / 正文 UIKit / UTF-16 / 程序化更新不回写Binding"]
+  Library --> Editor["标题 FocusState / 正文按UUID隔离UIKit / UTF-16 / 程序化更新不回写Binding / 卸载拒迟到组合输入"]
   Editor --> Mutation["JournalStore 唯一 mutation"]
   Library --> Mutation
   Mutation --> Health{"原文件读取成功？"}
@@ -21,7 +21,7 @@ flowchart TD
   State --> Save["450ms debounce / revision快照 / actor atomic JSON"]
   Save --> File["私有Documents / iOS系统文件保护 / OS设备备份"]
   BackgroundSave["非active同步入口 / 单Store去重 / 有限系统后台lease / 完成或到期只释放一次"] --> Save
-  Content --> Commands["原生FocusedObject稳定对象 / 外层当前绑定 / geometry只改布局 / ID不符拒绝 / 离场清空"]
+  Content --> Commands["原生FocusedObject稳定对象 / task捕获当前绑定 / 取消拒旧任务 / geometry只改布局 / ID不符拒绝 / 离场清空"]
   Editor --> Commands
   Commands --> Editor
   Editor --> Preview["150ms latest-wins / parser + 同文档inline cache"]
@@ -76,8 +76,8 @@ flowchart TD
   Mobile --> Integrate["主线程工程集成 / main直推"]
   Safety --> Integrate
   Pro --> Integrate
-  Integrate --> TestHost["仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及两组各3项预检"]
-  TestHost --> Regression["Xcode26.2/iOS26.2 / 310项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
+  Integrate --> TestHost["库存查询60秒 / 准备4分钟 / 仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及商店3项与导航/输入4项预检"]
+  TestHost --> Regression["Xcode26.2/iOS26.2 / 311项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results

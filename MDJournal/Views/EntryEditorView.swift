@@ -262,6 +262,21 @@ final class EntryEditorSceneActions: ObservableObject {
         layout = target.layout
     }
 
+    @discardableResult
+    func installCurrentBinding(_ target: EntryEditorActionTarget, for entryID: JournalEntry.ID) -> Bool {
+        guard target.entry.wrappedValue.id == entryID else { return false }
+        var target = target
+        target.layout = layout ?? target.layout
+        let selection = NSRange(location: target.entry.wrappedValue.body.utf16.count, length: 0)
+        if target.workspace.wrappedValue.bodySelectedRange != selection {
+            var workspace = target.workspace.wrappedValue
+            workspace.bodySelectedRange = selection
+            target.workspace.wrappedValue = workspace
+        }
+        updateTarget(target)
+        return true
+    }
+
     func updateLayout(_ layout: EntryEditorLayoutContract) {
         // A retained geometry callback must never restore an earlier journal binding.
         self.layout = layout
@@ -270,6 +285,11 @@ final class EntryEditorSceneActions: ObservableObject {
 
     func perform(_ action: EntryEditorWorkspaceState.Action) {
         target?.perform(action)
+    }
+
+    func invalidateTarget(unlessMatching entryID: JournalEntry.ID) {
+        guard target?.entry.wrappedValue.id != entryID else { return }
+        clearTarget()
     }
 
     func clearTarget() {
@@ -297,7 +317,9 @@ struct EntryEditorView: View {
     private let focusedWritingMaxWidth = JournalTheme.readableWidth
 
     var body: some View {
-        let currentEntry = $entry
+        let currentEntryID = entry.id
+        let currentTarget = actionTarget(entry: $entry)
+        let actions = sceneActions
 
         GeometryReader { proxy in
             let layout = EntryEditorLayoutContract(
@@ -377,20 +399,15 @@ struct EntryEditorView: View {
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .background(JournalTheme.canvas)
-        .onAppear {
-            sceneActions.updateTarget(actionTarget(entry: currentEntry))
+        .task(id: currentEntryID) { [currentEntryID, currentTarget, actions] in
+            // onChange can retain the previous render's Binding; this task owns the new render's snapshot.
+            guard !Task.isCancelled, actions.installCurrentBinding(currentTarget, for: currentEntryID) else { return }
+            #if DEBUG
+            assert(actions.targetEntryID == currentEntryID, "Editor commands must target the current journal binding")
+            #endif
         }
         .onChange(of: entry.id) { entryID in
-            guard currentEntry.wrappedValue.id == entryID else {
-                sceneActions.clearTarget()
-                assertionFailure("Editor commands rejected a stale journal binding")
-                return
-            }
-            sceneActions.updateTarget(actionTarget(entry: currentEntry))
-            #if DEBUG
-            assert(sceneActions.targetEntryID == entryID, "Editor commands must target the current journal binding")
-            #endif
-            resetBodySelectionToEnd()
+            actions.invalidateTarget(unlessMatching: entryID)
         }
         .onChange(of: titleFocused) { isFocused in
             if isFocused { workspaceState.editorFocused = false }
@@ -673,6 +690,8 @@ struct EntryEditorView: View {
                 selectedRange: $workspaceState.bodySelectedRange,
                 isFocused: $workspaceState.editorFocused
             )
+            // A marked composition belongs to its journal, not the next binding at this position.
+            .id(entry.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -800,10 +819,6 @@ struct EntryEditorView: View {
     private func dismissKeyboard() {
         titleFocused = false
         workspaceState.editorFocused = false
-    }
-
-    private func resetBodySelectionToEnd() {
-        workspaceState.bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
     }
 
     private func applyIndentation(_ direction: MarkdownLineIndentation.Direction) {

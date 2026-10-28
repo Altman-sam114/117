@@ -109,12 +109,20 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         context.coordinator.synchronizeFocus(textView, shouldBeFocused: isFocused)
     }
 
+    static func dismantleUIView(_ textView: UITextView, coordinator: Coordinator) {
+        coordinator.invalidate()
+        textView.delegate = nil
+        (textView as? MarkdownIndentingTextView)?.indentationAction = nil
+        if textView.isFirstResponder { textView.resignFirstResponder() }
+    }
+
     final class Coordinator: NSObject, UITextViewDelegate {
         var text: Binding<String>
         var selectedRange: Binding<NSRange>
         var isFocused: Binding<Bool>
         var syncState = MarkdownBodyTextViewSyncState()
         var isApplyingSwiftUISynchronization = false
+        private var isActive = true
         private var focusRequestGeneration = 0
 
         init(text: Binding<String>, selectedRange: Binding<NSRange>, isFocused: Binding<Bool>) {
@@ -124,6 +132,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         }
 
         func synchronizeFocus(_ textView: UITextView, shouldBeFocused: Bool) {
+            guard isActive else { return }
             focusRequestGeneration += 1
             let requestGeneration = focusRequestGeneration
 
@@ -131,6 +140,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
 
             DispatchQueue.main.async { [weak self, weak textView] in
                 guard let self, let textView else { return }
+                guard self.isActive else { return }
                 guard self.focusRequestGeneration == requestGeneration else { return }
                 guard self.isFocused.wrappedValue == shouldBeFocused else { return }
 
@@ -144,11 +154,17 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             }
         }
 
+        func invalidate() {
+            isActive = false
+            focusRequestGeneration += 1
+        }
+
         func textView(
             _ textView: UITextView,
             shouldChangeTextIn range: NSRange,
             replacementText: String
         ) -> Bool {
+            guard isActive else { return false }
             guard textView.markedTextRange == nil else { return true }
 
             if replacementText == "\t" {
@@ -177,6 +193,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
             to textView: UITextView,
             selectedRange requestedRange: NSRange? = nil
         ) {
+            guard isActive else { return }
             guard textView.markedTextRange == nil else { return }
 
             guard let result = MarkdownLineIndentation.apply(
@@ -195,22 +212,24 @@ struct MarkdownBodyTextView: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            guard !isApplyingSwiftUISynchronization else { return }
+            guard isActive, !isApplyingSwiftUISynchronization else { return }
             publishText(textView.text)
             updateSelectedRangeIfNeeded(textView.selectedRange)
             recordLocalPublication(body: textView.text, selectedRange: textView.selectedRange)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
-            guard !isApplyingSwiftUISynchronization else { return }
+            guard isActive, !isApplyingSwiftUISynchronization else { return }
             updateSelectedRangeIfNeeded(textView.selectedRange)
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
+            guard isActive else { return }
             updateFocusIfNeeded(true)
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
+            guard isActive else { return }
             updateFocusIfNeeded(false)
         }
 

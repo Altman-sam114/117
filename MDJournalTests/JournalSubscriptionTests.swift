@@ -373,6 +373,7 @@ final class JournalSubscriptionTests: XCTestCase {
             return
         }
         XCTAssertEqual(purchased.productID, productID)
+        XCTAssertEqual(purchased.environment, .xcode)
         XCTAssertTrue(store.isPremium)
         XCTAssertNotNil(store.accessExpirationDate)
         guard store.isPremium && store.accessExpirationDate != nil else { return }
@@ -383,20 +384,53 @@ final class JournalSubscriptionTests: XCTestCase {
             await session.simulatedError(forAPI: .verification)
         }
         XCTAssertEqual(verification, .verification(.invalidSignature))
-        let latest = await step("read latest transaction with invalid signature") {
-            await Transaction.latest(for: productID)
+        // A previously verified transaction is immutable; renew under the new verification condition.
+        try await step("force a new subscription period under signature failure") {
+            try session.forceRenewalOfSubscription(productIdentifier: productID)
         }
-        guard assertInvalidSignatureTransaction(latest, source: "Transaction.latest") else { return }
-        let current: VerificationResult<StoreKit.Transaction>? = await step("read current transaction with invalid signature") {
-            for await result in Transaction.currentEntitlements {
-                switch result {
-                case let .verified(transaction), let .unverified(transaction, _):
-                    if transaction.productID == productID { return result }
+        var latest: VerificationResult<StoreKit.Transaction>?
+        var latestDescription: String?
+        let latestChanged = try await step("wait for newly renewed latest transaction") {
+            try await eventually {
+                latest = await Transaction.latest(for: productID)
+                let description = self.verificationDescription(latest)
+                if description != latestDescription {
+                    self.trace("latest renewal propagation: \(description)")
+                    latestDescription = description
                 }
+                guard let identifier = self.transactionIdentifier(latest) else { return false }
+                return identifier != purchased.id
             }
-            return nil
         }
+        XCTAssertTrue(latestChanged, "Transaction.latest must deliver the new renewal, got \(verificationDescription(latest))")
+        guard latestChanged else { return }
+        guard assertInvalidSignatureTransaction(latest, source: "Transaction.latest") else { return }
+        let renewedID = try XCTUnwrap(transactionIdentifier(latest))
+        XCTAssertNotEqual(renewedID, purchased.id)
+        var current: VerificationResult<StoreKit.Transaction>?
+        var currentDescription: String?
+        let currentChanged = try await step("wait for newly renewed current transaction") {
+            try await eventually {
+                current = nil
+                for await result in Transaction.currentEntitlements {
+                    switch result {
+                    case let .verified(transaction), let .unverified(transaction, _):
+                        if transaction.productID == productID { current = result }
+                    }
+                }
+                let description = self.verificationDescription(current)
+                if description != currentDescription {
+                    self.trace("current renewal propagation: \(description)")
+                    currentDescription = description
+                }
+                guard let identifier = self.transactionIdentifier(current) else { return false }
+                return identifier != purchased.id
+            }
+        }
+        XCTAssertTrue(currentChanged, "Current entitlements must deliver the new renewal, got \(verificationDescription(current))")
+        guard currentChanged else { return }
         guard assertInvalidSignatureTransaction(current, source: "Transaction.currentEntitlements") else { return }
+        XCTAssertEqual(transactionIdentifier(current), renewedID)
         await step("refresh entitlement with invalid transaction signature") { await store.refreshEntitlements() }
         XCTAssertFalse(store.isPremium)
         XCTAssertFalse(store.isPurchasing)
@@ -442,15 +476,33 @@ final class JournalSubscriptionTests: XCTestCase {
         _ result: VerificationResult<StoreKit.Transaction>?, source: String
     ) -> Bool {
         guard case let .unverified(transaction, error)? = result else {
-            XCTFail("\(source) must return the real purchased transaction as unverified")
+            XCTFail("\(source) must return the real renewed transaction as unverified, got \(verificationDescription(result))")
             return false
         }
         XCTAssertEqual(transaction.productID, productID)
+        XCTAssertEqual(transaction.environment, .xcode)
         guard case .invalidSignature = error else {
             XCTFail("\(source) must report the injected invalid signature, got \(error)")
             return false
         }
         return transaction.productID == productID
+    }
+
+    private func transactionIdentifier(_ result: VerificationResult<StoreKit.Transaction>?) -> UInt64? {
+        switch result {
+        case let .verified(transaction)?, let .unverified(transaction, _)?: return transaction.id
+        case nil: return nil
+        }
+    }
+
+    private func verificationDescription(_ result: VerificationResult<StoreKit.Transaction>?) -> String {
+        switch result {
+        case let .verified(transaction)?:
+            return "verified(id=\(transaction.id), product=\(transaction.productID), environment=\(transaction.environment))"
+        case let .unverified(transaction, error)?:
+            return "unverified(id=\(transaction.id), product=\(transaction.productID), environment=\(transaction.environment), error=\(error))"
+        case nil: return "nil"
+        }
     }
 
     private func entitlement(

@@ -399,6 +399,7 @@ final class JournalInterfaceTests: XCTestCase {
         try await waitForHost("Changing the production binding must display the next journal without replacing its router") {
             self.titleInput(in: controller.view, title: nextEntry.title) != nil
                 && self.bodyInput(in: controller.view, text: nextEntry.body)?.selectedRange == nextSelection
+                && sceneActions.targetEntryID == nextEntry.id
         }
         XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
         XCTAssertEqual(sceneActions.targetEntryID, nextEntry.id)
@@ -422,6 +423,7 @@ final class JournalInterfaceTests: XCTestCase {
         try await waitForHost("Returning to the previous journal must update the same router's binding and selection") {
             self.titleInput(in: controller.view, title: entry.title) != nil
                 && self.bodyInput(in: controller.view, text: entry.body)?.selectedRange == firstSelection
+                && sceneActions.targetEntryID == entry.id
         }
         XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
         XCTAssertEqual(sceneActions.targetEntryID, entry.id)
@@ -453,6 +455,77 @@ final class JournalInterfaceTests: XCTestCase {
     }
 
     @MainActor
+    func testProductionMarkedCompositionStaysWithItsJournalWhenBindingsChange() async throws {
+        executionTimeAllowance = 60
+        let entries = Array(reviewEntries().prefix(2))
+        let state = EditorInteractionHostState(entries: entries)
+        var interaction: JournalEditorInteraction?
+        let controller = UIHostingController(rootView: EditorInteractionHostRoot(
+            state: state, observer: { interaction = $0 }
+        ))
+        let (_, restoreWindow) = try makeWindow(
+            controller: controller, size: CGSize(width: 390, height: 844)
+        )
+        defer { restoreWindow() }
+        try await waitForHost("The production body and command target must be installed") {
+            interaction?.sceneActions.targetEntryID == entries[0].id
+                && self.bodyInput(in: controller.view, text: entries[0].body) != nil
+        }
+        let actions = try XCTUnwrap(interaction)
+        let original = try XCTUnwrap(bodyInput(in: controller.view, text: entries[0].body))
+        let originalCoordinator = try XCTUnwrap(original.delegate as? MarkdownBodyTextView.Coordinator)
+        actions.sceneActions.focusBody()
+        try await waitForHost("The first journal must own the active input session") { original.isFirstResponder }
+
+        original.selectedRange = NSRange(location: entries[0].body.utf16.count, length: 0)
+        let composition = "尚未结束的组合输入 📝"
+        original.setMarkedText(composition, selectedRange: NSRange(location: composition.utf16.count, length: 0))
+        XCTAssertNotNil(original.markedTextRange, "The regression requires a real UIKit marked-text session")
+        let composedBody = try XCTUnwrap(original.text)
+        XCTAssertTrue(composedBody.contains(composition))
+        // Drive the production delegate boundary; this is not a physical keyboard/IME test.
+        originalCoordinator.textViewDidChange(original)
+        try await waitForHost("Marked edits must remain in their original journal") {
+            state.entries[0].body == composedBody
+        }
+        XCTAssertNotNil(original.markedTextRange, "An update to the same journal must preserve its composition")
+        let originalAfterComposition = state.entries[0]
+
+        state.selectedEntryID = entries[1].id
+        try await waitForHost("A different journal must receive a separate native input and coordinator") {
+            guard let current = self.bodyInput(in: controller.view, text: entries[1].body) else { return false }
+            return current !== original && original.delegate == nil
+                && self.titleInput(in: controller.view, title: entries[1].title) != nil
+                && actions.sceneActions.targetEntryID == entries[1].id
+        }
+        let current = try XCTUnwrap(bodyInput(in: controller.view, text: entries[1].body))
+        let currentCoordinator = try XCTUnwrap(current.delegate as? MarkdownBodyTextView.Coordinator)
+        XCTAssertFalse(currentCoordinator === originalCoordinator)
+        XCTAssertNil(current.markedTextRange)
+        try await waitForHost("The new journal must retain the requested writing focus") { current.isFirstResponder }
+        XCTAssertEqual(state.entries[0], originalAfterComposition)
+        XCTAssertEqual(state.entries[1], entries[1], "Changing journals must not copy the old composition into the new body")
+
+        let beforeDetachedCallbacks = state.entries
+        original.text = "A late callback from the previous journal"
+        originalCoordinator.textViewDidChange(original)
+        originalCoordinator.textViewDidChangeSelection(original)
+        originalCoordinator.textViewDidEndEditing(original)
+        originalCoordinator.applyIndentation(.indent, to: original)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(state.entries, beforeDetachedCallbacks, "Detached callbacks must not modify either journal")
+        XCTAssertTrue(current.isFirstResponder, "The detached input must not clear the active journal's focus")
+
+        state.selectedEntryID = entries[0].id
+        try await waitForHost("Returning to the first journal must restore its own composed text") {
+            self.bodyInput(in: controller.view, text: originalAfterComposition.body) != nil
+                && self.titleInput(in: controller.view, title: originalAfterComposition.title) != nil
+        }
+        XCTAssertEqual(state.entries[0], originalAfterComposition)
+        XCTAssertEqual(state.entries[1], entries[1])
+    }
+
+    @MainActor
     private func assertSceneActionsUseCurrentBindingsAndReleaseTheirTarget(titleFocus: FocusState<Bool>.Binding) {
         var first = JournalEntry.starterEntry()
         var second = JournalEntry.starterEntry()
@@ -476,6 +549,14 @@ final class JournalInterfaceTests: XCTestCase {
         ))
         focus()
         XCTAssertTrue(workspace.editorFocused)
+        let beforeInvalidation = (first, workspace, details)
+        router!.invalidateTarget(unlessMatching: second.id)
+        XCTAssertNil(router!.targetEntryID, "A document change must immediately invalidate the old command binding")
+        insert(.bold)
+        writing()
+        XCTAssertEqual(first, beforeInvalidation.0)
+        XCTAssertEqual(workspace, beforeInvalidation.1)
+        XCTAssertEqual(details, beforeInvalidation.2)
 
         router!.updateTarget(EntryEditorActionTarget(
             entry: Binding(get: { second }, set: { second = $0 }), workspace: workspaceBinding,
@@ -503,6 +584,29 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(router!.targetEntryID, second.id)
         XCTAssertNotEqual(second.body, beforeLayoutInsertion)
         XCTAssertEqual(first, originalFirst, "A layout-only callback must not restore the previous journal binding")
+
+        router!.updateLayout(EntryEditorLayoutContract(width: 1440, dynamicTypeSize: .large))
+        let currentBindingSnapshot = EntryEditorActionTarget(
+            entry: Binding(get: { second }, set: { second = $0 }), workspace: workspaceBinding,
+            titleFocus: titleFocus, showsDetails: detailsBinding,
+            layout: EntryEditorLayoutContract(width: 0, dynamicTypeSize: .large)
+        )
+        XCTAssertTrue(router!.installCurrentBinding(currentBindingSnapshot, for: second.id))
+        XCTAssertEqual(router!.targetEntryID, second.id)
+        XCTAssertEqual(workspace.bodySelectedRange, NSRange(location: second.body.utf16.count, length: 0))
+        XCTAssertEqual(router!.layout?.usesSplitPreview, true, "Installing the current binding must preserve newer geometry")
+        focus()
+        XCTAssertTrue(workspace.usesSplitPreview, "Commands must not revert to the captured zero-width layout")
+        router!.invalidateTarget(unlessMatching: second.id)
+        XCTAssertEqual(router!.targetEntryID, second.id, "A late change notification must not clear an already installed matching target")
+        let mismatchedSnapshot = EntryEditorActionTarget(
+            entry: Binding(get: { first }, set: { first = $0 }), workspace: workspaceBinding,
+            titleFocus: titleFocus, showsDetails: detailsBinding,
+            layout: EntryEditorLayoutContract(width: 390, dynamicTypeSize: .large)
+        )
+        XCTAssertFalse(router!.installCurrentBinding(mismatchedSnapshot, for: second.id))
+        XCTAssertEqual(router!.targetEntryID, second.id, "A stale binding must not replace the newly installed target")
+        XCTAssertEqual(first, originalFirst)
 
         let beforeDetach = (first, second, workspace, details)
         router!.clearTarget()
