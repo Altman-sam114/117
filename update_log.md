@@ -28,7 +28,10 @@
 - 同一 CI workflow 改为模型主动 workflow_dispatch：targeted 选择精确 XCTest、一个 Python fixture 或必要 Debug 平台，空/未知范围拒绝；full 显式保留原全套门槛和独立设备归档。结果记录 requiredStages/notSelectedStages 和实际验证范围，未选不冒充通过；纯文档 push 不触发 App 回归。
 - 关键文件：`AGENTS.md`、`work.md`、`README.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`.github/workflows/ci-results.yml`、`script/verify_xctest_summary.py`、`script/tests/test_xctest_summary.py` 与本日志。没有修改 Swift、工程、用户数据、依赖或发布账号配置。
 - 本机轻检：`git diff --check`、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -p 'test_xctest_summary.py' -v` 实际 17/17；Ruby YAML/事件与输入默认值、15 个 bash run 块、3 个内嵌 Python 和 2 个改动脚本 AST、33 个活动文档本地链接/路径与旧角色残留检查全部通过。选择兼容检查仍解析出原 311 个 XCTest 声明，不代表执行测试；Ruby 有本机 `/opt/homebrew` PATH 权限警告。未运行本机 build/XCTest/App/模拟器，也未跑无关 fixture/图片/归档。
-- 云端与提交：待本轮精确 SHA 的 targeted 流程验收，仅运行 `test_xctest_summary.py` 的 17 项直接回归；取得后补实际 run/attempt/artifact，不预填通过。新增 XCTest 定向运行分支本轮只做选择、语法和 fixture 检查，不冒充已实跑 App。
+- 云端：实现 SHA `cb2ef5b4c6a21308802dc9e5ecb436a8e10826af` 已同步 origin/main；实际执行 `gh workflow run ci-results.yml --ref main -f validation_profile=targeted -f python_test_pattern=test_xctest_summary.py`，run `40690830215` / attempt `1` / main / 同 SHA success，云端 fixture 17/17（1.394 秒），job 约 11 秒。模拟器、XCTest、图片、iOS/Catalyst Debug、Mac Release 六个步骤及独立 iOS Archive job 全部未选择/跳过，不记为通过；JUnit 为所选 static-checks 一阶段 1/0/0/0，不是 XCTest 计数。
+- 当前模型已使用有效 gh 授权，通过 `gh run download` 与 API ZIP 双下载核对 artifact `mdjournal-ci-v0.95-targeted-main-cb2ef5b-run40690830215-attempt1`（ID `12817066526`，2777 bytes，SHA-256 `74bf0dbb57e112cf713bd89497935cf2dd01475173b4d1172e5d7ed89a1d7b57`），5 文件。branch/SHA/run/attempt/profile/范围、required/notSelected、大小/digest、未加密、CRC、安全独立解压及逐文件哈希均通过；主日志证实实际17项通过、manifest明确无模拟器和发布执行。核对记录 `/private/tmp/mdjournal-review-40690830215/attempt-1/review-proof.json`。
+- Git HTTPS 后续 fetch 出现 HTTP/2 错误，HTTP/1.1 fetch 与 push 均在45秒上限内未成功；没有声称这些命令成功。改用已授权 GitHub Git API，上传同11文件生成完全相同 tree/commit，核对 SHA 后以 `force=false` 快进 origin/main，没有 amend、reset 或强推；云端 run 再次确认远端精确 SHA。收尾只更新本日志和清空 `work.md`，无需新一轮 App 回归，不把实现 SHA 的结果冒充后续文档 HEAD 的结果。
+- 本轮未改 Swift/工程，未运行本机 App/build/XCTest/模拟器，未运行无关业务、图片或发布矩阵。新增 XCTest 定向执行与构建选择分支本轮只有语法/fixture 验证，尚未实际启动 App；后续相关功能任务使用时须核对自己的云端运行结果。工作台验收后重置为空闲，不保留已完成计划。
 
 ### v0.95 / 发布前软件完整云端通过与收尾
 
