@@ -34,10 +34,11 @@ final class JournalWritingPreferencesTests: XCTestCase {
                 ] {
                     let accessible = preferences.uiFont(category: category)
                     let traits = UITraitCollection(preferredContentSizeCategory: category)
-                    let expected = UIFontMetrics(forTextStyle: .body).scaledValue(
-                        for: size.basePointSize, compatibleWith: traits
-                    )
+                    let expected = size == .standard
+                        ? UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize
+                        : UIFontMetrics(forTextStyle: .body).scaledValue(for: size.basePointSize, compatibleWith: traits)
                     XCTAssertEqual(accessible.pointSize, expected, accuracy: 0.01, "Every accessibility size must match the native body-font scale")
+                    XCTAssertEqual(preferences.pointSize(category: category), expected, accuracy: 0.01, "Reading and settings previews must use the same native point size as editing")
                     XCTAssertGreaterThan(accessible.pointSize, previousSize)
                     previousSize = accessible.pointSize
                 }

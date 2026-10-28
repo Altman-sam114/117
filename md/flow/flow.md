@@ -10,7 +10,7 @@
 
 ## 应用与状态所有权
 
-外观与排版使用 app-owned UserDefaults / AppStorage，只存偏好，不写入日记 JSON。每个生产窗口由 journalPreferences 注入同一环境值与 preferredColorScheme，设置可免费修改字体/字号/行距。UIKit 正文只在样式改变或外部替换正文时应用段落属性，marked text 期间推迟任何字体/段落更新，已存在的 UTF-16 选区与输入实例不因此替换；预览复用相同字体与辅助字号。
+外观与排版使用 app-owned UserDefaults / AppStorage，只存偏好，不写入日记 JSON。每个生产窗口由 journalPreferences 注入同一环境值与 preferredColorScheme，设置可免费修改字体/字号/行距。UIKit 正文只在样式改变或外部替换正文时应用段落属性，marked text 期间推迟任何字体/段落更新，已存在的 UTF-16 选区与输入实例不因此替换。编辑、阅读和设置示例共用同一 pointSize/lineSpacing 计算：标准正文使用系统 preferredFont 的辅助字号，自定义字号使用 UIFontMetrics；两条系统曲线不能假定等价。
 
 `MDJournalApp` 创建共享的 `JournalStore`、`JournalSubscriptionStore` 和 `JournalAppLockStore`。主窗口以及 Catalyst 统计窗口均经过 `JournalPrivacyGate` 并注入同一权益/应用锁对象；App 回到活跃态刷新订阅权益。没有日记服务器或登录账号。
 

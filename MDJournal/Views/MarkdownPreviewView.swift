@@ -236,7 +236,6 @@ struct MarkdownPreviewView: View {
     var maxContentWidth: CGFloat = 720
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.journalWritingPreferences) private var writingPreferences
-    @ScaledMetric(relativeTo: .body) private var bodyFontScale: CGFloat = 1
     @StateObject private var updateModel: MarkdownPreviewUpdateModel
 
     init(
@@ -307,7 +306,14 @@ struct MarkdownPreviewView: View {
     }
 
     private var paragraphFont: Font {
-        .system(size: writingPreferences.size.basePointSize * bodyFontScale, design: writingPreferences.font.design)
+        .system(
+            size: writingPreferences.pointSize(category: JournalWritingPreferences.contentSizeCategory(for: dynamicTypeSize)),
+            design: writingPreferences.font.design
+        )
+    }
+
+    private var extraLineSpacing: CGFloat {
+        writingPreferences.lineSpacing(category: JournalWritingPreferences.contentSizeCategory(for: dynamicTypeSize))
     }
 
     @ViewBuilder
@@ -371,7 +377,7 @@ struct MarkdownPreviewView: View {
         case let .paragraph(text):
             Text(inlineCache[text] ?? AttributedString(text))
                 .font(paragraphFont)
-                .lineSpacing(5 + writingPreferences.spacing.extraLineSpacing * bodyFontScale)
+                .lineSpacing(5 + extraLineSpacing)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
         case let .quote(text):
@@ -383,7 +389,7 @@ struct MarkdownPreviewView: View {
                 Text(inlineCache[text] ?? AttributedString(text))
                     .font(paragraphFont.italic())
                     .foregroundStyle(.secondary)
-                    .lineSpacing(4 + writingPreferences.spacing.extraLineSpacing * bodyFontScale)
+                    .lineSpacing(4 + extraLineSpacing)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(12)
@@ -400,7 +406,7 @@ struct MarkdownPreviewView: View {
                             .foregroundStyle(accent)
                         Text(inlineCache[item] ?? AttributedString(item))
                             .font(paragraphFont)
-                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
+                            .lineSpacing(extraLineSpacing)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -420,7 +426,7 @@ struct MarkdownPreviewView: View {
 
                         Text(inlineCache[item.text] ?? AttributedString(item.text))
                             .font(paragraphFont)
-                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
+                            .lineSpacing(extraLineSpacing)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -436,7 +442,7 @@ struct MarkdownPreviewView: View {
                             .foregroundStyle(item.isChecked ? accent : .secondary)
                         Text(inlineCache[item.text] ?? AttributedString(item.text))
                             .font(paragraphFont)
-                            .lineSpacing(writingPreferences.spacing.extraLineSpacing * bodyFontScale)
+                            .lineSpacing(extraLineSpacing)
                             .strikethrough(item.isChecked)
                             .foregroundStyle(item.isChecked ? .secondary : .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)

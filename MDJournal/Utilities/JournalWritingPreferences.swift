@@ -104,9 +104,41 @@ struct JournalWritingPreferences: Equatable {
         let traits = UITraitCollection(preferredContentSizeCategory: category)
         let base = UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits)
         let descriptor = base.fontDescriptor.withDesign(font.uiDesign) ?? base.fontDescriptor
-        let pointSize = size == .standard ? base.pointSize
-            : UIFontMetrics(forTextStyle: .body).scaledValue(for: size.basePointSize, compatibleWith: traits)
-        return UIFont(descriptor: descriptor, size: pointSize)
+        return UIFont(descriptor: descriptor, size: pointSize(category: category))
+    }
+
+    func pointSize(category: UIContentSizeCategory) -> CGFloat {
+        let traits = UITraitCollection(preferredContentSizeCategory: category)
+        // Preferred system body sizes and custom-font metrics are not identical at accessibility sizes.
+        if size == .standard {
+            return UIFont.preferredFont(forTextStyle: .body, compatibleWith: traits).pointSize
+        }
+        return UIFontMetrics(forTextStyle: .body).scaledValue(for: size.basePointSize, compatibleWith: traits)
+    }
+
+    func lineSpacing(category: UIContentSizeCategory) -> CGFloat {
+        UIFontMetrics(forTextStyle: .body).scaledValue(
+            for: spacing.extraLineSpacing,
+            compatibleWith: UITraitCollection(preferredContentSizeCategory: category)
+        )
+    }
+
+    static func contentSizeCategory(for size: DynamicTypeSize) -> UIContentSizeCategory {
+        switch size {
+        case .xSmall: return .extraSmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .xLarge: return .extraLarge
+        case .xxLarge: return .extraExtraLarge
+        case .xxxLarge: return .extraExtraExtraLarge
+        case .accessibility1: return .accessibilityMedium
+        case .accessibility2: return .accessibilityLarge
+        case .accessibility3: return .accessibilityExtraLarge
+        case .accessibility4: return .accessibilityExtraExtraLarge
+        case .accessibility5: return .accessibilityExtraExtraExtraLarge
+        @unknown default: return .large
+        }
     }
 }
 

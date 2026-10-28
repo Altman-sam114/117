@@ -269,21 +269,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     }
 
     static func contentSizeCategory(for size: DynamicTypeSize) -> UIContentSizeCategory {
-        switch size {
-        case .xSmall: return .extraSmall
-        case .small: return .small
-        case .medium: return .medium
-        case .large: return .large
-        case .xLarge: return .extraLarge
-        case .xxLarge: return .extraExtraLarge
-        case .xxxLarge: return .extraExtraExtraLarge
-        case .accessibility1: return .accessibilityMedium
-        case .accessibility2: return .accessibilityLarge
-        case .accessibility3: return .accessibilityExtraLarge
-        case .accessibility4: return .accessibilityExtraExtraLarge
-        case .accessibility5: return .accessibilityExtraExtraExtraLarge
-        @unknown default: return .large
-        }
+        JournalWritingPreferences.contentSizeCategory(for: size)
     }
 
     static func configureBodyFontIfNeeded(
@@ -302,10 +288,7 @@ struct MarkdownBodyTextView: UIViewRepresentable {
     ) {
         guard textView.markedTextRange == nil else { return }
         configureBodyFontIfNeeded(textView, category: category, preferences: preferences)
-        let traits = UITraitCollection(preferredContentSizeCategory: category)
-        let spacing = UIFontMetrics(forTextStyle: .body).scaledValue(
-            for: preferences.spacing.extraLineSpacing, compatibleWith: traits
-        )
+        let spacing = preferences.lineSpacing(category: category)
         let current = textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle
         guard bodyWasReplaced || current?.lineSpacing != spacing else { return }
         let style = NSMutableParagraphStyle()

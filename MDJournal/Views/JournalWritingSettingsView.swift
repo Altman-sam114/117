@@ -5,10 +5,21 @@ struct JournalWritingSettingsView: View {
     @AppStorage(JournalPreferenceKey.writingFont) private var font = JournalWritingFont.rounded.rawValue
     @AppStorage(JournalPreferenceKey.writingSize) private var size = JournalWritingSize.standard.rawValue
     @AppStorage(JournalPreferenceKey.writingSpacing) private var spacing = JournalWritingSpacing.standard.rawValue
-    @ScaledMetric(relativeTo: .body) private var fontScale: CGFloat = 1
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var preferences: JournalWritingPreferences {
         JournalWritingPreferences(fontRaw: font, sizeRaw: size, spacingRaw: spacing)
+    }
+
+    private var sampleFont: Font {
+        .system(
+            size: preferences.pointSize(category: JournalWritingPreferences.contentSizeCategory(for: dynamicTypeSize)),
+            design: preferences.font.design
+        )
+    }
+
+    private var sampleLineSpacing: CGFloat {
+        5 + preferences.lineSpacing(category: JournalWritingPreferences.contentSizeCategory(for: dynamicTypeSize))
     }
 
     var body: some View {
@@ -42,8 +53,8 @@ struct JournalWritingSettingsView: View {
                     Text("日常，值得慢慢写。")
                         .font(.system(.title2, design: .serif).weight(.medium))
                     Text("一盏灯，一页纸，把今天留给自己。\nWrite a little, remember a little.\n\n### 明天的小事\n- 给自己留一点从容")
-                        .font(.system(size: preferences.size.basePointSize * fontScale, design: preferences.font.design))
-                        .lineSpacing(5 + preferences.spacing.extraLineSpacing * fontScale)
+                        .font(sampleFont)
+                        .lineSpacing(sampleLineSpacing)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 12)
