@@ -11,18 +11,31 @@
 
 ## 当前状态
 
-- 当前任务 v0.95：按用户最新指令改为模块并行，整合手机写作、长文派生、设置/隐私/数据安全、StoreKit订阅/高级导出与iOS26 Release archive；本轮新SHA完整云端结果待实际下载核对，不复用旧通过记录。
+- 当前任务 v0.95：按用户最新指令改为模块并行，整合手机写作、长文派生、设置/隐私/数据安全、StoreKit订阅/高级导出与iOS26 Release archive；实现SHA1a961fc/run40630767545/attempt1完整云端结果已下载核对通过；收尾文档仍按自身SHA核验，不复用旧包。
 - v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
 
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前回归目标：311项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。07c0317/run40628750871/attempt1商店预检2/3，设备归档通过；状态滞后误判后取消，完整回归未完成不放行。现增加组合输入跨篇隔离并按真实验签失败收敛，继续两组各3项预检后全测；账号团队按人工最新要求后置。
+- 当前软件基线：1a961fcd4cb2c410b64ac6eae5d927ee806ff88c/run40630767545/attempt1通过，311/311 XCTest、31项Pythonfixture、25审查图/3素材、两平台构建与Mac/设备Release完整核验。账号团队后置；最新人工要求后续不再多开子智能体，现有审查已收尾，后续主线程串行完成。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
 - 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
 - v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
+
+### v0.95 / 发布前软件完整云端通过与收尾
+
+日期：2026-10-28。
+
+- 实现 `1a961fcd4cb2c410b64ac6eae5d927ee806ff88c` 已推 origin/main，run `40630767545` / attempt `1` 整体 success。主线程在 `/private/tmp/mdjournal-c-review-40630767545/` 独立 API ZIP 与 gh 双下载，身份、大小/digest、未加密、CRC、独立解压逐文件哈希通过；重新只读 xcresulttool 核全测311/311、0失败/0跳过、商店3/3和导航/输入4/4，六阶段JUnit全成功。
+- 功能 artifact `mdjournal-ci-v0.95-main-1a961fc-run40630767545-attempt1`（ID12791647670，187494411 bytes，SHA256 55280d29d3d4f9e33215ce46ac7a9fb0c57e2197bf6b991c610747e0e31c1787），2752 文件；iOS/Catalyst Debug及universal Mac Release succeeded，25张审查图与3张商店尺寸图全部来源/尺寸/CRC/PNG流核对。原审查PNG允许alpha，只有商店图必须无alpha，不能套用商店验证器错误判普通审查图。
+- 设备 artifact `mdjournal-ios-release-v0.95-main-1a961fcd4cb2c410b64ac6eae5d927ee806ff88c-run40630767545-attempt1`（ID12792005112，2517234 bytes，SHA256 2fb9d1fad3d0b81a2522d34f57eb649379a0cef4ce7d21adafaac649f061671e），13外层/25内ZIP条目/11归档文件；只读verifier、哈希、JUnit1/0/0/0和xcresult succeeded通过。实际1.0(219.1)、arm64、iphoneos26.2/Xcode17C52、最低iOS16，公开链接/月年SKU/隐私/FaceID配置均正确，0error/0warning；仍unsigned未上传。
+- Mac内包 `MDJournal-v0.95-mac-universal-1a961fc.zip`（2407988 bytes，SHA256 dacd25c2b3556e32765b587532a9aab1e47e0377bc796206d30322e4d6b815cc），本地仅只读ditto双解压、两架构/Catalyst平台、ad-hoc签名与CI文件/权限清单比对通过，未运行App，未Developer ID签名或公证。
+- 三个既有模块审查者只读交叉核实际日志和原图，主线程补regular/split/统计/iPad画布；未发现新增阻断写作、设置和订阅布局。手机双向绑定2.743s、marked跨篇1.258s、桥0setter与focus取消0.787s、同篇输入身份2.079s实际通过；firstUnchanged=true。安全/Backup/Store共41项、订阅14项、导出6项实际通过。续订验签latest/current真实新ID1、同SKU/.xcode/invalidSignature，生产reader撤权断言通过，后续自动监听仍通过，不以假结果或空过放行。
+- 同SHA等价Debug模型派生159190字符/325830 UTF8 bytes/40小节，旧新各3次，中位257.9475ms→50.013ms；仅同步模型计算，不是UI帧率/真实输入延迟/分配。25图与3素材已逐图检查，无新增阻断；独立无NavigationStack的历史列表有吸顶与上一行少量文字叠层，宽屏合成画布有原生搜索叠层，不能作为真实iPad或最终商店素材验收。真实iPad/触摸返回/IME/VoiceOver/设备认证及锁屏保存、Sandbox/TestFlight仍须实际验证。
+- 三个测试weak局部变量编译提示、Catalyst两个构建各一条AppIntents metadata提示、全测26条appearance与63条模拟器haptic缺资源诊断保留；预检另3条appearance。状态修改/feedback/fatal诊断0，不能描述为所有输出无warning。软件不因账号后置而跳过回归；unsigned/StoreKitTest也不等于可直接上传、Sandbox或App Store审核。
+- 最新人工要求“后续不再多开子智能体”。现有任务只收尾，此后不追加子任务，主线程串行完成；AGENTS/prompt入口、README、核心流程/图及测试规范同步。收尾文档提交仍触发自身SHA云端验证，不把本节实现SHA包冒充文档HEAD结果。未本机完整build/XCTest/App/simctl；临时Python模块缓存由主线程生成并已用trash回收，没有删除用户数据。
 
 ### v0.95 / 组合输入文档隔离与发布回归收敛
 

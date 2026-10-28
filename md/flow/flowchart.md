@@ -66,7 +66,7 @@ flowchart TD
 
 ## 当前并行实施与云端验证
 
-用户选择按板块并行，覆盖旧的 A→B→C 串行轮转。功能与发布 archive 两个云端 job 对应同一提交。
+本轮前段按板块并行，覆盖旧的 A→B→C 串行轮转；最新人工要求后续不再多开子智能体，已分配任务收尾后主线程串行处理。功能与发布 archive 两个云端 job 对应同一提交。
 
 ```mermaid
 flowchart TD
@@ -84,7 +84,8 @@ flowchart TD
   Regression --> StoreImages["额外3张商店尺寸PNG / iPhone原生3x、iPad生产画布2x / 无alpha与来源摘要"]
   StoreImages --> Results
   Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 25图及3张素材与交易核验"]
-  Review --> Gate{"通过？"}
+  Review --> Serial["最新人工要求：后续不再多开子智能体 / 主线程串行收尾"]
+  Serial --> Gate{"通过？"}
   Gate -- "否" --> Fix["按具体失败追加修复 / 同因失败按规则停止"]
   Fix --> Integrate
   Gate -- "是" --> Account["真实团队、商品、协议、定价、签名、真机与Sandbox/TestFlight"]

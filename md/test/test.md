@@ -2,11 +2,17 @@
 
 ## v0.95 当前范围与状态
 
-用户已明确选择按模块并行实施，覆盖此前 A→B→C 串行轮转。原 257 项 XCTest、8 项纯 Python 设备 fixture 和 16 张界面图片全部保留；新增手机生产导航/焦点、有界正文派生、备份/读取保护/认证、StoreKit 与分页导出测试，以及 9 张新图。最终 XCTest 数以源码声明和最新 xcresult 的同 SHA 实际执行数一致为准，不以 JUnit 的阶段数替代。
+本轮前段按模块并行实施，覆盖此前 A→B→C 串行轮转；最新人工补充后续不再多开子智能体，已分配审查收尾后由主线程串行完成。原 257 项 XCTest、8 项纯 Python 设备 fixture 和 16 张界面图片全部保留；新增手机生产导航/焦点、有界正文派生、备份/读取保护/认证、StoreKit 与分页导出测试，以及 9 张新图。最终 XCTest 数以源码声明和最新 xcresult 的同 SHA 实际执行数一致为准，不以 JUnit 的阶段数替代。
 
 本轮完整构建与测试默认在云端。本机只跑下述轻量检查，禁止自动调用本机 build、XCTest、xcodebuild、simctl、App 或 Instruments。未来如人工另行明确要求本机 iOS 编译/运行，必须只用 FAC4325D 前缀那台既有完整 UDID，禁止创建或选择其他设备；云端不限。
 
 旧 v0.94/14854d3 基线 run40054782075/attempt1 的 257 项、16 图与未加密 artifact 已下载核对，仅作本轮起点。任何新结果不得复用旧包或本地输出。
+
+## 本轮实现验证结果
+
+`1a961fcd4cb2c410b64ac6eae5d927ee806ff88c` / run `40630767545` / attempt `1` 两个未加密 artifact 已由主线程独立双下载，manifest 身份、API 大小/digest、CRC、独立解压逐文件 SHA256 通过；功能包 2752 文件、设备包 13 外层/25 内 ZIP 条目/11 归档文件。独立 xcresulttool 重新读取确认商店3/3、导航/输入4/4、完整311/311、0失败/跳过；JUnit六阶段、iOS/Catalyst Debug、universal Mac Release及设备 archive 全成功。25 PNG与3张无alpha商店尺寸图的完整性、哈希、来源及逐图复核完成，无新增阻断写作/设置/订阅布局问题。Mac包只读复核双架构、签名、完整文件/权限，不启动App；仍ad-hoc内部包。
+
+设备 archive 实际1.0(219.1)、arm64、iPhoneOS26.2、最低iOS16，0error/0warning，仍unsigned未上传。三个测试weak局部变量编译提示、Catalyst各一条AppIntents提示、26条全测appearance与63条haptic资源诊断如实保留；state-update/feedback/fatal=0，不声称所有日志无warning。独立历史列表和宽屏合成画布的原生叠层观察不作iPad设备结论；真实设备/IME/VoiceOver/系统认证/Sandbox/TestFlight尚未实测。后续文档提交使用自己的SHA/run/attempt，不能将本节实现SHA结果移用为新SHA证据。
 
 ## 轻量检查
 
@@ -108,4 +114,4 @@ run40624082017 已核对为303/309且无跳过，程序化状态与导航反馈�
 
 云端原有两份预检xcresult继续保留：商店3项为空快照/xcode购买、取消、验签；界面4项为原两项导航、真实焦点/双向切篇及marked-text跨篇。任一组失败都阻止完整311项与发布放行，另一组仍取证，不盲跑全套；商店3/3与导航/输入4/4成功才跑完整声明数、25图/3素材和两平台/Release。账号团队正式签名按人工要求后置，不阻塞软件验证，也不能伪称已上传。
 
-最新 run40628750871/attempt1 两包已下载并核同 SHA、digest/大小、未加密、CRC 和独立下载逐文件哈希。商店预检真实 3 项 2pass/1fail，失败为注入后 Transaction.latest 未返回预期 unverified；不是取消或真实购买失败。GitHub 阶段状态滞后导致主线程误判并取消，导航前两项通过、焦点切篇触发旧 Binding 断言，完整回归未完成；准备实际成功、test build 成功，不能把状态延迟当模拟器卡死根因。设备 archive succeeded、0error/0warning，仍 unsigned。下一 SHA 需完整 311 项与原图片/平台构建门槛。
+此前 run40628750871/attempt1 两包已下载并核同 SHA、digest/大小、未加密、CRC 和独立下载逐文件哈希。商店预检真实 3 项 2pass/1fail，失败为注入后 Transaction.latest 未返回预期 unverified；不是取消或真实购买失败。GitHub 阶段状态滞后导致主线程误判并取消，导航前两项通过、焦点切篇触发旧 Binding 断言，完整回归未完成；准备实际成功、test build 成功，不能把状态延迟当模拟器卡死根因。设备 archive succeeded、0error/0warning，仍 unsigned。下一 SHA 需完整 311 项与原图片/平台构建门槛。
