@@ -370,7 +370,7 @@ private struct DistributionRow: View {
             rowLayout {
                 Label(title, systemImage: systemImage)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(value > 0 ? tint : .secondary)
+                    .foregroundStyle(value > 0 ? JournalTheme.accent : .secondary)
 
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
 

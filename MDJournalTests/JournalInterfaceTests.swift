@@ -1291,6 +1291,27 @@ final class JournalInterfaceTests: XCTestCase {
                 let ratio = (max(backgroundLuminance, foregroundLuminance) + 0.05)
                     / (min(backgroundLuminance, foregroundLuminance) + 0.05)
                 XCTAssertGreaterThanOrEqual(ratio, 4.5, "Primary button contrast: \(style), \(contrast)")
+                for name in ["JournalPaper", "JournalInset"] {
+                    let surface = try XCTUnwrap(UIColor(named: name)).resolvedColor(with: traits)
+                    let surfaceLuminance = luminance(surface)
+                    let textRatio = (max(backgroundLuminance, surfaceLuminance) + 0.05)
+                        / (min(backgroundLuminance, surfaceLuminance) + 0.05)
+                    XCTAssertGreaterThanOrEqual(textRatio, 4.5, "Small metadata labels: \(name), \(style), \(contrast)")
+                }
+                for category in JournalEntry.Category.allCases {
+                    let hue = UIColor(category.tint).resolvedColor(with: traits)
+                    let paper = try XCTUnwrap(UIColor(named: "JournalPaper")).resolvedColor(with: traits)
+                    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                    var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
+                    XCTAssertTrue(hue.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+                    XCTAssertTrue(paper.getRed(&pr, green: &pg, blue: &pb, alpha: &pa))
+                    let chip = UIColor(red: red * 0.14 + pr * 0.86, green: green * 0.14 + pg * 0.86,
+                                       blue: blue * 0.14 + pb * 0.86, alpha: 1)
+                    let chipLuminance = luminance(chip)
+                    let chipRatio = (max(backgroundLuminance, chipLuminance) + 0.05)
+                        / (min(backgroundLuminance, chipLuminance) + 0.05)
+                    XCTAssertGreaterThanOrEqual(chipRatio, 4.5, "Category picker text: \(category), \(style), \(contrast)")
+                }
             }
         }
     }

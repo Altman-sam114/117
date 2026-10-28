@@ -25,6 +25,8 @@ struct JournalPrivacyView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background { JournalBackdrop().ignoresSafeArea() }
         .navigationTitle("隐私与数据")
         .navigationBarTitleDisplayMode(.inline)
     }

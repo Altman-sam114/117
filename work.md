@@ -52,3 +52,11 @@
 - 公开仓库确认 private=false；GitHub Contents API核 privacy/support 两文档blob与本轮提交一致。普通 curl 对外链接在本机网络超时000，不能声称已HTTP200，提交前仍需在外部网络打开商店URL确认。
 - 首轮 full 整体失败：设备包成功；实际日志证实319项完成，318通过、1个用例失败（3条断言），0 unexpected。唯一失败是本轮新增偏好用例在 accessibilityExtraLarge 对标准17pt字体错误假定 >40，而系统正确返回40。生产输入/marked-text、隐私/默认遮罩、保存/无变化回写、交易、PDF全通过；28张图片完整导出。其余平台构建按门槛未执行，不称发布通过。
 - 追加最小修复仅测试：把错误固定阈值替换为五档辅助字号全部逐一精确匹配 UIFontMetrics，逐档严格增大，并保留最大档>40的要求；不是删用例/跳过或降低断言，也不修改正确的系统字体。下一提交再次 full，须核新SHA自己的两包；旧功能248979605bytes包正在API下载（12818888751，GitHub digest 1ea72241637e0e557d5bf645e18ee303ef62927611c824966db37bb0111cb762），未完成前不声称核对完成。
+- 测试修正已提交并 push：ac1284ee33425fd95e9253b75947cb233d31cc4b / main。再次执行 `gh workflow run ci-results.yml --ref main -f validation_profile=full`，新 run 40696944198 / attempt 1 / headSha同上，2026-10-28 21:30台北时间已入队。只改一个测试与工作台，生产App源码和28张图矩阵不变；仍等新run实际全阶段，不挪用旧包宣称同SHA通过。Swift parse和diff检查通过。
+- 首轮耗时证据：test build约5m32s，StoreKit预检约2m34s，导航/输入预检约55s，实际319全测约57s。没有宿主watchdog或输入性能失败，不根据基础服务启动时间猜测重构生产代码。
+- 第二轮曾因GitHub macOS runner容量排队，约21:40已进入执行（静态成功、准备云模拟器/设备归档中），不是本机运行。watch会话64424，日志 /private/tmp/mdjournal-review-40696944198/attempt-1/cloud-watch.log。
+- 普通大包API流式下载速率过低，已停止首轮不完整流；改为16路有界HTTP Range下载，逐range核Content-Range，完成后必须匹配同一GitHub总大小/SHA，再核ZIP。下载工具 /private/tmp/mdjournal-review-40694382474/attempt-1/download_range.py，会话11354；不得将预分配稀疏文件的逻辑大小当完成证据。原 gh run download 停滞未放行，链接urllib GET也网络超时，均已记录而不盲重试。
+- 首轮大包最终已完整核对：末段签名URL过期，用新授权URL只补缺失范围后，全248979605bytes精确匹配GitHub SHA-256；3081文件、未加密/CRC/路径、manifest身份和实际summary均通过，确认319/318/1/0且唯一字体测试假设失败。JUnit6阶段有4失败（测试失败+三构建未跑），28图导出success，不能称full成功。
+- 逐图复核发现直接UI问题：资料库分类小字用亮青色，实际截图读像素测得选中底色(235,237,231)与字形像素(87,192,205)对比约1.81:1；改 EntryRowView 和分类选择器的小字为经过对比测试的 JournalAccent，保留分类色作背景/统计装饰。追加既有颜色用例的纸页/内衬及五分类淡色芯片4.5:1回归，319声明数不变。隐私页背景同步纸本主题。新增编辑文件 EntryRowView.swift；其余属已列范围。需要新提交自己的最终full与设备包，不挪用前SHA。
+- 第二轮设备包已success并下载外层核对：12819804037 /2647022bytes/SHA81447f3dff22ab8b48f28876f0931672fb0c701ab9e90e6b0f53d55ea7d9a3e8，13文件、manifest/JUnit/CRC/未加密/路径/digest通过；这仍是 ac1284e 的结果，不作为即将追加UI修正的证据。
+- 已逐图查看首轮28张审查图；宽窄/深浅/辅助字号、默认遮罩与方案不可用状态均有实际画布。统计分类标题也有同一亮色小字问题，一并改 StatisticsDashboardView 的 DistributionRow 标题为语义强调色、保留彩色进度条（新增本轮文件记录）。PDF附件27050bytes/3页A4/无加密无JS；已用Poppler逐页渲染查看，封面、日期/篇数、标题/原文/页码无溢出。仅这两类视觉补丁，不扩展其他功能。

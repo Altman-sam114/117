@@ -135,7 +135,7 @@ struct EntryRowView: View, Equatable {
         return axis {
             HStack(spacing: 8) {
                 Label(content.category.rawValue, systemImage: content.category.systemImage)
-                    .foregroundStyle(content.category.tint)
+                    .foregroundStyle(JournalTheme.accent)
                 Label(content.mood.rawValue, systemImage: content.mood.systemImage)
                     .labelStyle(.iconOnly)
                     .foregroundStyle(.secondary)

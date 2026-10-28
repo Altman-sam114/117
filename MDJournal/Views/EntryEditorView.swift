@@ -655,7 +655,7 @@ struct EntryEditorView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .frame(minHeight: 44)
-                .foregroundStyle(entry.category.tint)
+                .foregroundStyle(JournalTheme.accent)
                 .background(entry.category.tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
         }
     }
