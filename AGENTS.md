@@ -12,6 +12,7 @@ MD Journal 是一个原生 SwiftUI Markdown 日记应用，当前支持 iOS/iPad
 - 共享工作区不同时编辑同一文件。集成后只提交本轮相关文件到 main，直推 origin/main；不创建候选分支或 PR。
 - 完整构建、XCTest、图片与 Release archive 在云端执行。最终由主线程或完成实施后的交叉审查者下载最新同 SHA/run/attempt 的未加密结果包，不要求再等待一个名为 Agent C 的串行阶段。
 - 发布账号、商品、签名或审核状态必须真实。unsigned archive、StoreKitTest 和截图不等同于 App Store 上传、Sandbox 或真机验收。
+- 人工最新明确：账号、开发者团队和正式签名后置，本轮先完成发布前的软件。不得继续把账号配置作为软件收敛的阻塞，也不得因此跳过完整云端回归；账号侧发布工作另行处理。
 
 ## 1. 必读文件
 

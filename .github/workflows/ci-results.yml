@@ -184,6 +184,8 @@ jobs:
               -test-timeouts-enabled YES \
               -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
               -only-testing:MDJournalTests/JournalSubscriptionTests/testStoreKitCurrentEntitlementsPreflightUsesLocalSession \
+              -only-testing:MDJournalTests/JournalSubscriptionTests/testStoreKitCancelledPurchasesDoNotUnlockPro \
+              -only-testing:MDJournalTests/JournalSubscriptionTests/testStoreKitUnverifiedTransactionsDoNotUnlockPro \
               -enableCodeCoverage NO -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalStoreKitPreflight.xcresult" \
               CODE_SIGNING_ALLOWED=NO test-without-building \
@@ -193,7 +195,7 @@ jobs:
               --path "$RESULT_DIR/MDJournalStoreKitPreflight.xcresult" \
               > "$RESULT_DIR/storekit-preflight-summary.json" || storekit_status=$?
             if [[ "$storekit_status" -eq 0 ]]; then
-              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":1,"passedTests":1,"failedTests":0,"skippedTests":0}, s' \
+              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":3,"passedTests":3,"failedTests":0,"skippedTests":0}, s' \
                 "$RESULT_DIR/storekit-preflight-summary.json" || storekit_status=$?
             fi
             if [[ "$storekit_status" -ne 0 ]]; then
@@ -202,7 +204,7 @@ jobs:
                 "$RESULT_DIR/storekit-preflight-diagnostics"
               preflight_failed=1
             fi
-            echo "## App Scene navigation preflight (240 second limit; not the full suite)"
+            echo "## App Scene navigation and editor binding preflight (240 second limit; not the full suite)"
             preflight_status=0
             start_test_sampling navigation-preflight
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
@@ -214,6 +216,7 @@ jobs:
               -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
               -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionCreateClearsBlockingFiltersAndShowsTheCreatedID \
               -only-testing:MDJournalTests/JournalInterfaceTests/testCompactProductionNavigationLinkOpensPopsAndReopensTheSameEntry \
+              -only-testing:MDJournalTests/JournalInterfaceTests/testProductionDoneAndWritingActionsCoordinateTitleAndBodyFirstResponders \
               -enableCodeCoverage NO -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
               -resultBundlePath "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
               CODE_SIGNING_ALLOWED=NO test-without-building \
@@ -223,7 +226,7 @@ jobs:
               --path "$RESULT_DIR/MDJournalNavigationPreflight.xcresult" \
               > "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
             if [[ "$preflight_status" -eq 0 ]]; then
-              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":2,"passedTests":2,"failedTests":0,"skippedTests":0}, s' \
+              python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert {k:s.get(k) for k in ("totalTestCount","passedTests","failedTests","skippedTests")} == {"totalTestCount":3,"passedTests":3,"failedTests":0,"skippedTests":0}, s' \
                 "$RESULT_DIR/navigation-preflight-summary.json" || preflight_status=$?
             fi
             if [[ "$preflight_status" -ne 0 ]]; then
@@ -489,10 +492,10 @@ jobs:
               "testDefaultExecutionTimeAllowanceSeconds": 180,
               "testMaximumExecutionTimeAllowanceSeconds": 180,
               "navigationHostExecutionTimeAllowanceSeconds": 60,
-              "navigationPreflightTestCount": 2,
+              "navigationPreflightTestCount": 3,
               "navigationPreflightSummaryPath": "ci-results/navigation-preflight-summary.json",
               "navigationPreflightResultBundlePath": "ci-results/MDJournalNavigationPreflight.xcresult",
-              "storeKitPreflightTestCount": 1,
+              "storeKitPreflightTestCount": 3,
               "storeKitPreflightSummaryPath": "ci-results/storekit-preflight-summary.json",
               "storeKitPreflightResultBundlePath": "ci-results/MDJournalStoreKitPreflight.xcresult",
               "testPlanPath": "MDJournalCI.xctestplan",

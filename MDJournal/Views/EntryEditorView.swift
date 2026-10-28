@@ -195,7 +195,7 @@ struct EntryEditorActionTarget {
     let workspace: Binding<EntryEditorWorkspaceState>
     let titleFocus: FocusState<Bool>.Binding
     let showsDetails: Binding<Bool>
-    let layout: EntryEditorLayoutContract
+    var layout: EntryEditorLayoutContract
 
     func perform(_ action: EntryEditorWorkspaceState.Action) {
         if case .focusWriting = action { showsDetails.wrappedValue = false }
@@ -235,6 +235,11 @@ struct EntryEditorActionTarget {
 @MainActor
 final class EntryEditorSceneActions: ObservableObject {
     private var target: EntryEditorActionTarget?
+    private(set) var layout: EntryEditorLayoutContract?
+
+    #if DEBUG
+    var targetEntryID: JournalEntry.ID? { target?.entry.wrappedValue.id }
+    #endif
 
     private(set) lazy var insertMarkdownSnippet: (MarkdownSnippet) -> Void = { [weak self] snippet in
         self?.target?.insertSnippet(snippet)
@@ -254,6 +259,17 @@ final class EntryEditorSceneActions: ObservableObject {
 
     func updateTarget(_ target: EntryEditorActionTarget) {
         self.target = target
+        layout = target.layout
+    }
+
+    func updateLayout(_ layout: EntryEditorLayoutContract) {
+        // A retained geometry callback must never restore an earlier journal binding.
+        self.layout = layout
+        target?.layout = layout
+    }
+
+    func perform(_ action: EntryEditorWorkspaceState.Action) {
+        target?.perform(action)
     }
 
     func clearTarget() {
@@ -281,6 +297,8 @@ struct EntryEditorView: View {
     private let focusedWritingMaxWidth = JournalTheme.readableWidth
 
     var body: some View {
+        let currentEntry = $entry
+
         GeometryReader { proxy in
             let layout = EntryEditorLayoutContract(
                 width: proxy.size.width,
@@ -337,32 +355,41 @@ struct EntryEditorView: View {
             .background { JournalBackdrop() }
             .onAppear {
                 workspaceState.updateLayout(layout)
-                sceneActions.updateTarget(actionTarget(layout: layout))
+                sceneActions.updateLayout(layout)
                 #if DEBUG
                 interactionObserver?(JournalEditorInteraction(
                     sceneActions: sceneActions,
                     titleFocus: $titleFocused,
                     dismissKeyboard: dismissKeyboard,
-                    focusBody: { perform(.focusBody, layout: layout) },
-                    enterPreview: { perform(.selectMode(.preview), layout: layout) },
-                    returnToEdit: { perform(.selectMode(.edit), layout: layout) }
+                    focusBody: { perform(.focusBody) },
+                    enterPreview: { perform(.selectMode(.preview)) },
+                    returnToEdit: { perform(.selectMode(.edit)) }
                 ))
                 #endif
             }
             .onChange(of: layout) { updatedLayout in
                 workspaceState.updateLayout(updatedLayout)
-                sceneActions.updateTarget(actionTarget(layout: updatedLayout))
+                sceneActions.updateLayout(updatedLayout)
             }
-            .onChange(of: entry.id) { _ in
-                sceneActions.updateTarget(actionTarget(layout: layout))
-            }
-            .toolbar { editorToolbar(layout: layout, workspace: workspace) }
+            .toolbar { editorToolbar(workspace: workspace) }
         }
         .focusedSceneObject(sceneActions)
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .background(JournalTheme.canvas)
-        .onChange(of: entry.id) { _ in
+        .onAppear {
+            sceneActions.updateTarget(actionTarget(entry: currentEntry))
+        }
+        .onChange(of: entry.id) { entryID in
+            guard currentEntry.wrappedValue.id == entryID else {
+                sceneActions.clearTarget()
+                assertionFailure("Editor commands rejected a stale journal binding")
+                return
+            }
+            sceneActions.updateTarget(actionTarget(entry: currentEntry))
+            #if DEBUG
+            assert(sceneActions.targetEntryID == entryID, "Editor commands must target the current journal binding")
+            #endif
             resetBodySelectionToEnd()
         }
         .onChange(of: titleFocused) { isFocused in
@@ -378,32 +405,29 @@ struct EntryEditorView: View {
     }
 
     @ToolbarContentBuilder
-    private func editorToolbar(
-        layout: EntryEditorLayoutContract,
-        workspace: EntryEditorWorkspaceState
-    ) -> some ToolbarContent {
+    private func editorToolbar(workspace: EntryEditorWorkspaceState) -> some ToolbarContent {
         #if targetEnvironment(macCatalyst)
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                perform(.focusWriting, layout: layout)
+                perform(.focusWriting)
             } label: {
                 Label(EditorWritingCommand.focusWriting.title, systemImage: EditorWritingCommand.focusWriting.systemImage)
             }
             .help(EditorWritingCommand.focusWriting.helpText)
 
             Menu {
-                Button { perform(.focusBody, layout: layout) } label: {
+                Button { perform(.focusBody) } label: {
                     Label(EditorWritingCommand.focusBody.title, systemImage: EditorWritingCommand.focusBody.systemImage)
                 }
-                Button { applyIndentation(.indent, layout: layout) } label: {
+                Button { applyIndentation(.indent) } label: {
                     Label(EditorWritingCommand.indentLines.title, systemImage: EditorWritingCommand.indentLines.systemImage)
                 }
-                Button { applyIndentation(.outdent, layout: layout) } label: {
+                Button { applyIndentation(.outdent) } label: {
                     Label(EditorWritingCommand.outdentLines.title, systemImage: EditorWritingCommand.outdentLines.systemImage)
                 }
                 Divider()
                 ForEach(MarkdownSnippet.allCases) { snippet in
-                    Button { insertSnippet(snippet, layout: layout) } label: {
+                    Button { insertSnippet(snippet) } label: {
                         Label(snippet.title, systemImage: snippet.systemImage)
                     }
                 }
@@ -412,7 +436,7 @@ struct EntryEditorView: View {
             }
             .help("Markdown、缩进与正文焦点")
 
-            Button { perform(.togglePreview, layout: layout) } label: {
+            Button { perform(.togglePreview) } label: {
                 Label(workspace.previewToggleTitle, systemImage: EditorWritingCommand.togglePreview.systemImage)
             }
             .help(EditorWritingCommand.togglePreview.helpText(title: workspace.previewToggleTitle))
@@ -422,10 +446,10 @@ struct EntryEditorView: View {
         #if !targetEnvironment(macCatalyst)
         ToolbarItem(placement: .primaryAction) {
             Menu {
-                Button { perform(.focusWriting, layout: layout) } label: {
+                Button { perform(.focusWriting) } label: {
                     Label(EditorWritingCommand.focusWriting.title, systemImage: EditorWritingCommand.focusWriting.systemImage)
                 }
-                Button { perform(.togglePreview, layout: layout) } label: {
+                Button { perform(.togglePreview) } label: {
                     Label(workspace.previewToggleTitle, systemImage: EditorWritingCommand.togglePreview.systemImage)
                 }
                 Button { showsDetails.toggle() } label: {
@@ -729,7 +753,7 @@ struct EntryEditorView: View {
                 }
                 Spacer(minLength: 0)
                 MarkdownToolbar(showsCommonActions: !inlineTools && workspace.showsEditor) {
-                    insertSnippet($0, layout: layout)
+                    insertSnippet($0)
                 }
             }
             .padding(.horizontal, 12)
@@ -757,18 +781,19 @@ struct EntryEditorView: View {
     private func compactModeSelection(layout: EntryEditorLayoutContract) -> Binding<Mode> {
         Binding(
             get: { workspaceState.resolved(for: layout).mode },
-            set: { perform(.selectMode($0), layout: layout) }
+            set: { perform(.selectMode($0)) }
         )
     }
 
-    private func perform(_ action: EntryEditorWorkspaceState.Action, layout: EntryEditorLayoutContract) {
-        actionTarget(layout: layout).perform(action)
+    private func perform(_ action: EntryEditorWorkspaceState.Action) {
+        sceneActions.perform(action)
     }
 
-    private func actionTarget(layout: EntryEditorLayoutContract) -> EntryEditorActionTarget {
+    private func actionTarget(entry: Binding<JournalEntry>) -> EntryEditorActionTarget {
         EntryEditorActionTarget(
-            entry: $entry, workspace: $workspaceState, titleFocus: $titleFocused,
-            showsDetails: $showsDetails, layout: layout
+            entry: entry, workspace: $workspaceState, titleFocus: $titleFocused,
+            showsDetails: $showsDetails,
+            layout: sceneActions.layout ?? EntryEditorLayoutContract(width: 0, dynamicTypeSize: dynamicTypeSize)
         )
     }
 
@@ -781,12 +806,12 @@ struct EntryEditorView: View {
         workspaceState.bodySelectedRange = NSRange(location: entry.body.utf16.count, length: 0)
     }
 
-    private func applyIndentation(_ direction: MarkdownLineIndentation.Direction, layout: EntryEditorLayoutContract) {
-        actionTarget(layout: layout).applyIndentation(direction)
+    private func applyIndentation(_ direction: MarkdownLineIndentation.Direction) {
+        sceneActions.applyIndentation(direction)
     }
 
-    private func insertSnippet(_ snippet: MarkdownSnippet, layout: EntryEditorLayoutContract) {
-        actionTarget(layout: layout).insertSnippet(snippet)
+    private func insertSnippet(_ snippet: MarkdownSnippet) {
+        sceneActions.insertMarkdownSnippet(snippet)
     }
 
 }

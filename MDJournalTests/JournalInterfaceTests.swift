@@ -401,6 +401,7 @@ final class JournalInterfaceTests: XCTestCase {
                 && self.bodyInput(in: controller.view, text: nextEntry.body)?.selectedRange == nextSelection
         }
         XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
+        XCTAssertEqual(sceneActions.targetEntryID, nextEntry.id)
         let expectedInsertion = MarkdownSnippetInsertion.apply(
             snippet: .heading, to: nextEntry.body, selectedRange: nextSelection
         )
@@ -414,11 +415,34 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(state.entries[0], entry, "A retained scene command must not edit the previous journal")
         XCTAssertEqual(state.entries[1].id, nextEntry.id)
 
+        let nextEntryAfterInsertion = state.entries[1]
+        actions.dismissKeyboard()
+        state.selectedEntryID = entry.id
+        let firstSelection = NSRange(location: entry.body.utf16.count, length: 0)
+        try await waitForHost("Returning to the previous journal must update the same router's binding and selection") {
+            self.titleInput(in: controller.view, title: entry.title) != nil
+                && self.bodyInput(in: controller.view, text: entry.body)?.selectedRange == firstSelection
+        }
+        XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
+        XCTAssertEqual(sceneActions.targetEntryID, entry.id)
+        let expectedFirstInsertion = MarkdownSnippetInsertion.apply(
+            snippet: .bold, to: entry.body, selectedRange: firstSelection
+        )
+        sceneActions.insertMarkdownSnippet(.bold)
+        try await waitForHost("A retained command must follow the current journal when switching back") {
+            state.entries[0].body == expectedFirstInsertion.body
+                && self.bodyInput(in: controller.view, text: state.entries[0].body)?.selectedRange
+                    == expectedFirstInsertion.selectedRange
+        }
+        XCTAssertEqual(state.entries[1], nextEntryAfterInsertion, "Switching back must not edit the journal just left")
+
+        let activeEntryBeforeDetach = state.entries[0]
         state.showsEditor = false
         try await waitForHost("The production editor must leave the view hierarchy before detached commands are exercised") {
-            self.bodyInput(in: controller.view, text: state.entries[1].body) == nil
-                && self.titleInput(in: controller.view, title: nextEntry.title) == nil
+            self.bodyInput(in: controller.view, text: activeEntryBeforeDetach.body) == nil
+                && self.titleInput(in: controller.view, title: activeEntryBeforeDetach.title) == nil
         }
+        XCTAssertNil(sceneActions.targetEntryID)
         let beforeDetach = state.entries
         sceneActions.focusBody()
         sceneActions.focusWriting()
@@ -471,6 +495,14 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertFalse(details)
         XCTAssertTrue(workspace.editorFocused)
         XCTAssertEqual(first, originalFirst, "Old command handles must not edit the previous journal")
+
+        router!.updateLayout(EntryEditorLayoutContract(width: 390, dynamicTypeSize: .large))
+        let beforeLayoutInsertion = second.body
+        insert(.italic)
+        XCTAssertFalse(workspace.usesSplitPreview)
+        XCTAssertEqual(router!.targetEntryID, second.id)
+        XCTAssertNotEqual(second.body, beforeLayoutInsertion)
+        XCTAssertEqual(first, originalFirst, "A layout-only callback must not restore the previous journal binding")
 
         let beforeDetach = (first, second, workspace, details)
         router!.clearTarget()

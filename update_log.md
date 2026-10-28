@@ -17,7 +17,7 @@
 - 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
 - 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
 - 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前回归目标：309项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。02fe8a4/run40621962623/attempt1已下载：三项预检通过，完整306/308、25图/3素材与现代archive齐；两项切篇和交易夹具失败不放行。现追加程序化选区保护和干净StoreKit会话边界，须新SHA结果。
+- 当前回归目标：310项XCTest、31项纯Pythonfixture、25张生产图与3张商店尺寸素材、iOS/Catalyst Debug与universal Mac Release及现代设备Release archive。5c3ad48/run40624082017/attempt1完整303/309且0skip、输入/导航警告均归零，但旧命令绑定及同方法双商店会话仍导致失败，不放行。现修稳定外层当前绑定并拆单会话测试，先两组各3项针对性预检再全测；账号团队按人工最新要求后置。
 - v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
 - `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
 - 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
@@ -41,6 +41,11 @@
 - 同run设备artifact`mdjournal-ios-release-v0.95-main-02fe8a4481fbd7edd27eec6f6e5f30b15fef51b9-run40621962623-attempt1`（ID12788360142，2508921bytes，SHA256 202ed1ad9178943fbb6abb68bf586527a7e7bf886001421c5a25f243d81fe7c8），13文件和内部11归档文件哈希/CRC/只读verifier/xcresult succeeded均通过，1.0(216.1)、arm64、iphoneos26.2、0编译错误/0编译警告，仍unsigned未上传。xcresult初读因未设置DEVELOPER_DIR找不到工具，显式指定现有Xcode后只读复判成功，未启动本机App或模拟器。
 - 同run的25张图均已联系表查看，regular/split及3张商店图另按原图检查；尺寸/PNG完整性/无alpha/原始来源与SHA通过，无新增阻断布局问题，iPad仍仅生产画布证据。Debug等价派生测量159190字符/40小节、各3次，旧路径中位204.014ms、有界53.367ms；不外推真实输入延迟/帧率/分配。缓存`/private/tmp/mdjournal-c-review-40621962623/`保留核对报告。
 - 完整回归暴露两处：切篇新增断言未等UTF16新选区完成，且程序化UIKit更新可回写Binding（日志20次SwiftUI state-update警告）；取消注入虽清为nil，旧StoreKit购买批次仍返回cancel。按模块并行修复：输入初始化后装delegate、既有程序化同步区间禁止didChange/selection回写，保留marked/token规则；新增真实桥零setter/用户选区一次回写测试，切篇要求完整正文和纯算法选区精确相等。订阅取消与验签使用各自干净真实session/Store/Product，先verified购买再invalidSignature的全部原断言不减。总声明增至309，新SHA仍须自身完整云端结果。
+- `5c3ad48edf014532851a7f2dda3dbad314d45a40`已推origin/main，run`40624082017`/attempt`1`两包主线程下载核对：功能artifact`mdjournal-ci-v0.95-main-5c3ad48-run40624082017-attempt1`（ID12788648705，243618849bytes，SHA256 9e837bf65eae9a06448a8ac789d0a8e731118ae288cba26e64514e1a62cd1adc），3057文件身份/未加密/CRC/独立gh逐hash通过；真实xcresult完整303/309、6fail、0skip，原预检通过但软件不放行。新增输入桥回归通过，SwiftUI state-update与导航feedback日志均0次。
+- 同run设备artifact`mdjournal-ios-release-v0.95-main-5c3ad48edf014532851a7f2dda3dbad314d45a40-run40624082017-attempt1`（ID12789200128，2509244bytes，SHA256 bb95849b9c42d45c840940f46cb8b26fdfe326624d9cc36b8779d4b0538b9128）及13外层/11归档文件哈希、只读verifier与xcresult succeeded通过；实际1.0(217.1)、arm64/iphoneos26.2、0编译错误和警告，仍unsigned。缓存`/private/tmp/mdjournal-c-review-40624082017/`含双下载与复判JSON。
+- 后续证据推翻单纯选区等待和同方法新会话隔离的假设：实际打印firstUnchanged=false、新篇原文不变，确定router旧Binding误写前篇；第二个SKTestSession在验签注入前已经Missing transaction data/Device verification failed，并污染后续商店测试直至File not found。暂停盲重跑，按实际根因修复：稳定外层显式捕获当前Binding，GeometryReader只更新布局，按钮/菜单共享router，绑定ID不符则拒绝；扩双向切篇/布局不覆旧绑定断言。取消和验签拆独立单会话测试，异步teardown显式清两种API模拟错误，原断言不减，总310项。
+- 云端将原两份预检各扩至3项，直接覆盖真实焦点/双向切篇与取消/验签：先取得针对性根因闭环，全部成功才执行完整310项及原图片/构建门槛。人工最新说明账号团队之后再配，本轮目标限定发布前软件，已同步AGENTS/README/流程与测试规范；账号缺失不再作为软件收敛阻塞，仍如实区分unsigned与正式发布。
+- 本次轻检实际退出0：全应用/测试Swift parse、project/Info/PrivacyInfo plist、31项Pythonfixture、workflow全部14个bash run块/3个Python heredoc及脚本AST、310项声明计数和git diff --check。没有本机完整build/App/XCTest/模拟器；新提交运行结果只以自己的云端两组预检和完整结果为准。
 - 现有签名只发现Apple Development，没有Distribution，GitHub secrets为空，无默认App Store Connect私钥目录。真实团队/App记录/商品/价格/合同税务与银行、发布联系信息、Distribution签名、Sandbox/TestFlight、真机输入/VoiceOver/认证和锁屏保存仍需实际证据；不能宣布可直接上传或已通过审核。
 
 ### v0.95 / iOS 发布候选并行集成（功能已集成，回归收敛中）
