@@ -64,30 +64,33 @@ flowchart TD
   Entitled -- "否" --> Free["保留免费编辑、预览、统计、单篇分享和JSON备份"]
 ```
 
-## 当前并行实施与云端验证
+## 自主迭代与按范围云端验证
 
-本轮前段按板块并行，覆盖旧的 A→B→C 串行轮转；最新人工要求后续不再多开子智能体，已分配任务收尾后主线程串行处理。功能与发布 archive 两个云端 job 对应同一提交。
+由当前模型逐步执行，默认不开子智能体；工作台负责上下文恢复，构建和运行默认只在云端。
 
 ```mermaid
 flowchart TD
-  User["人工目标 / 模块并行 / 云端编译"] --> Mobile["手机导航、焦点、长文派生"]
-  User --> Safety["设置、备份、隐私、应用锁、原文件保护"]
-  User --> Pro["StoreKit 2 / UTF8分块与逐篇分页PDF / 可取消"]
-  Mobile --> Integrate["主线程工程集成 / main直推"]
-  Safety --> Integrate
-  Pro --> Integrate
-  Integrate --> TestHost["库存查询60秒 / 准备4分钟 / 仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及商店3项与导航/输入4项预检"]
-  TestHost --> Regression["Xcode26.2/iOS26.2 / 311项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
-  Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
-  Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
-  Archive --> Results
-  Regression --> StoreImages["额外3张商店尺寸PNG / iPhone原生3x、iPad生产画布2x / 无alpha与来源摘要"]
-  StoreImages --> Results
-  Results --> Review["最新同SHA/run/attempt下载 / digest、CRC、哈希 / 25图及3张素材与交易核验"]
-  Review --> Serial["最新人工要求：后续不再多开子智能体 / 主线程串行收尾"]
-  Serial --> Gate{"通过？"}
-  Gate -- "否" --> Fix["按具体失败追加修复 / 同因失败按规则停止"]
-  Fix --> Integrate
-  Gate -- "是" --> Account["真实团队、商品、协议、定价、签名、真机与Sandbox/TestFlight"]
-  Account --> Upload["账号条件满足后才上传App Store / 不预称已审核"]
+  User["用户目标与限制"] --> Read["读取 AGENTS、work.md、Git 状态与相关实现"]
+  Read --> Recover{"已有未完成计划？"}
+  Recover -- "是" --> VerifyState["核对实际 diff、云端 run 与下一步，不重复启动"]
+  Recover -- "否" --> Plan["work.md：目标、边界、验收、步骤、文件、测试选择"]
+  VerifyState --> Plan
+  Plan --> Develop["当前模型小步实现、自查并更新工作台"]
+  Develop --> Scope{"本轮需要什么证据？"}
+  Scope -- "纯文档" --> Static["diff、链接和文档一致性，不跑无关 CI"]
+  Scope -- "直接/必要关联验证" --> Push["仅提交本轮文件 / main 直推 origin/main"]
+  Push --> Dispatch["模型主动 workflow_dispatch / 记录 SHA、run、attempt、范围"]
+  Dispatch --> Targeted["targeted：精确 XCTest / 单个 fixture / 必要 Debug 平台"]
+  Dispatch --> Full["有依据才选 full：完整测试、图片、两平台与发布归档"]
+  Targeted --> Artifacts["未加密 artifact / manifest、JUnit、日志与所需产物"]
+  Full --> Artifacts
+  Artifacts --> Review["同 SHA/run/attempt/profile 下载核对 / 未选不冒充通过"]
+  Static --> Accept{"满足本轮验收？"}
+  Review --> Accept
+  Accept -- "否，有可修复原因" --> Fix["根据证据最小修复 / 只重跑受影响项"]
+  Fix --> Develop
+  Accept -- "阻塞" --> Blocked["保留 work.md 与恢复动作 / 不盲重试或伪报完成"]
+  Accept -- "是" --> Log["必要证据写入 update_log.md / 清空 work.md 任务内容"]
+  Log --> Deliver["中文交付：范围、结果、未验证项、Git 与风险"]
+  Deliver --> Publish["正式发布另需真实团队、商品、签名、设备与 Sandbox/TestFlight 证据"]
 ```

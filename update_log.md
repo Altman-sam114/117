@@ -11,18 +11,24 @@
 
 ## 当前状态
 
-- 当前任务 v0.95：按用户最新指令改为模块并行，整合手机写作、长文派生、设置/隐私/数据安全、StoreKit订阅/高级导出与iOS26 Release archive；实现SHA1a961fc/run40630767545/attempt1完整云端结果已下载核对通过；收尾文档仍按自身SHA核验，不复用旧包。
-- v0.90 最终云端基线通过：`7283b1e4116bd6c776019aa4ff772c97856567b0`，run `39806459795` attempt `1`，artifact `mdjournal-ci-v0.90-main-7283b1e-run39806459795-attempt1`（ID `12439121176`，8335208 bytes，SHA-256 `ff47f396f082f697a5b17018bf8424b64a3674359682037e7eb9afc7bec9048e`）。245/245 XCTest、11张图、588个未加密ZIP文件、CRC/fresh extract/逐文件SHA-256均通过。用户后续要求“不多开子智能体”，已停止子智能体；这份最终结果包由当前线程串行核对，不标记独立 Agent C。v0.91 已完成性能改动和云端Mac内部包，最新CI受重复模拟器启动阻塞未通过；本地只读包核对通过，不作发布验收。
+- 当前迭代方式：由当前模型按用户目标自主规划、实施与验收，默认不开子智能体；`work.md` 保存本轮计划与恢复点，完成后清空任务内容。长期规则见 `AGENTS.md`。
+- 默认 `main` 直推、云端构建测试，未经用户特别要求禁止本机 build、XCTest、App/模拟器运行和性能采集。云端按直接/必要关联范围主动 dispatch，纯文档不触发发布全套。
+- 当前软件基线仍为 `1a961fcd4cb2c410b64ac6eae5d927ee806ff88c` / run `40630767545` / attempt `1`：311/311 XCTest、25 张审查图/3 张素材及两平台与 Release 产物已下载核对；这是历史软件证据，不冒充本次流程维护的运行结果。
+- 应用为原生 SwiftUI Markdown 日记，支持 iOS/iPadOS 与 Mac Catalyst，本地数据文件 `md-journal-entries.json`，没有日记服务器或账号。
+- 账号、团队和正式签名后置；真实设备、IME、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式发布仍需要对应证据，不能由 unsigned/StoreKitTest/合成画布替代。
+- 以下旧条目与 `md/prompt/` 保留当时称呼、执行方式和原始证据，仅供历史追溯，不再规定当前工作流程。
 
-- 当前阶段：v0.95 iOS发布候选集成；v0.94/14854d3/run40054782075/attempt1已独立下载核对起点629文件/257项/16图。用户已明确不再按A→B→C逐轮等待，最新规则写入AGENTS顶部。
-- 当前应用：原生 SwiftUI Markdown 日记应用，支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。
-- 当前数据：本地 JSON 持久化，文件名 `md-journal-entries.json`。
-- 当前软件基线：1a961fcd4cb2c410b64ac6eae5d927ee806ff88c/run40630767545/attempt1通过，311/311 XCTest、31项Pythonfixture、25审查图/3素材、两平台构建与Mac/设备Release完整核验。账号团队后置；最新人工要求后续不再多开子智能体，现有审查已收尾，后续主线程串行完成。
-- v0.85 docs-close 已完成：最终 docs HEAD 为 `ae8e85073a13b7a50be003d7dc54d3a52173faf1`，run `32646077288`、attempt `1`，artifact `mdjournal-ci-v0.85-main-ae8e850-run32646077288-attempt1`，artifact ID `9494991741`，size `457085` bytes，digest `sha256:3aede2a533be7d38db1ff6ba4f97693a2c51671ad26f4899cf5b77019b2803ce`；static checks、generic iOS build、Mac Catalyst build 和 XCTest 四阶段均为 `success`，XCTest 为 `205/205 passed`，481/481 ZIP entries 全部未加密且 CRC、fresh extract、逐文件 SHA-256 均通过。Agent C 已从 `/private/tmp/mdjournal-c-review-32646077288/` 下载并核对。
-- `JournalEntryNavigationTests` 覆盖按当前数组顺序切换较新/较早日记、首尾不循环、空/单篇/无效 selection、搜索/分类筛选快照驱动的 selection repair 与相邻导航、命令元数据和跨导航/写作/Markdown/`⌘N` 快捷键唯一性。
-- 当前已知限制：本轮没有运行本机App/模拟器或重探CoreSimulator；真实Mac输入、IME、VoiceOver与性能未实测，正式Developer ID签名、公证与公开发布验收尚未完成。
-- 当前远端状态：本地仓库已配置 `origin/main`，Agent B 可直推触发 GitHub Actions；远端 URL 中的访问 token 不写入文档或最终回复。
-- v0.86 bridge 行为保持：Coordinator 仅在正文实际发布时记录正文与选区 token；选区变化不建立正文快速路径。非 marked 更新只有正文和 UTF-16 选区都匹配才消费一次性快速路径，正文不同、选区不匹配或已消费时仍走外部同步；marked text 延迟覆盖。本轮不改 bridge。
+### 维护 / 自主迭代与按范围云端验证
+
+日期：2026-10-28。
+
+- 根据用户要求移除活动入口中的 ABCX 角色、召唤、身份首行、强制提示词交接及并行模块前提，由当前模型从目标自主完成计划、开发、自查与云端验收，默认不派子任务。仅借鉴 aitrans 的文档分工与按改动选测试，不照搬其本地构建或分支制度。
+- 新增根目录 `work.md`：修改前记录目标/非目标、验收、起点、编辑范围、步骤、测试选择、进度、阻塞与下一步；压缩后先读并核实际状态；未完成保留，验收结束转存必要证据后清空任务内容。
+- 测试规范改为 baseline + direct + 有依据的 optional，禁止把历史发布矩阵或其他会话改动变成每次必跑清单。README、核心流程/图只写当前稳定事实，单次结果集中在本日志；历史方案只按需参考。
+- 同一 CI workflow 改为模型主动 workflow_dispatch：targeted 选择精确 XCTest、一个 Python fixture 或必要 Debug 平台，空/未知范围拒绝；full 显式保留原全套门槛和独立设备归档。结果记录 requiredStages/notSelectedStages 和实际验证范围，未选不冒充通过；纯文档 push 不触发 App 回归。
+- 关键文件：`AGENTS.md`、`work.md`、`README.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`.github/workflows/ci-results.yml`、`script/verify_xctest_summary.py`、`script/tests/test_xctest_summary.py` 与本日志。没有修改 Swift、工程、用户数据、依赖或发布账号配置。
+- 本机轻检：`git diff --check`、`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s script/tests -p 'test_xctest_summary.py' -v` 实际 17/17；Ruby YAML/事件与输入默认值、15 个 bash run 块、3 个内嵌 Python 和 2 个改动脚本 AST、33 个活动文档本地链接/路径与旧角色残留检查全部通过。选择兼容检查仍解析出原 311 个 XCTest 声明，不代表执行测试；Ruby 有本机 `/opt/homebrew` PATH 权限警告。未运行本机 build/XCTest/App/模拟器，也未跑无关 fixture/图片/归档。
+- 云端与提交：待本轮精确 SHA 的 targeted 流程验收，仅运行 `test_xctest_summary.py` 的 17 项直接回归；取得后补实际 run/attempt/artifact，不预填通过。新增 XCTest 定向运行分支本轮只做选择、语法和 fixture 检查，不冒充已实跑 App。
 
 ### v0.95 / 发布前软件完整云端通过与收尾
 
@@ -312,10 +318,9 @@
 - 日记正文推荐使用 `###` 三级标题组织小节，并以此驱动预览分组和统计。
 - iPhone 支持竖屏、横屏左、横屏右；编辑器双栏资格为实际 detail `>=1120pt` 且非 Accessibility，`820pt` 保留为头部档位与统计宽屏边界。
 - Mac 版本当前采用 Mac Catalyst 路径，不新增独立 native macOS target。
-- 后续迭代采用“人工 -> Agent A -> Agent B main 直推 -> GitHub Actions 结果包 -> Agent C 下载复判 -> 人工复核”的文档化流程。
-- 未来可使用 `agentx`、`x:` 或 `X:` 召唤 Agent X 主控循环；Agent X 只调度 A/B/C 多轮迭代，不替代 Agent A 提示词、Agent B 实现 push 或 Agent C artifact 验收。
+- 后续由当前模型按目标自主规划、实现和验收，默认不启用子智能体；工作台负责上下文恢复，长期入口不累积任务历史。
 - `main` 是默认唯一上传、提交、推送和云端验证分支；本阶段不使用候选分支或 PR 流程。
-- Agent C 不通过时退回 Agent B 在 `main` 上追加修复 commit，不默认回滚；最终通过必须核对最新 `origin/main` 对应的未加密 CI 结果包。
+- 本轮按直接和必要关联范围主动云端验证；失败按证据追加最小修复，不默认回滚。核对精确 SHA/run/attempt/profile 的未加密结果，不移用历史包。
 
 ## 历史记录
 

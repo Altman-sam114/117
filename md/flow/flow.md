@@ -1,10 +1,12 @@
 # 项目核心流程
 
-## 当前执行方式
+## 自主迭代与恢复
 
-最新人工要求后续不再多开子智能体；已分配模块只收尾，后续实施和最终下载验收由主线程串行执行，不恢复 ABC 角色流程。下述并行部分记录本轮已经完成的实施路径。
+用户给出目标后，由当前模型自行定位源码、拆解任务、实现、自查和验收，不设置角色交接，也不默认创建子智能体。先读取根目录 [AGENTS.md](../../AGENTS.md)、[work.md](../../work.md) 和 Git 状态；按需要再读相关架构、测试和历史记录。
 
-v0.95 按用户最新要求分模块并行：手机导航/编辑与性能、设置/隐私/数据安全、StoreKit/高级导出分别实施，主线程集成工程、发布构建和文档。统一 main 提交直推 origin/main，云端两个 job 并行验证，再由主线程或交叉审查者下载最新同 SHA/run/attempt 结果包。此方式覆盖旧的 A→B→C 串行开工门槛，仍保留数据安全、轻量本机检查与真实云端证据要求。
+任务开始即把目标、边界、验收标准、分步计划、起点 SHA、编辑范围、测试选择与下一步写入工作台，每完成一步更新。上下文压缩后先读工作台并核对实际 diff/远端/云端状态再继续；云端待完成或阻塞时保留记录，任务验收结束后把必要证据移入更新日志，再清空工作台，不累积历史计划。
+
+默认 `main` 直推，云端验证由模型按本轮直接和必要关联影响主动 dispatch。纯文档检查链接与 diff 即可；构建、XCTest、App/模拟器运行、性能采集和归档未经用户特别要求不得在本机执行。详细选择规则见 [测试规范](../test/test.md)。
 
 ## 应用与状态所有权
 
@@ -60,21 +62,23 @@ JournalSubscriptionStore 通过真实 Product 查询白名单月/年自动续期
 
 Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 KiB UTF-8 块直接构建 Data，PDF 只对当前篇建立 framesetter、逐页释放临时对象，新篇从新页开始，两种格式均检查取消。单篇排版及最终输出仍使用内存。日期和分类过滤使用同一 Calendar，按日期从早到晚稳定排序。导出在 actor 生成，视图生成前后均调用 hasPremiumAccess，系统查询等待或生成期间到期不能沿用过期布尔缓存；撤销权益取消在途输出。没有改写 Store。基础写作、统计、单篇分享和 JSON 备份继续免费。
 
-## 云端执行与发布边界
+## 场景命令与数据恢复
 
-main push 同时触发：
+内容与编辑命令分别由 StateObject 持有的 JournalContentSceneActions 和 EntryEditorSceneActions 管理，通过原生 focusedSceneObject / FocusedObject 传递稳定引用，不向焦点图发布函数型值。内容目标持 Store 与当前选择、筛选、路径绑定，执行时重读可见快照，菜单可用性仅在真实状态变化时发布 Equatable 标量。
 
-1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、各 60 秒 runtime/设备库存查询与 4 分钟准备上限、复用 initialState 的既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境/取消/验签三项预检、两项导航、真实焦点/切篇与 marked-text 跨篇预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 311 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
-2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
+编辑完整目标由稳定外层 task(id: entry.id) 捕获当前渲染绑定；取消任务拒安装，安装段不跨 await，选区从当前正文算 UTF-16 末尾，保留最新几何布局。旧 onChange 仅使不匹配目标失效，GeometryReader 只更新 Equatable 布局，不能重装旧 Binding；按钮和菜单共享 router，离场清空目标，应用锁逐次拦截操作。
 
-最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
+首次加载只有明确文件不存在才创建示例，保护重读不创建替代文件；原字节恢复导出不受正常导入大小上限限制。系统认证完成只清自身 LAContext，迟到旧请求不能使新请求失去取消入口。
 
-功能包另从相同 311 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+## 按范围云端验证与发布
 
-首次本地加载直接读取，仅明确的文件不存在错误才创建示例；暂不可访问和解码失败保持独立写保护。保护重读从不建替代文件。恢复导出后台读取完整原字节，不沿用正常导入的 25 MiB 限制。系统认证完成只清除自身 LAContext 引用，迟到旧请求不会使新请求失去取消入口。
+`.github/workflows/ci-results.yml` 只提供 workflow_dispatch，不因 push 自动执行发布全套。模型先在工作台写明范围、原因和预期产物，再提交本轮文件、push 到 origin/main，并选择：
 
-内容与编辑命令分别由 StateObject 持有的 JournalContentSceneActions 和 EntryEditorSceneActions 管理，通过原生 focusedSceneObject / FocusedObject 传递稳定引用，不再向焦点图发布函数型值。内容目标持 Store 与当前选择、筛选、路径绑定；动作执行时重新读取可见快照，菜单可用性仅在生命周期或真实状态变化时按 Equatable 标量发布。编辑完整目标由稳定外层 task(id: entry.id) 捕获当前渲染的 entry/workspace/titleFocus/details 绑定；已取消任务拒安装，安装段不跨 await，选区从本轮绑定正文算 UTF-16 末尾。旧 onChange 只使不匹配的新 ID 目标失效，不重装旧 Binding 或读取旧正文；安装时保留最新几何布局。GeometryReader 仅更新 Equatable 布局，绝不重建或覆写日记 Binding；按钮、菜单、插入与缩进都走同一 router。两者离场清空目标，旧命令不能修改离场文档，应用锁继续逐次拦截菜单操作。该改动针对实际采样中的 focused-values 布局反馈，新 SHA 仍需自己的云端运行证据。
+- `targeted`：指定精确 XCTest 类/方法、一个 Python fixture 文件或必要 Debug 构建平台；空选择失败。只跑所选检查和构建依赖，不执行无关商店/导航预检、图片或 Release 包。测试选择先对照源码校验，实际执行数必须匹配且零失败/跳过。
+- `full`：有发布或跨层验收依据时，显式运行原完整门槛：静态与 Python、固定云端工具链/既有 iPhone、商店与导航/输入预检、全部声明 XCTest、审查图和商店素材、iOS/Catalyst Debug 与 universal Mac Release；独立 job 同 SHA 执行 generic iOS unsigned Release archive。完整模式不接受局部过滤，不借局部测试放行发布。
 
-本轮按人工最新指令只完成发布前软件，账号/开发者团队/正式签名后置；结果真实性与 unsigned 边界保持，不把后置账号当作软件回归阻塞。
+所选阶段必须成功，范围外阶段写入 notSelectedStages，不冒充通过。流程相关脚本变更可只跑直接 fixture，不启动 App 或模拟器；共享模块变更补必要上下游验证，而不是机械覆盖所有模块。针对性配置不提供的产物若确有需要，应先补最小相关入口，不能仅因全套现成就跑无关检查。
 
-本轮实现 SHA 1a961fc/run40630767545/attempt1 已经主线程双下载复核，商店3/3、导航/输入4/4、完整311/311、25图/3素材及全部构建通过。当前软件链路不依赖账号侧配置；后续文档提交仍须自己的结果，真实发布边界保持。
+下载本次精确 branch/SHA/run/attempt/profile 的未加密结果包，核对 manifest、所选阶段 JUnit、实际测试摘要、主日志和任务所需产物；需要图片时逐图检查，需要归档时核 SDK/平台/架构/配置。结果有缺失或失败就追加最小修复，保留日志，不回滚用户数据、不放宽断言。验证后仅改文档、日志或清空工作台不重复 App 回归，记录实际被测 SHA，不能把它改写成后续文档 HEAD 的结果。
+
+云端工具链、设备准备、超时和证据边界见测试规范，具体历史 run/产物见 [更新日志](../../update_log.md)。StoreKitTest 不等于 Apple Sandbox；iPad 合成画布不是 iPad 设备运行；unsigned archive 和 ad-hoc Mac 包不等于正式签名、公证、上传或审核。账号、团队和正式签名后置，不阻塞可执行的软件验证，发布步骤见 [发布配置](../../docs/app-store-release.md)。

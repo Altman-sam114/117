@@ -1,17 +1,34 @@
 name: MD Journal CI Results
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      validation_profile:
+        description: Task-scoped validation or the complete release gate
+        type: choice
+        options: [targeted, full]
+        default: targeted
+      only_testing:
+        description: Space-separated MDJournalTests/Class[/testMethod] selectors (targeted only)
+        type: string
+        default: ''
+      python_test_pattern:
+        description: One exact test_*.py file under script/tests (targeted only)
+        type: string
+        default: ''
+      build_platform:
+        description: Additional Debug builds (targeted only; XCTest already builds its simulator host)
+        type: choice
+        options: [none, ios, catalyst, both]
+        default: none
 
 permissions:
   contents: read
 
 jobs:
   ci-results:
-    name: Build and Package Results
+    name: Validate Requested Scope
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-15
     timeout-minutes: 25
     env:
@@ -24,6 +41,10 @@ jobs:
       SCHEME: MDJournalCI
       BUILD_DESTINATION: generic/platform=iOS
       MACCATALYST_BUILD_DESTINATION: generic/platform=macOS,variant=Mac Catalyst
+      VALIDATION_PROFILE: ${{ inputs.validation_profile }}
+      ONLY_TESTING: ${{ inputs.only_testing }}
+      PYTHON_TEST_PATTERN: ${{ inputs.python_test_pattern }}
+      BUILD_PLATFORM: ${{ inputs.build_platform }}
 
     steps:
       - name: Checkout
@@ -45,6 +66,51 @@ jobs:
           set -euo pipefail
           mkdir -p "$RESULT_DIR"
 
+      - name: Resolve validation scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            case "$BUILD_PLATFORM" in none|ios|catalyst|both) ;; *) exit 1 ;; esac
+            full=false
+            has_tests=false
+            if [[ "$VALIDATION_PROFILE" == full ]]; then
+              if [[ -n "$ONLY_TESTING$PYTHON_TEST_PATTERN" || "$BUILD_PLATFORM" != none ]]; then
+                echo "Full validation does not accept targeted filters."
+                exit 1
+              fi
+              full=true
+              has_tests=true
+            elif [[ "$VALIDATION_PROFILE" == targeted ]]; then
+              if [[ -z "${ONLY_TESTING//[[:space:]]/}$PYTHON_TEST_PATTERN" && "$BUILD_PLATFORM" == none ]]; then
+                echo "Targeted validation requires tests, a Python test file, or a build platform."
+                exit 1
+              fi
+              if [[ -n "$PYTHON_TEST_PATTERN" ]]; then
+                [[ "$PYTHON_TEST_PATTERN" =~ ^test_[a-zA-Z0-9_]+\.py$ ]]
+                test -f "script/tests/$PYTHON_TEST_PATTERN"
+              fi
+              if [[ -n "${ONLY_TESTING//[[:space:]]/}" ]]; then
+                read -r -a selectors <<< "${ONLY_TESTING//$'\n'/ }"
+                selection_args=()
+                for selector in "${selectors[@]}"; do
+                  selection_args+=(--only-testing "$selector")
+                done
+                python3 script/verify_xctest_summary.py - MDJournalTests \
+                  --selection-only "${selection_args[@]}" > "$RESULT_DIR/test-selection.json"
+                cat "$RESULT_DIR/test-selection.json"
+                has_tests=true
+              fi
+            else
+              echo "Unknown validation profile: $VALIDATION_PROFILE"
+              exit 1
+            fi
+            echo "full=$full" >> "$GITHUB_OUTPUT"
+            echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+            echo "Profile: $VALIDATION_PROFILE; build: $BUILD_PLATFORM; Python: $PYTHON_TEST_PATTERN"
+          } 2>&1 | tee "$RESULT_DIR/scope.log"
+
       - name: Static checks
         id: static_checks
         continue-on-error: true
@@ -55,22 +121,25 @@ jobs:
             echo "## git diff --check"
             git diff --check
             echo
-            echo "## plutil -lint MDJournal.xcodeproj/project.pbxproj"
-            plutil -lint MDJournal.xcodeproj/project.pbxproj
-            echo
-            echo "## App Info and privacy manifest"
-            plutil -lint MDJournal/Info.plist MDJournal/PrivacyInfo.xcprivacy
-            echo
-            echo "## xcrun swiftc -parse"
-            swift_files=$(git ls-files 'MDJournal/*.swift' 'MDJournal/**/*.swift')
-            xcrun swiftc -parse -parse-as-library $swift_files
-            echo
-            echo "## CI simulator selection fixture checks"
-            python3 -m unittest discover -s script/tests -v
+            if [[ "$VALIDATION_PROFILE" == full || -n "${ONLY_TESTING//[[:space:]]/}" || "$BUILD_PLATFORM" != none ]]; then
+              echo "## Xcode project, App Info and privacy manifest"
+              plutil -lint MDJournal.xcodeproj/project.pbxproj MDJournal/Info.plist MDJournal/PrivacyInfo.xcprivacy
+            fi
+            if [[ "$VALIDATION_PROFILE" == full ]]; then
+              echo "## xcrun swiftc -parse"
+              swift_files=$(git ls-files 'MDJournal/*.swift' 'MDJournal/**/*.swift')
+              xcrun swiftc -parse -parse-as-library $swift_files
+              echo "## Complete Python fixture suite"
+              python3 -m unittest discover -s script/tests -v
+            elif [[ -n "$PYTHON_TEST_PATTERN" ]]; then
+              echo "## Selected Python fixtures: $PYTHON_TEST_PATTERN"
+              python3 -m unittest discover -s script/tests -p "$PYTHON_TEST_PATTERN" -v
+            fi
           } 2>&1 | tee "$RESULT_DIR/static-checks.log"
 
       - name: Prepare cloud simulator
         id: test_destination
+        if: steps.scope.outputs.has_tests == 'true' && steps.static_checks.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 4
         shell: bash
@@ -102,6 +171,7 @@ jobs:
 
       - name: XCTest
         id: xcode_test
+        if: steps.scope.outputs.has_tests == 'true'
         continue-on-error: true
         shell: bash
         env:
@@ -184,6 +254,37 @@ jobs:
             /usr/bin/perl -e 'alarm shift; exec @ARGV' 240 \
               xcrun simctl bootstatus "$device_id" -b
             echo
+            if [[ "$VALIDATION_PROFILE" == targeted ]]; then
+              read -r -a selectors <<< "${ONLY_TESTING//$'\n'/ }"
+              test_args=()
+              verification_args=()
+              for selector in "${selectors[@]}"; do
+                test_args+=("-only-testing:$selector")
+                verification_args+=(--only-testing "$selector")
+              done
+              test_status=0
+              start_test_sampling targeted
+              /usr/bin/perl -e 'alarm shift; exec @ARGV' 720 \
+                xcrun xcodebuild \
+                -project MDJournal.xcodeproj -scheme "$SCHEME" -configuration Debug \
+                -destination "$destination" -destination-timeout 60 \
+                -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 \
+                -test-timeouts-enabled YES \
+                -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
+                "${test_args[@]}" -enableCodeCoverage NO \
+                -derivedDataPath "$RUNNER_TEMP/mdjournal-derived-data" \
+                -resultBundlePath "$RESULT_DIR/MDJournalTests.xcresult" \
+                CODE_SIGNING_ALLOWED=NO test-without-building || test_status=$?
+              stop_test_sampling
+              if [[ "$test_status" -ne 0 ]]; then
+                collect_test_diagnostics "$RESULT_DIR/MDJournalTests.xcresult" "$RESULT_DIR/xctest-diagnostics"
+              fi
+              xcrun xcresulttool get test-results summary \
+                --path "$RESULT_DIR/MDJournalTests.xcresult" > "$RESULT_DIR/xctest-summary.json"
+              python3 script/verify_xctest_summary.py "$RESULT_DIR/xctest-summary.json" MDJournalTests \
+                "${verification_args[@]}" > "$RESULT_DIR/xctest-verification.json" || test_status=$?
+              exit "$test_status"
+            fi
             echo "## Isolated local StoreKit preflight (180 second limit; not the full suite)"
             preflight_failed=0
             storekit_status=0
@@ -287,7 +388,7 @@ jobs:
 
       - name: Export and verify interface review images
         id: interface_review
-        if: always()
+        if: always() && steps.scope.outputs.full == 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -394,7 +495,11 @@ jobs:
 
       - name: Generic iOS Debug build
         id: xcode_build
-        if: steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success'
+        if: >-
+          steps.static_checks.outcome == 'success' &&
+          ((steps.scope.outputs.full == 'true' && steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success') ||
+           (steps.scope.outputs.full == 'false' && (inputs.build_platform == 'ios' || inputs.build_platform == 'both') &&
+            (steps.scope.outputs.has_tests == 'false' || steps.xcode_test.outcome == 'success')))
         continue-on-error: true
         shell: bash
         run: |
@@ -411,7 +516,11 @@ jobs:
 
       - name: Mac Catalyst Debug build
         id: maccatalyst_build
-        if: steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success'
+        if: >-
+          steps.static_checks.outcome == 'success' &&
+          ((steps.scope.outputs.full == 'true' && steps.xcode_test.outcome == 'success' && steps.interface_review.outcome == 'success') ||
+           (steps.scope.outputs.full == 'false' && (inputs.build_platform == 'catalyst' || inputs.build_platform == 'both') &&
+            (steps.scope.outputs.has_tests == 'false' || steps.xcode_test.outcome == 'success')))
         continue-on-error: true
         shell: bash
         run: |
@@ -428,7 +537,7 @@ jobs:
 
       - name: Build and verify universal Mac Release package
         id: mac_release
-        if: always() && steps.maccatalyst_build.outcome == 'success'
+        if: always() && steps.scope.outputs.full == 'true' && steps.maccatalyst_build.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
@@ -436,6 +545,7 @@ jobs:
           bash script/package_macos.sh "$GITHUB_WORKSPACE/$RESULT_DIR" 2>&1 | tee "$RESULT_DIR/mac-release.log"
 
       - name: Write manifest and summaries
+        id: summary
         if: always()
         shell: bash
         env:
@@ -448,6 +558,7 @@ jobs:
           SIMULATOR_PREPARATION_OUTCOME: ${{ steps.test_destination.outcome }}
           RESOLVED_TEST_DESTINATION: ${{ steps.test_destination.outputs.destination }}
           SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+          SCOPE_OUTCOME: ${{ steps.scope.outcome }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -463,24 +574,36 @@ jobs:
           static_outcome = os.environ["STATIC_OUTCOME"]
           build_outcome = os.environ["BUILD_OUTCOME"]
           maccatalyst_build_outcome = os.environ["MACCATALYST_BUILD_OUTCOME"]
-          failures = []
-          if static_outcome != "success":
-              failures.append(("static-checks", static_outcome, "See ci-results/static-checks.log."))
-          if build_outcome != "success":
-              failures.append(("xcodebuild", build_outcome, "See ci-results/xcodebuild.log."))
-          if maccatalyst_build_outcome != "success":
-              failures.append(("maccatalyst-build", maccatalyst_build_outcome, "See ci-results/maccatalyst-build.log."))
           test_outcome = os.environ["TEST_OUTCOME"]
-          if test_outcome != "success":
-              failures.append(("xctest", test_outcome, "See ci-results/xctest.log."))
           interface_review_outcome = os.environ["INTERFACE_REVIEW_OUTCOME"]
-          if interface_review_outcome != "success":
-              failures.append(("interface-review", interface_review_outcome, "See ci-results/interface-review-export.log."))
           mac_release_outcome = os.environ["MAC_RELEASE_OUTCOME"]
-          if mac_release_outcome != "success":
-              failures.append(("mac-release", mac_release_outcome, "See ci-results/mac-release.log."))
+          full = os.environ["VALIDATION_PROFILE"] == "full"
+          only_testing = os.environ["ONLY_TESTING"].split()
+          build_platform = os.environ["BUILD_PLATFORM"]
+          stages = [
+              ("static-checks", static_outcome, "Static checks failed; see static-checks.log and scope.log."),
+              ("xcodebuild", build_outcome, "Generic iOS Debug build failed; see xcodebuild.log."),
+              ("maccatalyst-build", maccatalyst_build_outcome, "Mac Catalyst Debug build failed; see maccatalyst-build.log."),
+              ("xctest", test_outcome, "XCTest failed; see xctest.log."),
+              ("interface-review", interface_review_outcome, "Image export or matrix verification failed; see interface-review-export.log."),
+              ("mac-release", mac_release_outcome, "Mac Release verification failed; see mac-release.log."),
+          ]
+          required = {"static-checks"}
+          if full:
+              required.update(name for name, _, _ in stages)
+          else:
+              if only_testing:
+                  required.add("xctest")
+              if build_platform in ("ios", "both"):
+                  required.add("xcodebuild")
+              if build_platform in ("catalyst", "both"):
+                  required.add("maccatalyst-build")
+          configured_stages = [stage for stage in stages if stage[0] in required]
+          failures = [stage for stage in configured_stages if stage[1] != "success"]
+          scope_valid = os.environ["SCOPE_OUTCOME"] == "success"
+          passed = scope_valid and not failures
 
-          test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or "unresolved"
+          test_destination = os.environ.get("RESOLVED_TEST_DESTINATION") or None
 
           manifest = {
               "version": os.environ["VERSION"],
@@ -493,6 +616,19 @@ jobs:
               "createdAt": datetime.now(timezone.utc).isoformat(),
               "projectName": os.environ["PROJECT_NAME"],
               "scheme": os.environ["SCHEME"],
+              "validationProfile": os.environ["VALIDATION_PROFILE"],
+              "validationScope": {
+                  "onlyTesting": only_testing,
+                  "pythonTestPattern": "test_*.py" if full else os.environ["PYTHON_TEST_PATTERN"] or None,
+                  "buildPlatform": "both" if full else build_platform,
+                  "releaseArchives": full,
+              },
+              "scopeOutcome": os.environ["SCOPE_OUTCOME"],
+              "requiredStages": [name for name, _, _ in configured_stages],
+              "notSelectedStages": [name for name, _, _ in stages if name not in required],
+              "validationPassed": passed,
+              "fullReleaseGateRequested": full,
+              "scopeLogPath": "ci-results/scope.log",
               "destination": os.environ["BUILD_DESTINATION"],
               "buildDestination": os.environ["BUILD_DESTINATION"],
               "macCatalystBuildDestination": os.environ["MACCATALYST_BUILD_DESTINATION"],
@@ -507,64 +643,61 @@ jobs:
               "testDefaultExecutionTimeAllowanceSeconds": 180,
               "testMaximumExecutionTimeAllowanceSeconds": 180,
               "navigationHostExecutionTimeAllowanceSeconds": 60,
-              "navigationPreflightTestCount": 4,
-              "navigationPreflightSummaryPath": "ci-results/navigation-preflight-summary.json",
-              "navigationPreflightResultBundlePath": "ci-results/MDJournalNavigationPreflight.xcresult",
-              "storeKitPreflightTestCount": 3,
-              "storeKitPreflightSummaryPath": "ci-results/storekit-preflight-summary.json",
-              "storeKitPreflightResultBundlePath": "ci-results/MDJournalStoreKitPreflight.xcresult",
+              "navigationPreflightTestCount": 4 if full else 0,
+              "navigationPreflightSummaryPath": "ci-results/navigation-preflight-summary.json" if full else None,
+              "navigationPreflightResultBundlePath": "ci-results/MDJournalNavigationPreflight.xcresult" if full else None,
+              "storeKitPreflightTestCount": 3 if full else 0,
+              "storeKitPreflightSummaryPath": "ci-results/storekit-preflight-summary.json" if full else None,
+              "storeKitPreflightResultBundlePath": "ci-results/MDJournalStoreKitPreflight.xcresult" if full else None,
               "testPlanPath": "MDJournalCI.xctestplan",
               "testHostSampleIntervalSeconds": 25,
               "ciRunner": "macos-15",
               "developerDirectory": os.environ["DEVELOPER_DIR"],
               "testRuntime": os.environ["TEST_RUNTIME"],
               "simulatorPreparationOutcome": os.environ["SIMULATOR_PREPARATION_OUTCOME"],
-              "simulatorSelectionPath": "ci-results/simulator-selection.json",
-              "resultBundlePath": "ci-results/MDJournal.xcresult",
-              "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult",
-              "testResultBundlePath": "ci-results/MDJournalTests.xcresult",
+              "simulatorSelectionPath": "ci-results/simulator-selection.json" if "xctest" in required else None,
+              "resultBundlePath": "ci-results/MDJournal.xcresult" if "xcodebuild" in required else None,
+              "macCatalystResultBundlePath": "ci-results/MDJournalMacCatalyst.xcresult" if "maccatalyst-build" in required else None,
+              "testResultBundlePath": "ci-results/MDJournalTests.xcresult" if "xctest" in required else None,
               "junitPath": "ci-results/junit.xml",
-              "buildLogPath": "ci-results/xcodebuild.log",
-              "macCatalystBuildLogPath": "ci-results/maccatalyst-build.log",
-              "testLogPath": "ci-results/xctest.log",
+              "buildLogPath": "ci-results/xcodebuild.log" if "xcodebuild" in required else None,
+              "macCatalystBuildLogPath": "ci-results/maccatalyst-build.log" if "maccatalyst-build" in required else None,
+              "testLogPath": "ci-results/xctest.log" if "xctest" in required else None,
               "failureSummaryPath": "ci-results/ci-failure-summary.md",
               "staticChecksOutcome": static_outcome,
               "buildOutcome": build_outcome,
               "macCatalystBuildOutcome": maccatalyst_build_outcome,
               "testOutcome": test_outcome,
               "interfaceReviewExportOutcome": interface_review_outcome,
-              "interfaceReviewDirectoryPath": "ci-results/interface-review",
-              "interfaceReviewIndexPath": "ci-results/interface-review/index.json",
-              "interfaceReviewExportLogPath": "ci-results/interface-review-export.log",
-              "appStoreScreenshotsIndexPath": "ci-results/app-store-screenshots/index.json",
+              "interfaceReviewDirectoryPath": "ci-results/interface-review" if full else None,
+              "interfaceReviewIndexPath": "ci-results/interface-review/index.json" if full else None,
+              "interfaceReviewExportLogPath": "ci-results/interface-review-export.log" if full else None,
+              "appStoreScreenshotsIndexPath": "ci-results/app-store-screenshots/index.json" if full else None,
               "macReleaseOutcome": mac_release_outcome,
-              "macReleaseManifestPath": "ci-results/mac-release-manifest.json",
-              "macReleaseResultBundlePath": "ci-results/MDJournalMacRelease.xcresult",
-              "macReleaseLogPath": "ci-results/mac-release.log",
-              "projectSpecificReports": ["ci-results/interface-review/index.json", "ci-results/app-store-screenshots/index.json", "ci-results/mac-release-manifest.json"],
+              "macReleaseManifestPath": "ci-results/mac-release-manifest.json" if full else None,
+              "macReleaseResultBundlePath": "ci-results/MDJournalMacRelease.xcresult" if full else None,
+              "macReleaseLogPath": "ci-results/mac-release.log" if full else None,
+              "projectSpecificReports": [
+                  f"ci-results/{path}" for path in (
+                      "test-selection.json", "xctest-verification.json", "interface-review/index.json",
+                      "app-store-screenshots/index.json", "mac-release-manifest.json",
+                  ) if (result_dir / path).is_file()
+              ],
           }
           (result_dir / "ci-artifact-manifest.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
 
-          stages = [
-              ("static-checks", static_outcome, "Static checks failed."),
-              ("xcodebuild", build_outcome, "Generic iOS Debug build failed."),
-              ("maccatalyst-build", maccatalyst_build_outcome, "Mac Catalyst Debug build failed."),
-              ("xctest", test_outcome, "XCTest failed."),
-              ("interface-review", interface_review_outcome, "Interface review image export or matrix verification failed."),
-              ("mac-release", mac_release_outcome, "Universal Mac Release build or package verification failed."),
-          ]
           testsuite = ET.Element(
               "testsuite",
               name="MDJournalCI",
-              tests=str(len(stages)),
+              tests=str(len(configured_stages)),
               failures=str(len(failures)),
               errors="0",
               skipped="0",
           )
-          for name, outcome, message in stages:
+          for name, outcome, message in configured_stages:
               case = ET.SubElement(testsuite, "testcase", name=name)
               if outcome != "success":
                   failure = ET.SubElement(case, "failure", message=message)
@@ -572,13 +705,20 @@ jobs:
           ET.ElementTree(testsuite).write(result_dir / "junit.xml", encoding="utf-8", xml_declaration=True)
 
           lines = ["# CI Failure Summary", ""]
+          lines.append(f"Profile: {os.environ['VALIDATION_PROFILE']}")
+          lines.append(f"Requested scope: {json.dumps(manifest['validationScope'])}")
+          lines.append(f"Scope resolution: {os.environ['SCOPE_OUTCOME']}")
+          lines.append(f"Not selected (not a pass): {', '.join(manifest['notSelectedStages']) or 'none'}")
+          lines.append("")
           if failures:
               lines.append("One or more CI stages failed:")
               lines.append("")
               for name, outcome, hint in failures:
                   lines.append(f"- {name}: {outcome}. {hint}")
-          else:
+          elif passed:
               lines.append("All configured CI stages passed.")
+          else:
+              lines.append("Scope resolution failed; this run cannot pass. See scope.log.")
           lines.append("")
           lines.append(f"Mac Catalyst build outcome: {maccatalyst_build_outcome}.")
           lines.append("")
@@ -591,23 +731,28 @@ jobs:
           lines.append(f"Commit: {manifest['commitSha']}")
           lines.append(f"Run: {manifest['runId']} attempt {manifest['runAttempt']}")
           (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"passed={str(passed).lower()}\n")
           PY
 
       - name: Upload CI result artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mdjournal-ci-${{ env.VERSION }}-${{ steps.meta.outputs.branch_slug }}-${{ steps.meta.outputs.short_sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
+          name: mdjournal-ci-${{ env.VERSION }}-${{ inputs.validation_profile }}-${{ steps.meta.outputs.branch_slug }}-${{ steps.meta.outputs.short_sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
           path: ci-results
           if-no-files-found: error
 
       - name: Fail workflow on failed checks
-        if: always() && (steps.static_checks.outcome != 'success' || steps.xcode_build.outcome != 'success' || steps.maccatalyst_build.outcome != 'success' || steps.xcode_test.outcome != 'success' || steps.interface_review.outcome != 'success' || steps.mac_release.outcome != 'success')
+        if: always() && steps.summary.outputs.passed != 'true'
         shell: bash
         run: exit 1
 
   ios-release:
     name: iOS 26 Release Archive
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.validation_profile == 'full' &&
+      inputs.only_testing == '' && inputs.python_test_pattern == '' && inputs.build_platform == 'none'
     runs-on: macos-15
     timeout-minutes: 15
     env:
@@ -647,6 +792,7 @@ jobs:
               "version": "v0.95", "branch": os.environ["GITHUB_REF_NAME"],
               "commitSha": os.environ["GITHUB_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
               "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"], "workflowName": os.environ["GITHUB_WORKFLOW"],
+              "validationProfile": "full",
               "developerDirectory": os.environ["DEVELOPER_DIR"], "archiveOutcome": outcome,
               "archiveManifestPath": "ios-release-manifest.json", "logPath": "ios-release.log",
               "resultBundlePath": "MDJournalIOSRelease.xcresult", "appStoreUploadPerformed": False,

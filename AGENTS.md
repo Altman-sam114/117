@@ -1,221 +1,77 @@
 # AGENTS.md
 
-本文是 MD Journal 的入口记忆、项目总览、硬规则和多 Agent 云端迭代工作流。
+MD Journal 的长期协作入口：项目事实、单模型自主迭代流程和安全边界。当前任务只记在 [work.md](work.md)，历史与验证证据只记在 [update_log.md](update_log.md)。
 
-MD Journal 是一个原生 SwiftUI Markdown 日记应用，当前支持 iOS/iPadOS，并通过 Mac Catalyst 构建 macOS app。主链路是“用户编辑日记 -> `JournalEntry` 状态更新 -> `JournalStore` 本地 JSON 持久化 -> SwiftUI 列表、编辑器、预览和统计看板渲染”。
+## 1. 当前工作方式
 
-## 当前人工选择：按模块并行交付
+- 用户给出目标后，由当前模型自行分析、拆解、开发、选择测试、检查结果并交付；不设角色召唤、身份首行、提示词交接或调度轮转。
+- 默认不创建子智能体、不分派模块；只有用户明确要求时才启用协作。历史提示词仅作参考，不是开工前提，不得覆盖当前指令、源码事实或本文件。
+- 自主决定合理实现细节，小步推进，不因旧提示词不适用而机械照做；仅在范围、安全、权限或确实缺少人工决策时提问。
+- 默认在 `main` 实现、提交并直推 `origin/main`，不创建候选分支或 PR。参考其他项目时，不迁移其分支、本地编译或业务规则。
+- **构建、XCTest、模拟器/App 运行、性能采集和发布归档默认且只能在云端执行。未经用户特别要求，禁止在本机执行，包括 Mac Catalyst。** 本机只做与本轮有关的静态/轻量检查，详见 [测试规范](md/test/test.md)。
+- 用户明确要求本机 iOS 构建、测试或运行时，只能使用现有 UDID 以 `FAC4325D` 开头的唯一模拟器；必须核实完整 UDID，禁止创建或选择其他设备。云端不受设备限制。
 
-最新人工补充：后续不再多开子智能体。已分配模块只收尾；后续实施、文档、云端下载与验收由主线程串行完成，不再追加子智能体任务，也不恢复 ABC 串行角色轮转。下述模块并行条目记录本轮已经采用的实施方式。
+## 2. 项目事实与架构边界
 
-用户已明确要求本轮采用高速模块并行，直接让子智能体负责不同功能板块，统一快速集成；不启用 Agent X 轮次调度或 A → B → C 串行轮转，也不要求旧角色身份首行。本条覆盖本文后续以角色或串行交接作为开工、交付或下一步前提的规则；其他安全、数据保护、main 分支与云端证据要求继续适用。
+MD Journal 是原生 SwiftUI Markdown 日记应用，支持 iPhone、iPad 和 Mac Catalyst；最低 iOS 16.0、Mac Catalyst deployment target 13.0。主链路为“编辑 -> JournalEntry -> JournalStore -> 本地 JSON -> 列表、编辑器、预览与统计”。
 
-- 子智能体按文件边界并行实现手机写作、设置与安全、订阅与高级导出；主线程负责工程接线、现代 SDK 发布构建与最终验收。
-- 共享工作区不同时编辑同一文件。集成后只提交本轮相关文件到 main，直推 origin/main；不创建候选分支或 PR。
-- 完整构建、XCTest、图片与 Release archive 在云端执行。最终由主线程或完成实施后的交叉审查者下载最新同 SHA/run/attempt 的未加密结果包，不要求再等待一个名为 Agent C 的串行阶段。
-- 发布账号、商品、签名或审核状态必须真实。unsigned archive、StoreKitTest 和截图不等同于 App Store 上传、Sandbox 或真机验收。
-- 人工最新明确：账号、开发者团队和正式签名后置，本轮先完成发布前的软件。不得继续把账号配置作为软件收敛的阻塞，也不得因此跳过完整云端回归；账号侧发布工作另行处理。
+- `JournalEntry` 是模型与兼容解码边界；保留分类/心情兼容、ISO-8601 日期和既有 JSON 格式。
+- `JournalStore` 是唯一日记集合修改与持久化入口；`JournalPersistenceWriter` 串行编码与 atomic 写盘。禁止绕过 Store 批量改写集合、覆盖用户数据或在读取失败时解除写保护。
+- `ContentView` 拥有导航、选择修复和保存错误；`EntryListView` 负责列表、搜索、分类与统计入口；`EntryEditorView` 负责编辑与布局，正文桥保持 UTF-16 选区、marked text 和切篇隔离。
+- `MarkdownBlockParser` 负责轻量 Markdown 分块和 `###` 小节；`MarkdownPreviewView` 只消费解析结果，不保存数据；`JournalStatistics` 计算、视图展示。
+- 日记只保存于本地 JSON，不引入服务器、日记账号、云同步或第三方依赖，除非用户明确要求。StoreKit 订阅、系统认证和主动导出不改变这一边界。
+- 保持安静、实用的中文工具界面；考虑窄/宽屏、iPhone 竖横屏及 Dynamic Type。修改 deployment target 时说明影响。
+- 账号、开发者团队和正式签名后置，不作为软件开发与云端测试的阻塞；unsigned archive、ad-hoc 包、StoreKitTest 和截图不等于正式签名、Sandbox、真机、上传或审核通过。
 
-## 1. 必读文件
+## 3. 入口与文档分工
 
-每次开始任务前按顺序阅读：
+每次开始或上下文压缩后，先读本文件和 `work.md`，运行 `git status --short --branch`、`git log --oneline -5`。再按当前任务阅读相关源码、[核心流程](md/flow/flow.md)、[流程图](md/flow/flowchart.md) 与测试规范；需要历史证据时再查更新日志或历史提示词，不要求通读全部历史。
 
-1. `AGENTS.md`
-2. `update_log.md`
-3. `md/flow/flow.md`
-4. `md/flow/flowchart.md`
-5. `md/test/test.md`
-6. `README.md`
-7. `md/prompt/README.md`
-8. 与本轮任务直接相关的 Swift 源码、Xcode 工程配置、workflow 和提示词文件
+| 文件 | 职责 |
+| --- | --- |
+| `AGENTS.md` | 长期事实、迭代方式与硬边界，不累积历史 |
+| `work.md` | 唯一当前任务工作台，记录可恢复的计划、进度和下一步；完成后清空任务内容 |
+| `README.md` | 项目功能、架构与上手入口，不复制单次 CI 报告 |
+| `md/flow/flow.md`、`md/flow/flowchart.md` | 当前真实数据流、状态流与执行流 |
+| `md/test/test.md` | 测试选择、云端入口、验收制度和证据边界，不记录单次 run |
+| `update_log.md` | 正式版本、重要维护、实际验证证据和遗留事项 |
+| `md/prompt/` | 历史方案及按需补充的设计背景，不是强制交接文件 |
 
-同时运行：
+只更新受本轮影响的文档：架构变动更新 flow/图，测试策略变动更新 test，上手或长期规则变动更新 README/本文件；有意义的任务写入更新日志。纯实现细节不要求机械改遍入口。移动文档时同步当前链接，历史路径可留作历史语境。
 
-```sh
-git status --short --branch
-```
+## 4. work.md 生命周期
 
-需要云端验证、推送或下载结果包时，还必须查看：
+- 每次收到开发、修复、重构或流程任务，在实质修改前写入 `work.md`；不新建一份平行工作台，也不把聊天记录当唯一记忆。
+- 最少记录：用户目标与非目标、验收标准、分支/起点 SHA、初始工作区和需保留的改动、本轮编辑文件、分步计划、测试选择及原因、已完成/待办、阻塞与下一步。
+- 每完成一个子步骤、改变方案或取得验证结果即更新；长命令/云端任务启动后立即记录命令、提交 SHA、run/attempt 和预期产物，避免压缩后重复启动。
+- 恢复时先读工作台，再核实际文件、diff、Git 与云端状态；过期假设以当前证据修正，不能仅凭勾选框判断完成。已有未完成任务不得直接覆盖，先确认与新目标的关系。
+- 云端待完成、权限阻塞、中断或尚未满足验收时保留工作台，写清恢复动作，不能为收口而清掉未完成事项。
+- 完成验收后，将必要结论与证据转入 `update_log.md`，再把 `work.md` 重置为标题和“暂无进行中的任务。”，清掉目标、计划、勾选、命令与临时结果，不累积完成历史，也不删除工作台文件。
 
-```sh
-git log --oneline -5
-git branch --all
-git remote -v
-```
+## 5. 自主迭代步骤
 
-## 2. 角色召唤和身份标识
+1. **定位与确认范围**：读入口/工作台和相关实现，核目标、现状、非目标与验收标准；保留用户改动。需要远端操作时查看 `git branch --all`、`git remote -v` 并 `git fetch origin`，确认 `main` 与远端关系。
+2. **落盘计划**：把有限、可验收的步骤与本轮编辑范围写入 `work.md`，按测试规范选择 baseline、direct 和有依据的 optional；简单任务也保留简短记录，不强制版本化提示词。
+3. **小步开发**：由当前模型逐步实现与自查，每步更新工作台；补直接回归和必要关联测试，不扩大到无关重构或历史待办。
+4. **按范围验证**：本机只运行相关轻量检查；需要构建/运行证据时，提交本轮文件到 `main`、push 后由模型主动发起相应云端配置并等待结果，不要求用户再下达一遍测试指令。
+5. **核对与修复**：下载本次精确 SHA/run/attempt/验证范围的未加密结果包，检查 manifest、JUnit/实际测试摘要、日志与任务所需产物。失败则按证据追加最小修复，再运行受影响检查，不回滚用户数据、不盲目重跑全套。
+6. **收口**：对照验收标准检查 diff、文档、未验证范围和远端影响；记录实际命令与结果，完成后清空工作台并用中文交付。不以静态检查替代运行证据，不把目标未完成称为完成。
 
-- 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
-- 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
-- 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务必须区分 A/B/C/X 边界，提醒用户指定角色或说明本轮按普通任务执行。
-- Agent A 最终回复第一行必须写：`我是 Agent A。`
-- Agent B 最终回复第一行必须写：`我是 Agent B。`
-- Agent C 最终回复第一行必须写：`我是 Agent C。`
-- Agent X 最终回复第一行必须写：`我是 Agent X。`
+遇到未知来源的代码变化/冲突先停止并确认，不覆盖或回滚。连续三次同一阻塞、连续两次无有效进展或同因 CI 反复失败时停止盲重试，保留证据与工作台，说明需要的最少人工信息。账号后置不妨碍可以继续的软件工作。
 
-## 3. 项目基本规则
+## 6. Git 与文件安全
 
-- 代码以 SwiftUI 原生实现为主，不引入第三方依赖，除非人工明确要求。
-- 当前工程最低 iOS 版本为 16.0，Mac Catalyst deployment target 为 13.0；修改 deployment target 必须同步说明影响。
-- 用户数据只保存在本地 JSON，不引入服务器、账号或云同步，除非人工明确提出。
-- 保持当前安静、实用、偏工具型的中文界面风格。
-- 支持 iPhone 竖屏和横屏；新增页面必须考虑窄屏、宽屏和 Dynamic Type。
-- 变更范围要贴合本轮目标，不做无关重构。
-- 不删除、不回滚用户或其他 Agent 的未说明改动。
+- 开始、提交、push 和结束前检查分支、状态与 diff。工作区干净时可 `git pull --ff-only origin main`；有改动时先核归属，不自动 stash、reset、切分支或覆盖。
+- 提交前按 `work.md` 的本轮编辑记录逐项核对，只 add 本轮相关文件；禁止顺带提交用户或其他会话修改，不 amend 未经要求的提交。
+- `git push origin main` 前再次确认当前分支为 `main`、目标为 `origin/main`，且提交范围正确；不强推。没有远端、权限不足或无法下载产物时明确报告，不伪装云端验收完成。
+- workflow 由模型按本轮范围主动 dispatch，不在每次 push 时自动执行完整发布回归；完整发布配置只用于有依据的跨层/发布验收或用户明确要求。
+- 云端结果必须归属已提交的精确 SHA；下载缓存使用 `/private/tmp/mdjournal-review-<run_id>/attempt-<attempt>/`。沿用有效 `gh` 授权，失效时再登录，不打印 token。
+- 验证后只改日志、文档或清空工作台，不为追求每个文档 SHA 都有 App 构建而重复云端测试；明确记录实际被测 SHA 与后续文档提交，不把旧结果挪作新 SHA 证据。任何新增可执行变更都重新评估相关验证。
+- 删除文件/目录默认使用 `trash <path>`；仅清理用户已确认的临时文件或构建产物才用 `rm`。禁止删除或覆盖用户日记，禁止未经要求使用破坏性 reset/checkout。
 
-## 4. 核心架构边界
+## 7. 验证与交付底线
 
-- `JournalEntry` 是日记数据模型和兼容解码边界。
-- `JournalStore` 是唯一的日记集合修改与本地持久化入口。
-- `ContentView` 负责应用级导航、选中项修复和保存错误展示。
-- `EntryListView` 负责列表、搜索、分类筛选和统计入口。
-- `EntryEditorView` 负责元数据编辑、正文编辑、Markdown 快捷插入和编辑/预览布局。
-- `MarkdownBlockParser` 负责轻量 Markdown 分块与 `###` 小节分组。
-- `MarkdownPreviewView` 只消费解析结果并渲染预览，不负责保存数据。
-- `JournalStatistics` 负责统计计算，视图只展示结果。
-
-## 5. main 直推与云端验证规则
-
-- 默认使用 `main` 作为唯一上传、提交、推送和云端验证分支。
-- 本阶段不使用 `smalldata_test`、`develop`、`codeb/...` 或其他候选分支，不创建 PR，不执行 PR merge。
-- 任何 Agent 在 `git push origin main` 或改变远端 `main` 前，都必须确认当前分支是 `main`，目标远端是 `origin/main`，且提交范围只包含本轮相关文件。
-- Agent B 每轮开始前必须同步最新 `origin/main`，确认工作区无无关改动，再在 `main` 上实现。
-- Agent B 完成后本地只跑轻量检查，提交并直接 push 到 `origin/main`，触发 GitHub Actions 重验证。
-- Agent C 只验收 `origin/main` 最新 commit 对应的 `commitSha`、run id、run attempt 和未加密 artifact，不验收旧 run 或旧 artifact。
-- Agent C 必须用 `gh auth login` 后下载 artifact；下载缓存默认放在 `/private/tmp/mdjournal-c-review-<run_id>/`。
-- Agent C 发现问题时，不做回滚式处理；默认退回 Agent B 在 `main` 上追加修复 commit，再 push 触发新 run。
-- 若当前仓库没有 `origin` 远端、没有 GitHub Actions 权限或无法下载 artifact，必须明确记录阻塞，不能伪装云端验收已完成。
-
-推荐同步和推送命令：
-
-```sh
-git fetch origin
-git switch main
-git pull --ff-only origin main
-git status --short
-git add 相关文件
-git commit -m "vX.Y: 简要说明本轮做了什么"
-git push origin main
-```
-
-## 6. 标准迭代工作流
-
-### 人工
-
-人工提出目标、限制、验收标准和测试要求。人工也可以指定版本号、算法框架、UI/交互要求或禁止项。
-
-### Agent X：主控循环调度
-
-Agent X 是主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。人工使用 `agentx`、`x:` 或 `X:` 给出总目标 X 后，Agent X 负责把总目标拆成多个小轮次，并按 `Agent A -> Agent B -> Agent C -> Agent X 判断下一轮` 的顺序推进。
-
-Agent X 必须：
-
-- 阅读入口文档、更新日志、核心流程、流程图、测试规范、prompt 规则和与总目标相关的文件。
-- 将总目标拆成有限、可验收的小轮次；每轮都明确目标、非目标、影响范围、验证要求和停止条件。
-- 要求 Agent A 为每轮写版本化提示词，提示词必须进入 `md/prompt/`。
-- 确保每轮仍由 Agent B 在 `main` 上实现、轻量检查、提交并 push 到 `origin/main`。
-- 确保每轮仍由 Agent C 下载并核对最新 GitHub Actions 未加密 artifact；Agent X 不得跳过 Agent C 的云端结果包验收。
-- 根据 Agent C 结果判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
-- 记录每轮版本号、关键文件、验证命令、commit SHA、run id、run attempt、artifact 名称、阻塞和遗留事项。
-
-Agent X 必须停止或暂停的条件：
-
-- 总目标已完成。
-- 连续 3 轮遇到同一阻塞。
-- 连续 2 轮没有产生有效 diff。
-- CI 连续失败且原因相同。
-- 需要账号、权限、密钥、付费服务或人工决策。
-- 当前工作区存在无法判断归属的冲突。
-- 用户要求停止或改变方向。
-
-### Agent A：目标分析与提示词
-
-Agent A 默认不直接写代码，负责把人工目标转成给 Agent B 的实现提示词。
-
-Agent A 必须：
-
-- 阅读入口文档、更新日志、核心流程、流程图、测试规范、prompt 规则和相关源码。
-- 明确目标、非目标、边界、依赖、风险、CI 要求和验收标准。
-- 设计实现方案，说明要改哪些模块、状态流如何变化、需要哪些本地轻量检查、云端 workflow 和结果包验收。
-- 分配版本号：人工指定则按人工指定；未指定时沿当前 `v0.x` 小版本递增，重要阶段可开 `v1.0`。
-- 将提示词写入 `md/prompt/v0（简要标题）/v0.1（简要说明）.md` 这类路径。
-
-### Agent B：实现、轻量检查、main 直推
-
-Agent B 按 Agent A 提示词实现。
-
-Agent B 必须：
-
-- 阅读 Agent A 提示词和项目入口文档。
-- 从最新 `origin/main` 开始；若没有远端或无法同步，必须先记录阻塞。
-- 小步实现，不扩大范围，不绕过核心状态边界。
-- 根据 `md/test/test.md` 运行本地轻量检查。
-- 提交本轮相关文件并 push 到 `origin/main`，触发 GitHub Actions。
-- 记录实际命令、结果、commit SHA、push 结果、未跑测试原因和已知风险。
-
-### Agent C：云端结果包验收与文档确认
-
-Agent C 验收 Agent B 的结果，维护核心逻辑文档，并只以云端结果包作为最终重验证依据。
-
-Agent C 必须：
-
-- 查看实际 diff、最新 `origin/main` commit 和对应 GitHub Actions run。
-- 下载未加密 CI 结果包，核对 manifest、JUnit 或等价摘要、主构建日志、失败摘要和项目关键产物。
-- 确认 manifest 中的 `branch`、`commitSha`、`runId`、`runAttempt` 与最新 `origin/main` 完全一致。
-- 对照人工目标与 Agent A 提示词判断是否通过。
-- 检查架构边界、测试覆盖、文档同步和风险说明。
-- 更新 `md/flow/flow.md`、`md/flow/flowchart.md` 和必要的 `update_log.md`。
-- 如不通过，列出问题并退回 Agent B 在 `main` 上追加修复 commit，不得把失败版本伪装成通过。
-- 如最终通过，确认 `update_log.md` 已记录版本、验证结果、artifact 名称和遗留事项。
-
-## 7. 测试规则
-
-- 每次实现前先读 `md/test/test.md`。
-- 默认云端重验证，本机只跑轻量检查。
-- Agent X 主控循环中的每一轮也必须遵守“Agent B 本地轻量检查 + GitHub Actions artifact + Agent C 下载复判”的验证链路。
-- Agent X 不得把未经过 Agent C artifact 验收的轮次视为完成或继续下一轮的成功依据。
-- 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”“本地跑模拟器”时，才把本机完整构建或模拟器验证作为默认路径。
-- 文档-only 修改可只跑 `git diff --check`、workflow YAML 解析、Xcode project plist 解析等轻量检查，但必须说明未跑完整构建或云端验证的原因。
-- 不得用“已验证”替代具体命令和结果。
-- 不得伪造测试通过、云端 run 通过或 artifact 已核对。
-
-## 8. 文档规则
-
-- `AGENTS.md` 只写入口规则和协作流程，不堆历史。
-- `update_log.md` 记录正式版本、重要维护事项、关键决策和遗留问题。
-- `md/flow/flow.md` 只写当前真实核心逻辑和云端协作流，不写历史流水账。
-- `md/flow/flowchart.md` 用 Mermaid 表达当前真实核心数据流、执行流和 Agent 云端迭代流。
-- `md/test/test.md` 记录测试分层、命令、触发条件、云端结果包和当前基线。
-- `md/prompt/` 保存每轮 Agent A 输出的详细实现提示词。
-- 每次完成实际开发、修复、重构或流程改造后，必须同步更新 README、测试规范、核心流程和更新日志中受影响的部分。
-
-## 9. 交付格式
-
-最终回复使用中文，必须包含：
-
-- 本轮改了什么。
-- 关键文件。
-- 实际运行的验证命令和结果。
-- 当前分支、commit SHA；如已云端验证，还要写 run id、run attempt 和 artifact 名称。
-- 是否已 push 到 `origin/main`。
-- Agent C 是否下载并核对结果包。
-- 未运行的测试及原因。
-- 已知风险或下一步建议。
-
-## 10. 禁止项
-
-- 禁止无依据改动数据持久化格式。
-- 禁止绕过 `JournalStore` 直接批量改写日记集合。
-- 禁止引入第三方依赖后不记录原因、影响和验证结果。
-- 禁止删除或覆盖用户数据。
-- 禁止破坏 `###` 小节识别、Markdown 预览、分类/心情兼容解码和本地 JSON 保存这些核心行为。
-- 禁止用模板文档替代对当前项目真实状态的描述。
-- 禁止把旧 artifact、旧输出或本地文件冒充本轮云端结果包。
-- 禁止在没有 `origin/main` 或 GitHub Actions 权限时伪装已经完成云端验收。
-- Agent X 禁止无条件无限循环。
-- Agent X 禁止跳过 Agent C 云端 artifact 验收。
-- Agent X 禁止把旧 run、旧 artifact、本地输出冒充最新云端结果。
-- Agent X 禁止在总目标未完成时宣布完成。
-- Agent X 禁止为了循环推进扩大无关改动范围。
+- 测试只覆盖本轮直接和必要关联影响，不因历史发布矩阵、其他会话或累计提交扩大范围；详细规则以测试规范为准。
+- 所有改动至少运行 `git diff --check`；文档检查本地链接/路径。未改工程、脚本或业务时，不跑无关 plist、fixture、App 构建、截图或归档。
+- 云端所选测试必须实际执行、非零、零失败且零跳过；配置外的步骤写明未选择，不伪装为成功。部分测试通过不等于完整回归通过，不放宽失败断言。
+- 最终中文说明：改动与关键文件、实际验证命令及结果、未运行项与原因、当前分支/SHA、是否 push、相关 run/attempt/artifact 与是否已下载核对、风险和必要下一步。没有云端执行时如实写明，不保留角色身份或独立角色验收字段。
