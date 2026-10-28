@@ -41,3 +41,14 @@
 
 - 当前无软件阻塞。本机轻检已通过：21 个变更/新增 Swift 的 DEBUG parse（仅语法）、project/Info/Privacy 三 plist、3 新源码正确 target 注册、17/17 CI 范围 Python fixtures、workflow YAML/15 bash/3 Python 语法、27 条文档本地链接、git diff --check。没有本机 build/XCTest/模拟器。
 - 下一步：最终自查 diff、只提交上述文件到 main、push 并发起 full 云端；立即记录实际 SHA/run/attempt。云端未跑前不能宣称类型检查、交易、交互或视觉验收已通过。
+
+## 提交与云端恢复点
+
+- 实现已提交：fceaa608ac57de01f7b178ce34e026afac4b8fbc / main，31 个明确本轮文件。319 项 XCTest 声明（不是执行数）。最终 DEBUG parse 21 源与 staged diff 检查通过。
+- 2026-10-28 21:12 台北时间 `git push origin main` 成功；随后执行 `gh workflow run ci-results.yml --ref main -f validation_profile=full`，run 40694382474 / attempt 1 / main / headSha fceaa608ac57de01f7b178ce34e026afac4b8fbc 已核实。两个 job 正在执行，静态检查成功，iOS Archive 构建中，功能准备云端模拟器；不要重复 dispatch。
+- 预期产物：同 SHA/attempt 的 mdjournal-ci-v0.95-full-main-... 功能包与独立 mdjournal-ios-release-... 设备包，完整319项、28张审查图/3张商店图、性能 JSON 与 PDF 附件、iOS/Catalyst Debug、Mac Release 和 unsigned iOS Release。实际 run/结果待填。
+- 设备 job 已 success（3m38s），artifact 12817814983 / 2647229 bytes / SHA-256 f2e7d6a6daa5b5a5a9576e4356835deeaad52bbb9b0d6d82028e1128a1c84c6f；已通过 gh api 下载到 /private/tmp/mdjournal-review-40694382474/attempt-1/ 并核 GitHub digest/大小、外ZIP 13文件/未加密/CRC/安全路径、manifest身份、JUnit1/0/0/0。内ZIP2621975bytes、SHA905b5e0f34c91e096cc19d113a8af210a9d4059e94c87d93a62fdd11ed4cc1ca，25条目/11实文件逐hash匹配；只读解析真实 Mach-O/Info/Privacy：arm64 iOS device、SDK26.2、1.0(222.1)、FaceID/两链接/商品/无测试storekit正确。UIFileSharingEnabled未显式出现在最终Info（系统默认false，不作缺键错误）。unsigned，未上传。
+- 额外 gh run download 在同一设备包停滞超过3分钟后主动终止，未声称双下载成功；API ZIP已完整并匹配GitHub摘要，不受此阻塞。原始记录 review-proof.json / device-review.json。
+- 公开仓库确认 private=false；GitHub Contents API核 privacy/support 两文档blob与本轮提交一致。普通 curl 对外链接在本机网络超时000，不能声称已HTTP200，提交前仍需在外部网络打开商店URL确认。
+- 首轮 full 整体失败：设备包成功；实际日志证实319项完成，318通过、1个用例失败（3条断言），0 unexpected。唯一失败是本轮新增偏好用例在 accessibilityExtraLarge 对标准17pt字体错误假定 >40，而系统正确返回40。生产输入/marked-text、隐私/默认遮罩、保存/无变化回写、交易、PDF全通过；28张图片完整导出。其余平台构建按门槛未执行，不称发布通过。
+- 追加最小修复仅测试：把错误固定阈值替换为五档辅助字号全部逐一精确匹配 UIFontMetrics，逐档严格增大，并保留最大档>40的要求；不是删用例/跳过或降低断言，也不修改正确的系统字体。下一提交再次 full，须核新SHA自己的两包；旧功能248979605bytes包正在API下载（12818888751，GitHub digest 1ea72241637e0e557d5bf645e18ee303ef62927611c824966db37bb0111cb762），未完成前不声称核对完成。

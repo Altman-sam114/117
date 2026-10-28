@@ -26,10 +26,22 @@ final class JournalWritingPreferencesTests: XCTestCase {
             for size in JournalWritingSize.allCases {
                 let preferences = JournalWritingPreferences(font: font, size: size)
                 let standard = preferences.uiFont(category: .large)
-                let accessible = preferences.uiFont(category: .accessibilityExtraLarge)
                 XCTAssertEqual(standard.pointSize, size.basePointSize, accuracy: 0.01)
-                XCTAssertGreaterThan(accessible.pointSize, standard.pointSize)
-                XCTAssertGreaterThan(accessible.pointSize, 40)
+                var previousSize = standard.pointSize
+                for category: UIContentSizeCategory in [
+                    .accessibilityMedium, .accessibilityLarge, .accessibilityExtraLarge,
+                    .accessibilityExtraExtraLarge, .accessibilityExtraExtraExtraLarge
+                ] {
+                    let accessible = preferences.uiFont(category: category)
+                    let traits = UITraitCollection(preferredContentSizeCategory: category)
+                    let expected = UIFontMetrics(forTextStyle: .body).scaledValue(
+                        for: size.basePointSize, compatibleWith: traits
+                    )
+                    XCTAssertEqual(accessible.pointSize, expected, accuracy: 0.01, "Every accessibility size must match the native body-font scale")
+                    XCTAssertGreaterThan(accessible.pointSize, previousSize)
+                    previousSize = accessible.pointSize
+                }
+                XCTAssertGreaterThan(previousSize, 40, "The largest accessibility category must remain available for every writing font")
             }
         }
     }
