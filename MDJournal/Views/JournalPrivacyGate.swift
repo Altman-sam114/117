@@ -82,6 +82,7 @@ private final class JournalShieldAnchor: UIView {
     private weak var appLock: JournalAppLockStore?
     private var sceneIsActive = true
     private var isResigningActive = false
+    private var isSceneInactive = false
     private let shield = UIView()
     private let titleLabel = UILabel()
     private let messageLabel = UILabel()
@@ -138,6 +139,15 @@ private final class JournalShieldAnchor: UIView {
         NotificationCenter.default.addObserver(
             self, selector: #selector(didBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil
         )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(sceneWillDeactivate(_:)), name: UIScene.willDeactivateNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(sceneDidEnterBackground(_:)), name: UIScene.didEnterBackgroundNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(sceneDidActivate(_:)), name: UIScene.didActivateNotification, object: nil
+        )
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -145,6 +155,7 @@ private final class JournalShieldAnchor: UIView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil { shield.removeFromSuperview() }
+        isSceneInactive = window?.windowScene?.activationState != .foregroundActive
         refresh()
     }
 
@@ -169,9 +180,34 @@ private final class JournalShieldAnchor: UIView {
         refresh()
     }
 
+    @objc private func sceneWillDeactivate(_ notification: Notification) {
+        guard belongsToWindowScene(notification) else { return }
+        // A single scene can deactivate while the application remains active.
+        isSceneInactive = true
+        refresh()
+    }
+
+    @objc private func sceneDidEnterBackground(_ notification: Notification) {
+        guard belongsToWindowScene(notification) else { return }
+        isSceneInactive = true
+        appLock?.lock()
+        refresh()
+    }
+
+    @objc private func sceneDidActivate(_ notification: Notification) {
+        guard belongsToWindowScene(notification) else { return }
+        isSceneInactive = false
+        refresh()
+    }
+
+    private func belongsToWindowScene(_ notification: Notification) -> Bool {
+        guard let scene = notification.object as? UIWindowScene else { return false }
+        return scene === window?.windowScene
+    }
+
     private func refresh() {
         guard let appLock, let window else { return }
-        let active = sceneIsActive && !isResigningActive
+        let active = sceneIsActive && !isResigningActive && !isSceneInactive
         let covered = appLock.needsPrivacyCover(sceneIsActive: active)
         guard covered else { shield.removeFromSuperview(); return }
         shield.frame = window.bounds

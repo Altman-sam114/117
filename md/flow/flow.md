@@ -22,7 +22,7 @@ JournalEntry 保持原有 Codable 格式、分类/心情兼容解码和 ISO-8601
 
 Store 是唯一集合修改入口：加载/创建构建正文展示投影，正文变更只重建当前篇，元数据更新复用，删除释放。展示投影只保留词数、可见性、有限摘要和小节信息；生产有界派生不先保留完整 summary 或 section markdown，旧纯 summary API 保留作语义对照。完整词数仍扫描全文，统计/概览仍聚合元数据，不宣称整体常数复杂度。
 
-更新先同步发布内存，再以 450ms debounce 合并保存；创建、删除、确认合并导入立即提交快照。JournalPersistenceWriter actor 串行 JSON 编码及 atomic 写入，以 revision 拒绝过时请求。iOS 使用首次解锁后可访问的系统文件保护；这允许设备首次解锁后的锁屏保存，不是自定义密码加密。离开活跃态 flush；durableRevision、写入错误仲裁和重试规则保持。界面的“仅在本机”不是已落盘声明，系统设备备份可能包含用户日记。
+更新先同步发布内存，再以 450ms debounce 合并保存；创建、删除、确认合并导入立即提交快照。JournalPersistenceWriter actor 串行 JSON 编码及 atomic 写入，以 revision 拒绝过时请求。iOS 使用首次解锁后可访问的系统文件保护；这允许设备首次解锁后的锁屏保存，不是自定义密码加密。离开活跃态同步调用 Store.flushForBackground，先申请有限系统后台执行时间、再异步 flush；共享 Store 只保留一个在途任务，完成与系统到期幂等释放，申请失败也照常尝试保存，不无限续期。系统到期不伪造写入结果，也不能中断 actor 内编码；强制终止和超大文件仍无必然保存保证。durableRevision、写入错误仲裁和重试规则保持。界面的“仅在本机”不是已落盘声明，系统设备备份可能包含用户日记。
 
 读取异常或重复日记 ID 设置独立 readFailureMessage，原文件保持不动。关闭错误 alert 只关闭展示，不清写保护；create/update/delete/import/flush 均拒绝写入。设置提供原始字节恢复导出及重新读取，只有完整解码和校验成功才解除保护。不存在文件与合法空数组仍可正常创建。
 
@@ -36,7 +36,7 @@ Store 是唯一集合修改入口：加载/创建构建正文展示投影，正�
 
 JournalAppLockStore 默认关闭，偏好只存本应用 UserDefaults。启用、关闭与解锁均通过 LAContext.deviceOwnerAuthentication，系统可选择 Face ID、Touch ID 或设备密码。应用不接收生物特征或设备密码。generation 防止后台或新请求后迟到的认证结果解锁；后台取消在途认证并锁定，inactive 只遮挡以免取消系统验证页。
 
-JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；回活跃状态按实际锁态解除或提供认证。遮罩的纸面和解锁按钮使用应用的动态主题色。JSON 保存与遮罩独立，未增加第二份日记状态。
+JournalPrivacyGate 保留底层视图结构，同时关闭交互与辅助访问并展示锁定内容。UIKit 窗口级 shield 在 willResignActive 同步遮挡、覆盖已呈现 sheet，首次遮挡收起键盘；同一 UIWindowScene 的 willDeactivate 同步遮挡，didEnterBackground 立即锁定并取消过期认证，didActivate 不能绕过锁，其他 scene 通知不影响本窗口。inactive 不取消系统验证。遮罩的纸面和解锁按钮使用应用的动态主题色。JSON 保存与遮罩独立，未增加第二份日记状态。
 
 隐私页和公开政策说明本机存储、系统备份、主动导出、可选应用锁、Apple 支付和删除边界。PrivacyInfo.xcprivacy 声明不跟踪、不收集，UserDefaults 为本应用偏好使用 CA92.1。Debug/Release 均将显式 MDJournal/Info.plist 中的公开 HTTPS 链接与订阅商品 ID 合并进最终 App，其他系统键继续生成；archive verifier 检查最终值，不能只凭工程设置判断接线成功。最终 Info 包含 Face ID 说明，关闭文档共享，声明只使用系统豁免加密。
 
@@ -62,13 +62,13 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 
 
 main push 同时触发：
 
-1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境预检、两项导航预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 306 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
+1. macos-15/Xcode26.2/iOS26.2：31 项纯 Python fixture、静态检查、既有设备准备、MDJournalCI 专用 StoreKit test plan、独立 build-for-testing、真实空快照及 .xcode 购买环境预检、两项导航预检（任一失败拒绝完整验收，两者都取证）、同 UDID 串行全部 308 项 XCTest、25 图与 3 张商店尺寸素材导出核对，再做 iOS/Catalyst Debug 与 universal Mac Release 内部包。手机生产 host 临时使用既有 key window 的根控制器槽位并恢复；所有导航测试只改变包含式画布及 traits，不改系统窗口原生几何。Gate 夹具从同一真实 UIWindowScene 的状态及通知映射 scenePhase，单栈转场必须填满 hosting 画布。新建先核筛选、空导航和真实空态画面文字；详情图等待转场完成。交易回归先确认真实授权再执行到期或签名失败，后者核对 SDK 实际未验证结果和生产 reader 撤权，不冒充购买错误文案覆盖。测试或图片失败时跳过重复平台构建，终门继续要求六阶段全成功，不减验收；运行期间每 25 秒保存存活宿主 2 秒有界采样，测试命令失败后保存仍存活宿主的有界采样和可用 xcresult 诊断。保留原 257 项测试和 16 图，新增生产导航/焦点、保护/导入/认证、交易/导出和有界派生证据。
 2. macos-15/Xcode26.2/iPhoneOS26.2：generic iOS Release archive，不使用模拟器；核 arm64/device平台、实际 SDK、版本、图标、PrivacyInfo/FaceID/加密说明与全部文件哈希，生成 unsigned xcarchive ZIP、manifest、JUnit、日志和 xcresult。
 
 最终下载两个最新 artifact，核同 SHA/run/attempt、未加密、digest/CRC/独立解压哈希、各阶段日志及实际 XCTest/图片/商店配置结果。StoreKitTest 不等于 Apple Sandbox；unsigned archive 需要真实开发者团队、Distribution 签名与商店元数据才能上传，发布流程见 docs/app-store-release.md。没有正式账号配置、签名或审核证据时不宣布已发布。
 
-功能包另从相同 306 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
+功能包另从相同 308 项用例的附件直接打包 3 张商店尺寸 PNG：原生 iPhone 窗口 3x 的资料库/详情，以及完整 regular ContentView 画布 2x 的 iPad 素材。独立核尺寸、无透明通道、PNG 完整性、来源与摘要，不缩放原 25 张回归图；两套图片共同进入导出阶段门槛。iPad 画布素材不充当设备运行证据，正式发布前仍需对应设备检查。
 
 首次本地加载直接读取，仅明确的文件不存在错误才创建示例；暂不可访问和解码失败保持独立写保护。保护重读从不建替代文件。恢复导出后台读取完整原字节，不沿用正常导入的 25 MiB 限制。系统认证完成只清除自身 LAContext 引用，迟到旧请求不会使新请求失去取消入口。
 
-编辑器五个 focused scene 命令由稳定外层的 StateObject 持有固定弱引用闭包，布局子树不重新发布新闭包。目标仅持当前 entry、workspace、titleFocus、details 绑定和布局，随 onAppear、entry ID 和布局更新；离场清空后旧句柄无操作，按钮和菜单共用处理器。
+内容与编辑命令分别由 StateObject 持有的 JournalContentSceneActions 和 EntryEditorSceneActions 管理，通过原生 focusedSceneObject / FocusedObject 传递稳定引用，不再向焦点图发布函数型值。内容目标持 Store 与当前选择、筛选、路径绑定；动作执行时重新读取可见快照，菜单可用性仅在生命周期或真实状态变化时按 Equatable 标量发布。编辑目标仅持当前 entry、workspace、titleFocus、details 绑定和布局，随 onAppear、entry ID 和布局更新。两者离场清空目标，旧命令不能修改离场文档，应用锁继续逐次拦截菜单操作。该改动针对实际采样中的 focused-values 布局反馈，新 SHA 仍需自己的云端运行证据。

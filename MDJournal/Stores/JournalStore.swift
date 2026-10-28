@@ -1,5 +1,8 @@
 import Combine
 import Foundation
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import UIKit
+#endif
 
 @MainActor
 final class JournalStore: ObservableObject {
@@ -22,8 +25,10 @@ final class JournalStore: ObservableObject {
     private let saveDebounceDelay: Duration
     private let persistenceWriter: any JournalPersistenceWriting
     private let saveScheduler: any JournalSaveScheduling
+    private let backgroundTaskManager: any JournalBackgroundTaskManaging
     private let makeBodyPresentation: (JournalEntry) -> JournalEntryBodyPresentation
     private var pendingSave: PendingSave?
+    private var backgroundFlushTask: Task<Void, Never>?
     private var errorSource: ErrorSource?
 
     private(set) var revision: UInt64 = 0
@@ -37,6 +42,7 @@ final class JournalStore: ObservableObject {
         saveDebounceNanoseconds: UInt64 = 450_000_000,
         persistenceWriter: (any JournalPersistenceWriting)? = nil,
         saveScheduler: any JournalSaveScheduling = TaskJournalSaveScheduler(),
+        backgroundTaskManager: (any JournalBackgroundTaskManaging)? = nil,
         makeBodyPresentation: @escaping (JournalEntry) -> JournalEntryBodyPresentation = {
             JournalEntryBodyPresentation(body: $0.body)
         }
@@ -56,6 +62,7 @@ final class JournalStore: ObservableObject {
         self.persistenceWriter = persistenceWriter
             ?? JSONJournalPersistenceWriter(storageURL: resolvedStorageURL)
         self.saveScheduler = saveScheduler
+        self.backgroundTaskManager = backgroundTaskManager ?? SystemJournalBackgroundTaskManager()
         self.makeBodyPresentation = makeBodyPresentation
         load()
     }
@@ -138,6 +145,23 @@ final class JournalStore: ObservableObject {
 
             cancelPendingSave()
         }
+    }
+
+    @discardableResult
+    func flushForBackground() -> Task<Void, Never> {
+        if let backgroundFlushTask { return backgroundFlushTask }
+        let lease = JournalBackgroundSaveLease(manager: backgroundTaskManager)
+        // Request finite execution time before yielding to the asynchronous writer.
+        lease.begin()
+        let task = Task { [weak self, lease] in
+            defer {
+                lease.finish()
+                self?.backgroundFlushTask = nil
+            }
+            _ = await self?.flushPendingSave()
+        }
+        backgroundFlushTask = task
+        return task
     }
 
     func dismissError() {
@@ -321,4 +345,60 @@ final class JournalStore: ObservableObject {
         }
     }
 
+}
+
+@MainActor
+protocol JournalBackgroundTaskManaging {
+    func begin(expirationHandler: @escaping @MainActor @Sendable () -> Void) -> Int?
+    func end(_ identifier: Int)
+}
+
+@MainActor
+private struct SystemJournalBackgroundTaskManager: JournalBackgroundTaskManaging {
+    func begin(expirationHandler: @escaping @MainActor @Sendable () -> Void) -> Int? {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        let identifier = UIApplication.shared.beginBackgroundTask(withName: "JournalSave") {
+            Task { @MainActor in expirationHandler() }
+        }
+        return identifier == .invalid ? nil : identifier.rawValue
+        #else
+        return nil
+        #endif
+    }
+
+    func end(_ identifier: Int) {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        UIApplication.shared.endBackgroundTask(UIBackgroundTaskIdentifier(rawValue: identifier))
+        #endif
+    }
+}
+
+@MainActor
+private final class JournalBackgroundSaveLease {
+    private let manager: any JournalBackgroundTaskManaging
+    private var identifier: Int?
+    private var isFinished = false
+
+    init(manager: any JournalBackgroundTaskManaging) {
+        self.manager = manager
+    }
+
+    func begin() {
+        let identifier = manager.begin { [weak self] in self?.finish() }
+        if isFinished {
+            // An expiry delivered during begin still owns the returned identifier.
+            if let identifier { manager.end(identifier) }
+        } else {
+            self.identifier = identifier
+        }
+    }
+
+    func finish() {
+        guard !isFinished else { return }
+        isFinished = true
+        if let identifier {
+            self.identifier = nil
+            manager.end(identifier)
+        }
+    }
 }

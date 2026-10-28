@@ -206,6 +206,70 @@ final class JournalEntryNavigationTests: XCTestCase {
         XCTAssertFalse(allIdentifiers.contains(commandNIdentifier))
     }
 
+    @MainActor
+    func testSceneCommandsUseLiveBindingsAndBecomeInactiveAfterTheirViewLeaves() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("entries.json")
+        try JournalBackupCodec.encode(orderedEntries).write(to: file)
+        let store = JournalStore(storageURL: file)
+        let state = NavigationCommandState(selection: middleID, path: [middleID])
+        var actions: JournalContentSceneActions? = JournalContentSceneActions()
+        weak var weakActions = actions
+        let target = JournalContentSceneActions.Target(
+            store: store,
+            selection: Binding(get: { state.selection }, set: { state.selection = $0 }),
+            searchText: Binding(get: { state.search }, set: { state.search = $0 }),
+            category: Binding(get: { state.category }, set: { state.category = $0 }),
+            compactPath: Binding(get: { state.path }, set: { state.path = $0 }),
+            showStatistics: { state.statisticsCount += 1 }
+        )
+        actions!.updateTarget(target)
+        XCTAssertTrue(actions!.canSelect(.newer))
+        XCTAssertTrue(actions!.canSelect(.older))
+        actions!.select(.newer)
+        XCTAssertEqual(state.selection, newestID)
+        XCTAssertEqual(state.path, [newestID])
+        XCTAssertFalse(actions!.canSelect(.newer))
+        XCTAssertTrue(actions!.canSelect(.older))
+
+        state.search = "no-matching-journal"
+        actions!.refreshAvailability()
+        XCTAssertFalse(actions!.canSelect(.older))
+        actions!.select(.older)
+        XCTAssertEqual(state.selection, newestID, "Commands must not use a stale visible snapshot")
+        state.search = ""
+        state.path = []
+        actions!.select(.older)
+        XCTAssertEqual(state.selection, middleID)
+        XCTAssertTrue(state.path.isEmpty, "Adjacent commands must not push a hidden compact detail")
+
+        state.search = "no-matching-journal"
+        state.category = .travel
+        actions!.createEntry()
+        let createdID = try XCTUnwrap(state.selection)
+        XCTAssertNotNil(store.entry(with: createdID))
+        XCTAssertEqual(store.entries.count, 4)
+        XCTAssertEqual(state.path, [createdID])
+        XCTAssertEqual(state.search, "")
+        XCTAssertNil(state.category)
+        actions!.showStatistics()
+        XCTAssertEqual(state.statisticsCount, 1)
+
+        actions!.clearTarget()
+        XCTAssertEqual(actions!.availability, .init())
+        actions!.createEntry()
+        actions!.select(.older)
+        actions!.showStatistics()
+        XCTAssertEqual(store.entries.count, 4)
+        XCTAssertEqual(state.selection, createdID)
+        XCTAssertEqual(state.statisticsCount, 1)
+        actions = nil
+        XCTAssertNil(weakActions, "Live bindings must not retain their scene command owner")
+        await store.flushPendingSave()
+    }
+
     private var orderedEntries: [JournalEntry] {
         [
             entry(id: newestID, timestamp: 3),
@@ -230,5 +294,19 @@ final class JournalEntryNavigationTests: XCTestCase {
             updatedAt: date,
             category: category
         )
+    }
+}
+
+@MainActor
+private final class NavigationCommandState {
+    var selection: JournalEntry.ID?
+    var path: [JournalEntry.ID]
+    var search = ""
+    var category: JournalEntry.Category?
+    var statisticsCount = 0
+
+    init(selection: JournalEntry.ID?, path: [JournalEntry.ID]) {
+        self.selection = selection
+        self.path = path
     }
 }

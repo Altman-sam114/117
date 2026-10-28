@@ -97,14 +97,8 @@ internal enum MacWindowLayoutContract {
 
 private struct JournalCommands: Commands {
     @ObservedObject var appLock: JournalAppLockStore
-    @FocusedValue(\.createJournalEntryAction) private var createJournalEntryAction
-    @FocusedValue(\.showJournalStatisticsAction) private var showJournalStatisticsAction
-    @FocusedValue(\.journalEntryNavigationActions) private var journalEntryNavigationActions
-    @FocusedValue(\.insertMarkdownSnippetAction) private var insertMarkdownSnippetAction
-    @FocusedValue(\.focusEditorBodyAction) private var focusEditorBodyAction
-    @FocusedValue(\.focusEditorWritingAction) private var focusEditorWritingAction
-    @FocusedValue(\.toggleEditorPreviewAction) private var toggleEditorPreviewAction
-    @FocusedValue(\.applyEditorIndentationAction) private var applyEditorIndentationAction
+    @FocusedObject private var journalActions: JournalContentSceneActions?
+    @FocusedObject private var editorActions: EntryEditorSceneActions?
 
     private var allowsJournalAccess: Bool {
         !appLock.isEnabled || appLock.state == .unlocked
@@ -114,10 +108,10 @@ private struct JournalCommands: Commands {
         CommandMenu("日记") {
             Button("新建日记") {
                 guard allowsJournalAccess else { return }
-                createJournalEntryAction?()
+                journalActions?.createEntry()
             }
             .keyboardShortcut("n", modifiers: .command)
-            .disabled(!allowsJournalAccess || createJournalEntryAction == nil)
+            .disabled(!allowsJournalAccess || journalActions?.availability.canCreate != true)
 
             Divider()
 
@@ -125,19 +119,20 @@ private struct JournalCommands: Commands {
                 let shortcut = JournalEntryNavigationShortcut(direction: direction)
 
                 Button(direction.title) {
-                    navigationAction(for: direction)?()
+                    guard allowsJournalAccess else { return }
+                    journalActions?.select(direction)
                 }
                 .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.modifiers)
-                .disabled(navigationAction(for: direction) == nil)
+                .disabled(!allowsJournalAccess || journalActions?.canSelect(direction) != true)
             }
 
             Divider()
 
             Button("显示统计") {
                 guard allowsJournalAccess else { return }
-                showJournalStatisticsAction?()
+                journalActions?.showStatistics()
             }
-                .disabled(!allowsJournalAccess || showJournalStatisticsAction == nil)
+                .disabled(!allowsJournalAccess || journalActions?.availability.hasTarget != true)
         }
 
         CommandMenu("写作") {
@@ -158,121 +153,30 @@ private struct JournalCommands: Commands {
 
                 Button("插入\(snippet.title)") {
                     guard allowsJournalAccess else { return }
-                    insertMarkdownSnippetAction?(snippet)
+                    editorActions?.insertMarkdownSnippet(snippet)
                 }
                 .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.modifiers)
-                .disabled(!allowsJournalAccess || insertMarkdownSnippetAction == nil)
+                .disabled(!allowsJournalAccess || editorActions == nil)
             }
-        }
-    }
-
-    private func navigationAction(for direction: JournalEntryNavigationDirection) -> (() -> Void)? {
-        guard allowsJournalAccess else { return nil }
-        switch direction {
-        case .newer:
-            return journalEntryNavigationActions?.selectNewer
-        case .older:
-            return journalEntryNavigationActions?.selectOlder
         }
     }
 
     private func action(for command: EditorWritingCommand) -> (() -> Void)? {
-        guard allowsJournalAccess else { return nil }
+        guard allowsJournalAccess, let editorActions else { return nil }
         switch command {
         case .focusBody:
-            return focusEditorBodyAction
+            return editorActions.focusBody
         case .focusWriting:
-            return focusEditorWritingAction
+            return editorActions.focusWriting
         case .indentLines, .outdentLines:
-            guard let indentationDirection = command.indentationDirection,
-                  let applyEditorIndentationAction
-            else {
+            guard let indentationDirection = command.indentationDirection else {
                 return nil
             }
             return {
-                applyEditorIndentationAction(indentationDirection)
+                editorActions.applyIndentation(indentationDirection)
             }
         case .togglePreview:
-            return toggleEditorPreviewAction
+            return editorActions.togglePreview
         }
-    }
-}
-
-struct JournalEntryNavigationActions {
-    let selectNewer: (() -> Void)?
-    let selectOlder: (() -> Void)?
-}
-
-private struct CreateJournalEntryActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct ShowJournalStatisticsActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct JournalEntryNavigationActionsKey: FocusedValueKey {
-    typealias Value = JournalEntryNavigationActions
-}
-
-private struct InsertMarkdownSnippetActionKey: FocusedValueKey {
-    typealias Value = (MarkdownSnippet) -> Void
-}
-
-private struct FocusEditorBodyActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct FocusEditorWritingActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct ToggleEditorPreviewActionKey: FocusedValueKey {
-    typealias Value = () -> Void
-}
-
-private struct ApplyEditorIndentationActionKey: FocusedValueKey {
-    typealias Value = (MarkdownLineIndentation.Direction) -> Void
-}
-
-extension FocusedValues {
-    var createJournalEntryAction: (() -> Void)? {
-        get { self[CreateJournalEntryActionKey.self] }
-        set { self[CreateJournalEntryActionKey.self] = newValue }
-    }
-
-    var showJournalStatisticsAction: (() -> Void)? {
-        get { self[ShowJournalStatisticsActionKey.self] }
-        set { self[ShowJournalStatisticsActionKey.self] = newValue }
-    }
-
-    var journalEntryNavigationActions: JournalEntryNavigationActions? {
-        get { self[JournalEntryNavigationActionsKey.self] }
-        set { self[JournalEntryNavigationActionsKey.self] = newValue }
-    }
-
-    var insertMarkdownSnippetAction: ((MarkdownSnippet) -> Void)? {
-        get { self[InsertMarkdownSnippetActionKey.self] }
-        set { self[InsertMarkdownSnippetActionKey.self] = newValue }
-    }
-
-    var focusEditorBodyAction: (() -> Void)? {
-        get { self[FocusEditorBodyActionKey.self] }
-        set { self[FocusEditorBodyActionKey.self] = newValue }
-    }
-
-    var focusEditorWritingAction: (() -> Void)? {
-        get { self[FocusEditorWritingActionKey.self] }
-        set { self[FocusEditorWritingActionKey.self] = newValue }
-    }
-
-    var toggleEditorPreviewAction: (() -> Void)? {
-        get { self[ToggleEditorPreviewActionKey.self] }
-        set { self[ToggleEditorPreviewActionKey.self] = newValue }
-    }
-
-    var applyEditorIndentationAction: ((MarkdownLineIndentation.Direction) -> Void)? {
-        get { self[ApplyEditorIndentationActionKey.self] }
-        set { self[ApplyEditorIndentationActionKey.self] = newValue }
     }
 }

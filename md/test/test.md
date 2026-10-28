@@ -35,7 +35,7 @@ bash -n script/package_macos.sh
 1. 静态检查与纯 Python fixtures。
 2. 读取可用设备 JSON，只在固定 runtime 中选一台已有 iPhone，Booted 优先，再 iPhone16；缺 runtime 或设备明确失败，不创建克隆、不回退别的系统。提前启动并记录 UDID/runtime/初始状态。
 3. 专用 MDJournalCI scheme 引用 MDJournalCI.xctestplan，显式设置仅测试使用的 StoreKit 配置，普通 MDJournal scheme 和设备归档不带本地商店。先独立 build-for-testing 上限 600 秒；同一 UDID bootstatus 上限 240 秒；独立 StoreKit 预检上限 180 秒、两项导航预检上限 240 秒，分别核 1/1 与 2/2 无跳过，前者失败仍执行后者取证，任一失败即不执行完整回归且终门失败；全部预检通过后串行 test-without-building 上限 720 秒，不借机删测试、跳过或缩减门槛。启用 XCTest 进程外逐用例 watchdog，默认/最大 180 秒，四项生产导航/焦点 host 用例明确 60 秒，避免主线程循环阻止用例内等待超时后又耗尽整轮预算；超时仍计失败。
-4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 306 项用例，不把附图算成新增测试。
+4. 导出 xcresult 附件，校验原 16 图及新增 9 图的名称、PNG、精确尺寸、manifest 和 index。独立打包 3 张商店尺寸素材，检查完整 PNG chunks/CRC、无 alpha/tRNS、精确尺寸、附件来源与 SHA256。两套矩阵均须完整，缺图使该阶段失败；仍为同 308 项用例，不把附图算成新增测试。
 5. 测试与图片成功后再运行 generic iOS Debug、Mac Catalyst Debug 和 universal Mac Catalyst Release 构建、图标/架构/签名/ZIP/文件内容与权限校验。Mac 为 ad-hoc 内部包，不代表公证或公开发布。
 
 测试或图片失败时跳过重复平台构建，以更快获得失败包；终门仍要求全部六阶段 success，skip 不能放行。JUnit 表达六个工作流阶段，真正 XCTest 数来自 `xctest.log` 和 `MDJournalTests.xcresult`。测试汇总需核对全部测试实际执行、失败/跳过为零、新增交易和 host 回归的具体名称。成功结果包含四份主 xcresult 及两份预检 xcresult；失败包保留实际已执行并生成的 bundle、阶段日志、failure summary、设备选择与未加密 artifact。测试期间每 25 秒对存活宿主采样 2 秒并按阶段保存，避免 watchdog 杀掉进程后丢失栈；采样调用有 10 秒外部上限；StoreKit 预检另采样 storekitd 和 ASOctaneSupportXPCService。build-for-testing 后保存实际 .xctestrun，以便核对生效计划和环境。测试命令失败后，在清理宿主前对仍存活的 MDJournal 进程采样 3 秒，并尝试导出 xcresult diagnostics；各自有 15/30 秒外部上限，诊断缺失不会抹掉原失败状态。
@@ -50,13 +50,15 @@ bash -n script/package_macos.sh
 - 有界派生：逐字段与旧 JournalEntryBodySummary 截断路径对照，覆盖 CR/LF/CRLF/Unicode newline、任务标记任意位置、空白、组合字符/emoji/区域指示符、fenced code、长内容和确定性混合输入。旧纯入口保留；新路径不物化全文摘要或小节 Markdown。
 - 性能附件：`performance-bounded-body-derivation` 记录同一约 160k 字符/40 小节 Debug 正文，旧/新各 3 次 ContinuousClock 毫秒和中位数，先断言完整投影等价；不设不稳定耗时阈值，不把它当 UI 帧率、真实输入延迟或分配测量。
 - 安全：真实临时 JSON 读取失败后 create/update/delete/import/flush 均不改原字节，关 alert 不能解锁；首次加载只有明确 NSFileReadNoSuchFileError 才建示例库；真实 POSIX 不可访问目录不建库、不调用 writer，保护重读遇到原文件移走也不建替代。原始恢复导出不受 25 MiB 导入上限限制，逐字节核对超限坏文件。重读成功和合法空库可写，重复 ID、无效导入、stale 预览及冲突均无静默覆盖。原 revision/debounce/actor 保存回归保留。
-- 应用锁：可注入系统认证协议测试启用/关闭/失败/后台/迟到结果/请求重叠；生产 Gate 先呈现真实 sheet，再锁定并检查 UIWindow 顶层 shield。截图捕获整个 window。假认证用于确定性边界，不声称真实 Face ID/设备密码已验收。
+- 应用锁：可注入系统认证协议测试启用/关闭/失败/后台/迟到结果/请求重叠；生产 Gate 先呈现真实 sheet，再锁定并检查 UIWindow 顶层 shield。同一窗口 scene 的失活必须同步遮挡、后台立即锁定，激活仍需认证；无关 scene 通知不能影响本窗口。截图捕获整个 window。假认证用于确定性边界，不声称真实 Face ID/设备密码已验收。
+- 场景命令：内容与编辑都使用原生 FocusedObject，不再发布函数型 focused values。生产焦点用例使用真实可变绑定，保留原焦点和选区断言，增加切篇后的 router 身份、旧命令只修改新篇以及真实离场后旧句柄无操作。新增内容 router 回归检查动态筛选/导航边界、新建清筛选、空路径不意外推详情、离场与释放。
+- 后台保存：注入有限后台执行时间服务，检查同步申请、同 Store 在途去重、完成与系统到期竞争的幂等释放、申请失败仍 flush。测试不等待真实系统后台时限，不承诺强制终止或任意大 JSON 下必然落盘。新增命令与后台两项，总声明数从 306 增至 308，云端必须全数执行且无跳过。
 - 订阅：纯权益测试拒绝未知商品、未验证、到期、撤销、升级，处理有限宽限期。StoreKitTest 从测试 bundle 的 `.storekit` 配置创建真实本地会话，执行生产 purchase/restore/refund/待批准/冷启/到期/取消及自动 transaction listener。取消要求真实注入读回、无错误文案和购买状态复位。签名失败先要求实际成功购买取得 Pro 和期限，再注入 invalidSignature，严格核对 Transaction.latest 与 currentEntitlements 返回实际 `.unverified`、正确 SKU 和精确验证错误，最后由生产 refresh 拒绝权益；不构造验证结果、不用普通购买错误代替，该用例不覆盖 Product.purchase 的未验证文案分支。冷启动批准必须先有界等到 Pro 及非空期限，再执行到期，防止原本未授权时空过；退款同样等待真实状态传播。session、SDK await 与清理即时记录阶段，30秒轮询不是非协作 SDK 的硬中断，进程外 watchdog 仍计超时失败。不能以这些结果声称 Sandbox、真实付款或 App Store 商品已配置。
 - 无权益目录回归：新增一项从真实 SKTestSession 加载两项 Product 的集成测试，注入空当前权益 reader，断言不查询仅来自目录的组且没有 Pro/到期日。该 reader 只控制“没有已验证当前交易”的边界，不冒充真实交易覆盖；原生产 reader 的购买、恢复、退款、批准、验签和无目录冷启宽限期测试全部保留。总数由301增至302。Apple currentEntitlements 明确包含 subscribed/inGracePeriod 自动续期交易，status(for:) 对从未订阅组返回空数组；见官方 [当前权益](https://developer.apple.com/documentation/storekit/transaction/currententitlements) 和 [组状态](https://developer.apple.com/documentation/storekit/product/subscriptioninfo/status(for:))。
 - 到期挂起回归：再增一项注入时钟与受控 continuation 的确定性测试，总303项。先合法授权，在实际截止时刻开始刷新并暂停当前权益响应，断言首次 await 期间已撤权，再恢复当前权益并暂停组响应、重复检查；恢复有限已验证宽限期后可重新授权，有效宽限期刷新期间保持权限，等待中跨过截止则出口校验立即拒绝，返回后也不提交过期结果。没有墙钟 sleep，所有 continuation 显式恢复并等待任务结束。此为生产 Store/统一权限检查的可控边界测试，不声称重现真实网络挂起或已执行文件导出 UI 动作。
 - 宿主前置条件：仅 DEBUG 且存在 XCTest 配置或运行时 XCTestCase 的宿主，默认窗口使用 Color.clear，不调用生产根内容闭包，避免恢复闭包持有的原 App 焦点/隐私树继续参与同 scene 更新。首个 NavLink 用例显式安装真实 JournalPrivacyGate → ContentView，锁来自独立 UserDefaults suite 并关闭，订阅不自动启动；从被测 UIWindowScene.activationState 初始化，并按同一 scene 的 didActivate/willDeactivate/didEnterBackground/willEnterForeground 通知传入 Gate 的 scenePhase；不依赖独立 UIHostingController 的默认环境、不固定 active。有界等待真实 scenePhase.active、前台 window scene、生产锁策略无需覆盖及实际 UIView 无窗口盾。SwiftUI 虚拟 AX 未物化不算安全证据；覆盖条件由真实 phase 与生产策略确认。普通 DEBUG 启动与 Release 保持完整根视图。所有原导航、焦点、安全和截图断言保留；该隔离是否消除挂起须由新云端结果判断。
 - 交易前置条件：同一 DEBUG XCTest 宿主关闭 App 全局 Store 的自动启动与回前台订阅刷新，避免真实 Sandbox 查询先于 SKTestSession 配置。测试显式构造的 Store 仍正常调用生产代码，自动监听用例继续使用 startsAutomatically=true。普通 DEBUG 启动与 Release 不走隔离；不把空宿主当作已证明的 StoreKit 停滞根因。
-- 本地商店预检：在任何商品查询和 UI 前由真实 SKTestSession 清空交易，直接枚举 Transaction.currentEntitlements 并要求空快照结束；随后走生产商品/购买路径，断言 verified 交易的 environment == .xcode 和有效 Pro。独立运行一次后仍属于完整 306 项的一部分，不替换原真实交易回归。
+- 本地商店预检：在任何商品查询和 UI 前由真实 SKTestSession 清空交易，直接枚举 Transaction.currentEntitlements 并要求空快照结束；随后走生产商品/购买路径，断言 verified 交易的 environment == .xcode 和有效 Pro。独立运行一次后仍属于完整 308 项的一部分，不替换原真实交易回归。
 - 导出：日期/时区/分类过滤、分块 UTF-8 与静态 Markdown 精确等价（含跨块 Unicode/CRLF）、取消任务抛 CancellationError、空选择拒绝、CoreText 多篇长文分页与最后一页末尾正文保留；导出 actor 不改 Store，生成前后需有效 Pro，失效取消输出。旧免费功能不付费墙。
 
 ## 25 张图片矩阵
@@ -91,4 +93,4 @@ bash script/archive_ios_release.sh "$GITHUB_WORKSPACE/ios-release-results"
 
 失败回到负责模块追加最小修复并推 main，不回滚用户数据。同因 CI 连续失败、连续三轮同阻塞、连续两轮无有效 diff、未知冲突或账号权限需求按入口规则停止/求取必要人工信息，不无限重跑。完整结果写入 update_log.md；任何后续新 SHA 都需要自己的云端结果。
 
-本次工具链明确变更理由：run40166218300 的本地 XcodeTest 服务确认正确 bundle 和真实 localhost 订阅请求后仍无完成，而宿主主线程空闲。改用 Xcode26.2/iOS26.2 的已有 iPhone16（清单确实存在）进行受控重验证，签名参数和交易预检保持；不静默回退旧系统、不创建设备、不跳过空权益或放松验证。该变更仍须新结果证明，iOS16最低部署配置保持。
+工具链变更后的 run40169268199 已下载核对：StoreKit 预检 1/1 通过、现代设备 archive 通过，但导航仍触发 Observation tracking feedback loop，完整回归未执行。新采样仍捕获 insertMarkdownSnippetAction setter，证实仅固定函数闭包没有解决问题。本轮统一改原生稳定 FocusedObject，并保留同一 Xcode26.2/iOS26.2 既有设备、全部断言与门槛；不得把旧包或预检当作新完整结果。iOS16 最低部署配置保持，最低系统真机运行仍需专项证据。

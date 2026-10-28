@@ -231,7 +231,7 @@ struct EntryEditorActionTarget {
     }
 }
 
-/// Scene values retain stable closures; only their current bindings change with the editor lifecycle.
+/// The scene publishes this object's identity; commands resolve its current editor bindings.
 @MainActor
 final class EntryEditorSceneActions: ObservableObject {
     private var target: EntryEditorActionTarget?
@@ -358,11 +358,7 @@ struct EntryEditorView: View {
             }
             .toolbar { editorToolbar(layout: layout, workspace: workspace) }
         }
-        .focusedSceneValue(\.insertMarkdownSnippetAction, sceneActions.insertMarkdownSnippet)
-        .focusedSceneValue(\.focusEditorBodyAction, sceneActions.focusBody)
-        .focusedSceneValue(\.focusEditorWritingAction, sceneActions.focusWriting)
-        .focusedSceneValue(\.toggleEditorPreviewAction, sceneActions.togglePreview)
-        .focusedSceneValue(\.applyEditorIndentationAction, sceneActions.applyIndentation)
+        .focusedSceneObject(sceneActions)
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .background(JournalTheme.canvas)

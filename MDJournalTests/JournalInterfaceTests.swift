@@ -326,10 +326,12 @@ final class JournalInterfaceTests: XCTestCase {
     func testProductionDoneAndWritingActionsCoordinateTitleAndBodyFirstResponders() async throws {
         executionTimeAllowance = 60
         let entry = reviewEntries()[0]
+        var nextEntry = reviewEntries()[1]
+        nextEntry.body = "### 切篇检查\n\n新的正文 📝"
+        let state = EditorInteractionHostState(entries: [entry, nextEntry])
         var interaction: JournalEditorInteraction?
-        let controller = UIHostingController(rootView: EntryEditorView(
-            entry: .constant(entry), bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
-            interactionObserver: { interaction = $0 }
+        let controller = UIHostingController(rootView: EditorInteractionHostRoot(
+            state: state, observer: { interaction = $0 }
         ))
         let (_, restoreWindow) = try makeWindow(
             controller: controller, size: CGSize(width: 390, height: 844)
@@ -390,6 +392,34 @@ final class JournalInterfaceTests: XCTestCase {
         XCTAssertEqual(restoredBody.selectedRange, selection)
         XCTAssertEqual(restoredBody.text, entry.body)
         assertSceneActionsUseCurrentBindingsAndReleaseTheirTarget(titleFocus: actions.titleFocus)
+
+        let sceneActions = actions.sceneActions
+        state.selectedEntryID = nextEntry.id
+        try await waitForHost("Changing the production binding must display the next journal without replacing its router") {
+            self.titleInput(in: controller.view, title: nextEntry.title) != nil
+                && self.bodyInput(in: controller.view, text: nextEntry.body) != nil
+        }
+        XCTAssertTrue(try XCTUnwrap(interaction).sceneActions === sceneActions)
+        sceneActions.insertMarkdownSnippet(.heading)
+        try await waitForHost("A previously published command must mutate only the newly bound journal") {
+            state.entries[1].body.contains("### 小节标题")
+                && self.bodyInput(in: controller.view, text: state.entries[1].body) != nil
+        }
+        XCTAssertEqual(state.entries[0], entry, "A retained scene command must not edit the previous journal")
+        XCTAssertEqual(state.entries[1].id, nextEntry.id)
+
+        state.showsEditor = false
+        try await waitForHost("The production editor must leave the view hierarchy before detached commands are exercised") {
+            self.bodyInput(in: controller.view, text: state.entries[1].body) == nil
+                && self.titleInput(in: controller.view, title: nextEntry.title) == nil
+        }
+        let beforeDetach = state.entries
+        sceneActions.focusBody()
+        sceneActions.focusWriting()
+        sceneActions.togglePreview()
+        sceneActions.insertMarkdownSnippet(.bold)
+        sceneActions.applyIndentation(.indent)
+        XCTAssertEqual(state.entries, beforeDetach, "Leaving the editor must clear the retained command target")
     }
 
     @MainActor
@@ -1333,6 +1363,46 @@ final class JournalInterfaceTests: XCTestCase {
             if let scrollView = scrollableList(in: child) { return scrollView }
         }
         return nil
+    }
+}
+
+@MainActor
+private final class EditorInteractionHostState: ObservableObject {
+    @Published var entries: [JournalEntry]
+    @Published var selectedEntryID: JournalEntry.ID
+    @Published var showsEditor = true
+
+    init(entries: [JournalEntry]) {
+        self.entries = entries
+        selectedEntryID = entries[0].id
+    }
+
+    func binding(for entryID: JournalEntry.ID) -> Binding<JournalEntry> {
+        Binding(
+            get: { self.entries.first { $0.id == entryID }! },
+            set: { updated in
+                guard let index = self.entries.firstIndex(where: { $0.id == entryID }) else { return }
+                self.entries[index] = updated
+            }
+        )
+    }
+}
+
+@MainActor
+private struct EditorInteractionHostRoot: View {
+    @ObservedObject var state: EditorInteractionHostState
+    let observer: (JournalEditorInteraction) -> Void
+
+    var body: some View {
+        if state.showsEditor, let entry = state.entries.first(where: { $0.id == state.selectedEntryID }) {
+            EntryEditorView(
+                entry: state.binding(for: entry.id),
+                bodyPresentation: JournalEntryBodyPresentation(body: entry.body),
+                interactionObserver: observer
+            )
+        } else {
+            Color.clear
+        }
     }
 }
 

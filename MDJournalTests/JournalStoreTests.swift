@@ -497,6 +497,77 @@ final class JournalStoreTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: fixture.storageURL), originalData)
     }
 
+    func testBackgroundFlushRequestsTimeSynchronouslyCoalescesAndEndsEachValidLeaseOnce() async throws {
+        let writer = makeGatePersistenceWriter()
+        let scheduler = ManualSaveScheduler()
+        let background = ControlledBackgroundTaskManager()
+        let fixture = try makeStoreFixture(
+            writer: writer, scheduler: scheduler, backgroundTaskManager: background
+        )
+        defer { fixture.cleanup() }
+        var entry = try XCTUnwrap(fixture.store.entries.first)
+        entry.body = "background revision one"
+        fixture.store.update(entry)
+
+        let first = fixture.store.flushForBackground()
+        XCTAssertEqual(background.beginCount, 1, "Execution time must be requested before the caller yields")
+        fixture.store.flushForBackground()
+        XCTAssertEqual(background.beginCount, 1, "Repeated lifecycle notifications must reuse the in-flight flush")
+        let firstSnapshot = await writer.nextRequest()
+        XCTAssertEqual(firstSnapshot.revision, 1)
+        XCTAssertEqual(scheduler.pendingCount, 0)
+        await writer.complete(revision: 1, with: .written(revision: 1))
+        await first.value
+        XCTAssertEqual(background.endedIdentifiers, [1])
+        background.expireRequest(0)
+        XCTAssertEqual(background.endedIdentifiers, [1], "Expiry after completion cannot end the same token twice")
+
+        entry.body = "background revision two"
+        fixture.store.update(entry)
+        let second = fixture.store.flushForBackground()
+        let secondSnapshot = await writer.nextRequest()
+        XCTAssertEqual(secondSnapshot.revision, 2)
+        background.expireRequest(1)
+        background.expireRequest(1)
+        XCTAssertEqual(background.endedIdentifiers, [1, 2])
+        fixture.store.flushForBackground()
+        XCTAssertEqual(background.beginCount, 2, "An expired lease must not be renewed while its writer is still running")
+        XCTAssertFalse(second.isCancelled, "Expiry must not pretend it can cancel an atomic actor write")
+        XCTAssertNil(fixture.store.errorMessage)
+        await writer.complete(revision: 2, with: .written(revision: 2))
+        await second.value
+        XCTAssertEqual(background.endedIdentifiers, [1, 2], "Completion after expiry must also be idempotent")
+
+        background.grantsExecutionTime = false
+        entry.body = "background revision three"
+        fixture.store.update(entry)
+        let denied = fixture.store.flushForBackground()
+        XCTAssertEqual(background.beginCount, 3)
+        let deniedSnapshot = await writer.nextRequest()
+        XCTAssertEqual(deniedSnapshot.revision, 3, "An invalid token must not prevent saving")
+        background.expireRequest(2)
+        await writer.complete(revision: 3, with: .written(revision: 3))
+        await denied.value
+        XCTAssertEqual(background.endedIdentifiers, [1, 2], "Invalid tokens must never be ended")
+
+        background.grantsExecutionTime = true
+        background.expiresDuringBegin = true
+        entry.body = "background revision four"
+        fixture.store.update(entry)
+        let immediateExpiry = fixture.store.flushForBackground()
+        XCTAssertEqual(background.endedIdentifiers, [1, 2, 4], "Synchronous expiry still releases the subsequently returned token")
+        let finalSnapshot = await writer.nextRequest()
+        XCTAssertEqual(finalSnapshot.revision, 4)
+        await writer.complete(revision: 4, with: .written(revision: 4))
+        await immediateExpiry.value
+        background.expireRequest(3)
+        XCTAssertEqual(background.beginCount, 4)
+        XCTAssertEqual(background.endedIdentifiers, [1, 2, 4])
+        XCTAssertEqual(fixture.store.durableRevision, 4)
+        XCTAssertNil(fixture.store.errorMessage)
+        XCTAssertEqual(scheduler.pendingCount, 0)
+    }
+
     private func makeDirectoryFixture() throws -> DirectoryFixture {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdjournal-store-tests-\(UUID().uuidString)", isDirectory: true)
@@ -508,6 +579,7 @@ final class JournalStoreTests: XCTestCase {
         entries: [JournalEntry]? = nil,
         writer: (any JournalPersistenceWriting)? = nil,
         scheduler: ManualSaveScheduler,
+        backgroundTaskManager: (any JournalBackgroundTaskManaging)? = nil,
         makeBodyPresentation: @escaping (JournalEntry) -> JournalEntryBodyPresentation = {
             JournalEntryBodyPresentation(body: $0.body)
         }
@@ -519,6 +591,7 @@ final class JournalStoreTests: XCTestCase {
             storageURL: storageURL,
             persistenceWriter: writer,
             saveScheduler: scheduler,
+            backgroundTaskManager: backgroundTaskManager,
             makeBodyPresentation: makeBodyPresentation
         )
         return StoreFixture(store: store, directoryURL: directoryFixture.directoryURL, storageURL: storageURL)
@@ -585,6 +658,30 @@ final class JournalStoreTests: XCTestCase {
             category: .daily,
             mood: .calm
         )
+    }
+}
+
+@MainActor
+private final class ControlledBackgroundTaskManager: JournalBackgroundTaskManaging {
+    var grantsExecutionTime = true
+    var expiresDuringBegin = false
+    private(set) var beginCount = 0
+    private(set) var endedIdentifiers: [Int] = []
+    private var expirationHandlers: [@MainActor @Sendable () -> Void] = []
+
+    func begin(expirationHandler: @escaping @MainActor @Sendable () -> Void) -> Int? {
+        beginCount += 1
+        expirationHandlers.append(expirationHandler)
+        if expiresDuringBegin { expirationHandler() }
+        return grantsExecutionTime ? beginCount : nil
+    }
+
+    func end(_ identifier: Int) {
+        endedIdentifiers.append(identifier)
+    }
+
+    func expireRequest(_ index: Int) {
+        expirationHandlers[index]()
     }
 }
 

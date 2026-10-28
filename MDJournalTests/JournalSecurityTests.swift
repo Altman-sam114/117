@@ -213,7 +213,7 @@ final class JournalSecurityTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(true, forKey: JournalAppLockStore.enabledDefaultsKey)
-        let store = JournalAppLockStore(defaults: defaults, authenticator: SecurityAuthenticationStub(results: [true]))
+        let store = JournalAppLockStore(defaults: defaults, authenticator: SecurityAuthenticationStub(results: [true, true]))
         await store.unlock()
         let host = UIHostingController(rootView: JournalPrivacyGate { Text("私密正文") }
             .environmentObject(store).environment(\.scenePhase, .active))
@@ -237,6 +237,24 @@ final class JournalSecurityTests: XCTestCase {
         XCTAssertEqual(cover.frame, window.bounds)
         XCTAssertTrue(cover.accessibilityViewIsModal)
         NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        XCTAssertFalse(window.subviews.contains { $0.accessibilityIdentifier == "journal.window-privacy-cover" })
+
+        NotificationCenter.default.post(name: UIScene.willDeactivateNotification, object: nil)
+        XCTAssertFalse(window.subviews.contains { $0.accessibilityIdentifier == "journal.window-privacy-cover" }, "Only this window's scene notifications may cover it")
+        let scene = try XCTUnwrap(window.windowScene)
+        NotificationCenter.default.post(name: UIScene.willDeactivateNotification, object: scene)
+        XCTAssertEqual(window.subviews.last?.accessibilityIdentifier, "journal.window-privacy-cover", "Scene deactivation must cover an existing sheet synchronously")
+        XCTAssertEqual(store.state, .unlocked, "Inactive system authentication must not be cancelled by scene shielding")
+        NotificationCenter.default.post(name: UIScene.didActivateNotification, object: scene)
+        XCTAssertFalse(window.subviews.contains { $0.accessibilityIdentifier == "journal.window-privacy-cover" })
+        NotificationCenter.default.post(name: UIScene.didEnterBackgroundNotification, object: scene)
+        XCTAssertEqual(store.state, .locked, "Backgrounding this scene must lock immediately, before SwiftUI's phase update")
+        XCTAssertEqual(window.subviews.last?.accessibilityIdentifier, "journal.window-privacy-cover")
+        NotificationCenter.default.post(name: UIScene.didActivateNotification, object: scene)
+        XCTAssertEqual(window.subviews.last?.accessibilityIdentifier, "journal.window-privacy-cover", "Activation cannot bypass owner authentication")
+        await store.unlock()
+        host.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(100))
         XCTAssertFalse(window.subviews.contains { $0.accessibilityIdentifier == "journal.window-privacy-cover" })
         sheet.dismiss(animated: false)
     }

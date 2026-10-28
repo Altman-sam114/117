@@ -20,7 +20,9 @@ flowchart TD
   State --> ListStats["列表、概览、统计 / 只消费展示值"]
   State --> Save["450ms debounce / revision快照 / actor atomic JSON"]
   Save --> File["私有Documents / iOS系统文件保护 / OS设备备份"]
-  Editor --> Commands["稳定外层scene命令 / 固定弱闭包 / 当前绑定和布局 / 离场清空"]
+  BackgroundSave["非active同步入口 / 单Store去重 / 有限系统后台lease / 完成或到期只释放一次"] --> Save
+  Content --> Commands["原生FocusedObject稳定对象 / 当前绑定 / 标量可用性 / 离场清空"]
+  Editor --> Commands
   Commands --> Editor
   Editor --> Preview["150ms latest-wins / parser + 同文档inline cache"]
   Editor --> Share["实际分享时生成完整UTF-8 Markdown"]
@@ -39,7 +41,7 @@ flowchart LR
   Settings --> Lock["应用锁偏好 / UserDefaults CA92.1"]
   Lock --> LA["系统设备所有者认证 / 无生物数据读取"]
   Background["后台 / 过期请求"] --> Generation["锁定 / invalidate / generation拒迟到结果"]
-  Inactive["willResignActive"] --> Shield["窗口顶层遮罩 / 收键盘 / 覆盖sheet"]
+  Inactive["应用willResignActive / 同scene willDeactivate"] --> Shield["窗口顶层遮罩 / 收键盘 / 覆盖sheet / 同scene后台同步锁定"]
   LA --> Active["认证成功且generation有效才显示日记"]
   Generation --> Shield
 ```
@@ -75,7 +77,7 @@ flowchart TD
   Safety --> Integrate
   Pro --> Integrate
   Integrate --> TestHost["仅DEBUG XCTest空宿主 / 真实scene生命周期 / 原生window与包含画布 / CI本地StoreKit计划及三项预检"]
-  TestHost --> Regression["Xcode26.2/iOS26.2 / 306项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
+  TestHost --> Regression["Xcode26.2/iOS26.2 / 308项XCTest / 单窗host与包含式宽窄画布 / 真实StoreKit验证 / 25图与转场检查 / 25秒宿主采样 / iOS与Mac构建"]
   Integrate --> Archive["Xcode26.2/iPhoneOS26.2 / Release设备archive / 实际Info链接及商品ID / 不用模拟器"]
   Regression --> Results["两个未加密artifact / manifest、JUnit、日志、xcresult / 失败诊断"]
   Archive --> Results
