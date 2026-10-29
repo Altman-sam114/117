@@ -32,6 +32,53 @@ Bundle ID 必须在开发者团队中注册且与 App Store Connect 的 App 记�
 
 Apple 自 2026-04-28 起要求上传使用 Xcode 26 或更新版本和 iOS 26 SDK：[官方要求](https://developer.apple.com/news/upcoming-requirements/)。CI 使用 Xcode 26.2/iOS 26.2 进行功能回归，并独立在相同 Xcode 26.2/iPhoneOS 26.2 上构建 Release 设备 archive；后者不启动模拟器。两项结果必须对应同一提交。
 
+## 受保护的手动云端交付
+
+[app-store-release.yml](../.github/workflows/app-store-release.yml) 提供独立的 `workflow_dispatch` 入口，不随 push 或普通 CI 自动运行。它复用已验收的云端设备 archive，由 Xcode 26.2 导出并重新签名，不在本机编译，也不重新构建另一份源码。**脚本和纯 fixture 验证不等于实际签名成功；首次真实导出仍须有效账号、证书和 profile，并下载核对自己的结果。**
+
+### 账号持有人先配置
+
+1. 在 GitHub 仓库 Settings → Environments 创建或确认 `app-store`，至少指定一名 Required reviewer，禁止管理员绕过审批，并用自定义部署规则只允许 `main`。流水线会检查环境确实有审批者、禁止 bypass 且使用显式分支策略，不能依赖 GitHub 自动创建一个无保护环境。审批人须核对精确被测 SHA、产物和真实账号信息；单人维护允许本人明确审批时，不把它称作独立双人复核。
+2. 把下表材料放入该环境的 secrets，不提交仓库、不发到聊天、不放进普通 CI artifact。P12 必须包含分发证书的私钥，profile 必须与实际 App ID/团队及该证书一致；开发、ad-hoc、企业或通配符 profile 会被拒绝。
+3. 完成上一节的真实 App/商品/合同与发布资料。导出不创建 App Store Connect App、不配置价格、不生成或猜测签名身份，也不替代真实商店与设备验收。
+
+| Environment Secret | 内容与用途 |
+| --- | --- |
+| `IOS_DISTRIBUTION_P12_BASE64` | Apple Distribution 证书及私钥的密码保护 P12，经 base64 编码 |
+| `IOS_DISTRIBUTION_P12_PASSWORD` | 上述 P12 的非空密码 |
+| `IOS_APP_STORE_PROFILE_BASE64` | 该团队和明确 Bundle ID 的 App Store provisioning profile，经 base64 编码 |
+| `ASC_KEY_ID` | 仅 `testflight` 操作需要：实际 App Store Connect API Key ID |
+| `ASC_ISSUER_ID` | 仅 `testflight` 操作需要：实际 Issuer ID |
+| `ASC_PRIVATE_KEY_P8_BASE64` | 仅 `testflight` 操作需要：具有所需 App 交付权限的实际 API 私钥，经 base64 编码 |
+
+签名材料的创建、导出与权限由账号持有人在 Apple 系统完成；base64 只是传输编码，不是加密。GitHub secret 名称不能证明其内容有效，实际导出前仍会校验过期日、明确 App ID、团队、非调试 profile、有效 Apple Distribution 私钥身份以及证书与 profile 的交集。
+
+### 显式选择已验收版本
+
+Actions 手动表单必须填写完整 `source_sha`、`validation_run_id`、最新成功的 `validation_attempt` 和实际 `team_id`。三个版本字段必须指向同一次 full 验收，不接受分支名、短 SHA、targeted、跳过/零测试或只通过设备归档的结果；source 必须属于当前 main 历史。流水线下载两包并核 GitHub digest、大小、未加密/CRC/路径、manifest、六阶段 JUnit、与该 SHA 源码匹配的实际全测及预检摘要、图片与性能证据、设备内包逐文件哈希和真实 Mach-O。没有可用证据就停止，不绕过门槛重建未知版本。
+
+默认 `operation=export` 只导出，不向 Apple 上传。仅在账号持有人明确选 `operation=testflight` 时，才调用 Apple 验证与上传；不自动提交审核、不选发布地区、不修改价格、不自动发布。可用已有有效 gh 授权手动发起，例如以下变量必须先填真实、已查看通过的值，不能原样照抄空值：
+
+```sh
+gh workflow run app-store-release.yml --ref main \
+  -f source_sha="$VERIFIED_SHA" \
+  -f validation_run_id="$VALIDATION_RUN_ID" \
+  -f validation_attempt="$VALIDATION_ATTEMPT" \
+  -f team_id="$APPLE_TEAM_ID" \
+  -f operation=export \
+  -f allow_temp_cleanup=true
+```
+
+`allow_temp_cleanup` 默认 false，必须由发起人明确确认：允许清理本次云 runner 创建的临时私钥、P12、keychain、profile 和解包文件，绝不清理日记。临时材料权限收紧；profile/API key 以原子方式安装并记录 inode/hash，不覆盖既有文件；退出/失败及 always 步骤恢复 keychain 搜索列表并清理本次所有物。若文件已被另一写入者替换，保留它并报告失败，但仍清理自己的私钥。不要在本机运行该签名脚本。
+
+### 下载与真实验收
+
+成功 artifact 为 `mdjournal-app-store-<release_run>-attempt<attempt>`，只包含 IPA、实际交付 manifest 与导出日志，保留 7 天；不上传 P12/P8、私钥目录或原始 Apple 账号响应。签名后再次检查 Apple 信任锚/团队、证书、profile/有效期、非调试 entitlement、版本、隐私/资源及已测可执行代码/数据段一致性。它保留已验收归档的版本与构建号；若 Apple 已接收相同 build，先查 App Store Connect 状态，不原地改号伪装成同一次验收。
+
+manifest 的 `exported-not-uploaded` 只证明已核验导出；`upload-accepted-processing-unverified` 只代表上传命令和 Apple 确认成功，**不证明处理完成、TestFlight 可用、Sandbox/真机验收、提交审核或正式发布**。失败只保留脱敏阶段与错误码；如在上传阶段超时或失败，可能已被 Apple 接收，必须先查 App Store Connect 再决定是否重试，不能重复盲传。公开仓库的 artifact 访问与保留期应按实际发布策略管理；IPA 包含应用公开团队与 profile 身份，不含用户日记。
+
+若确需重跑交付流程，重新 dispatch 或选择 rerun 全部 job，让新 attempt 重新预检并审批；不能只重跑签名 job 来复用另一 attempt 的中间包。中间包绑定当前 release run/attempt，不提供跨 attempt 绕过入口。
+
 ## 商店图片
 
 功能 artifact 的 `app-store-screenshots/` 包含独立命名的三张无透明 PNG 和可追溯 index；只有该提交云端完成、下载核对并逐图确认后，才能选作提交素材：

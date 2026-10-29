@@ -97,4 +97,8 @@ flowchart TD
   Accept -- "是" --> Log["必要证据写入 update_log.md / 清空 work.md 任务内容"]
   Log --> Deliver["中文交付：范围、结果、未验证项、Git 与风险"]
   Deliver --> Publish["正式发布另需真实团队、商品、签名、设备与 Sandbox/TestFlight 证据"]
+  Publish --> ReleaseGate["手动 app-store-release / 精确 SHA + full run/最新attempt / main历史 / 两包与实际全测 / app-store环境审批"]
+  ReleaseGate --> Signed["云端临时keychain / 有效Distribution私钥 + 明确App Store profile / 导出同一已测归档 / 代码段与隐私及签名复核"]
+  Signed --> IPA["默认仅导出已核验IPA / 显式确认清理本次临时签名材料 / 不改日记"]
+  IPA -- "另行显式testflight" --> Apple["Apple验证与上传确认 / 不等于处理、设备验收、审核或发布完成"]
 ```

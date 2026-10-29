@@ -2,10 +2,18 @@
 
 ## 最新恢复点（2026-10-29）
 
+- 自动续行审计：上一轮为有效进展（最终full与两包验收、记录提交推送），不是仍在运行的等待。当前main/origin/main均7d780f1且干净；GitHub实际仓库secrets=[]、environments=[]，正式账号/签名条件确实缺失。但仍有可安全推进的发布软件工作：现有workflow只有unsigned archive，缺少云端正式导出/交付入口，不能仅把该缺口也交给用户手工处理。
+- 本轮补充范围（不改已验收App）：新增手动云端发布入口、纯Python证据/签名资料校验、云端签名导出与显式可选TestFlight上传脚本及直接fixtures；更新发布/流程/测试文档。必须绑定main中的精确source SHA、成功full run/attempt及两包大小/digest/JUnit/实际测试；要求受保护app-store环境人工审批；默认仅导出、绝不自动提交审核/发布；凭证只用环境secrets，启动前明确确认仅清理本次临时签名材料。
+- 分步计划：1）实现失败关闭的证据预检与签名/IPA校验；2）接手动workflow和临时keychain清理、可选Apple上传（不伪报处理/审核）；3）纯fixtures、bash/YAML/链接/diff轻检；4）提交push后仅dispatch新增fixture对应targeted云测并下载核对。没有真实账号不运行签名/上传、不修改既有App、不重复319项全测。证据不足时保留人工发布项，不能宣称新流水线已实际签名通过。
+- 编辑文件预期：work.md、script/app_store_release.py、script/sign_app_store_release.sh、script/tests/test_app_store_release.py、.github/workflows/app-store-release.yml、docs/app-store-release.md、md/test/test.md、md/flow/flow.md、md/flow/flowchart.md、update_log.md；baseline为diff/本地链接，direct为新增纯Python fixtures与脚本/调度语法，optional不选App构建/模拟器/归档（App源码不变）。
+- 补充入口步骤1/2/3已实现：证据绑定、受保护手动workflow、云端临时keychain、同归档导出、实际IPA代码/资源/隐私与Apple信任/证书/profile/期限复查、明确可选上传与脱敏失败/清理。38项直接fixture本机全部通过（合成数据和mock系统命令，不是真实签名），含bash与4个workflow run块语法；2份Python AST、YAML、12条文档本地链接及diff通过。对当前真实两包只读跑新校验器：功能319实际测试、设备34个file-backed Mach-O section和4资源全部接受；没有调用本机security/codesign/xcodebuild或App/模拟器。
+- 必要关联的远端安全配置：先核当前gh登录用户为实际仓库拥有者且有admin权限、环境仍为空；满足才只新建app-store环境，以该真实拥有者作Required reviewer、仅main部署，不修改main分支提交规则、不设置Apple团队/价格、不写任何秘密。单人维护允许本人明确审批，不伪造双人复核；若已有未知环境/不具权限则停止并保留人工配置项。该新环境不会自动运行签名或上传。
+- 远端安全配置已实际完成并GET复核：当前授权用户与仓库User owner均Altman-sam114、admin=true，创建前环境0个；新app-store Required reviewer=该真实owner，prevent_self_review=false、can_admins_bypass=false、自定义deployment policy只有main/branch；未改main提交保护规则，未写任何secrets、未发Apple请求。环境secret名称列表实际仍[]。证明 `/private/tmp/mdjournal-release-checks-20261029/environment-setup.json`；真实API run/jobs/compare/environment只读喂入新校验器也通过，仍没有Team ID/签名资料或真实签名动作。
+- 最终提交前：38/38直接fixture（0.675s）、Python AST、YAML/bash/4个run块、12条本地链接与diff通过；现有App/Swift测试/工程相对被测384f55e无任何diff。下一步只提交上述9个实现/流程/工作台文件、push main，再dispatch `ci-results.yml` 的targeted + `python_test_pattern=test_app_store_release.py`，预期只执行脚本fixture/static一阶段，不执行模拟器/XCTest/图片/归档；待实际新SHA/run/attempt与包核对后补日志。
 - 发布前软件验收已完成：精确实现 SHA `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b`，full run `40711015205` / attempt `2` 两 job success；319/319 XCTest、0 失败/0 跳过、28 审查图/3 商店图、iOS/Catalyst Debug、Mac Release 与 unsigned iOS Release 两包已下载核对。详证已转入 [更新日志](update_log.md)。不要重复 dispatch，也不要为后续纯文档提交重跑 App。
 - 用户的整体“直接 App Store 发布”目标尚未完成，按规则保留工作台，不清空为“暂无任务”。剩余不是继续扩功能或本机替跑，而是实际团队/App/商品/签名及真实商店、设备验收；不能将 unsigned archive 当可上传 IPA。
 - 下一步需要账号持有人确认实际 Apple Developer Team ID、已注册/拟注册 Bundle ID（当前 `com.codex.mdjournal`）、App Store Connect App 与月/年商品 ID 和定价。正式签名通过受控证书/CI secrets 配置，不在聊天或仓库传私钥/密码。还需实际法定发布信息、Sandbox/TestFlight 和真机验收；账号操作以真实授权为准，不猜测团队或价格。
-- 本恢复点随日志/工作台文档收尾提交；恢复时以实际 git HEAD 与 origin/main 核对收尾同步状态，不能把文档 HEAD 当被测实现 SHA。缓存 `/private/tmp/mdjournal-review-40711015205/attempt-2/`，两 artifact `12866300471`（功能）、`12864643311`（设备）；完整性与实际结果 proof 均在缓存。此后无生产可执行变更，下一动作是确认人工发布条件，不再扩展功能。
+- 之前文档收尾7d780f1已实际push、缓存 `/private/tmp/mdjournal-review-40711015205/attempt-2/`，两 artifact `12866300471`（功能）、`12864643311`（设备）；完整性与实际结果 proof 均在缓存。此后不扩展生产App功能，仅补云端正式交付入口及其验证，同时保留人工发布条件。
 
 ## 目标与边界
 

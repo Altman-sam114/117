@@ -90,3 +90,5 @@ Pro 增加批量 Markdown 日记集及 CoreText 真分页 PDF；Markdown 按 64 
 下载本次精确 branch/SHA/run/attempt/profile 的未加密结果包，核对 manifest、所选阶段 JUnit、实际测试摘要、主日志和任务所需产物；需要图片时逐图检查，需要归档时核 SDK/平台/架构/配置。结果有缺失或失败就追加最小修复，保留日志，不回滚用户数据、不放宽断言。验证后仅改文档、日志或清空工作台不重复 App 回归，记录实际被测 SHA，不能把它改写成后续文档 HEAD 的结果。
 
 云端工具链、设备准备、超时和证据边界见测试规范，具体历史 run/产物见 [更新日志](../../update_log.md)。StoreKitTest 不等于 Apple Sandbox；iPad 合成画布不是 iPad 设备运行；unsigned archive 和 ad-hoc Mac 包不等于正式签名、公证、上传或审核。账号、团队和正式签名后置，不阻塞可执行的软件验证，发布步骤见 [发布配置](../../docs/app-store-release.md)。
+
+正式交付另走 `app-store-release.yml`：手动输入 main 历史中的精确 SHA、成功 full run/最新 attempt 和真实团队；先校验受保护 app-store 环境审批、两 artifact 的身份/digest/CRC/范围/JUnit/实际源码全测、设备 ZIP 文件及原生 Mach-O，才把已验收的设备归档交给云端签名 job。后者只读取环境 secrets，验证有效 Apple Distribution 私钥与明确 App Store profile 的团队/App ID/期限，临时 keychain 下导出同一归档，不重建另一份源码、不改版本号。签名后重查 Apple 信任锚、entitlement、profile/证书及期限、代码/数据段、资源与隐私元数据，成功才交付 IPA。默认不上传；显式 testflight 仅追加 Apple 验证与上传确认，不自动审核/发布。临时签名材料清理由发起人单独确认、按本次所有权执行，失败响应只留脱敏阶段/错误码；上传不确定先查 Apple 状态再重试。fixture 与实际交付证据分开，未配置账号不能称这条路径已实际运行通过。

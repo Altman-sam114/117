@@ -108,3 +108,11 @@ gh workflow run ci-results.yml --ref main -f validation_profile=full
 6. 通过后将实际范围、命令、SHA/run/attempt/artifact、下载核对和风险写入更新日志，清空工作台。后续只有文档/日志变更不再次运行 App 回归；证据仍归属实际被测 SHA，不声称文档 HEAD 做过同一运行验证。
 
 StoreKitTest 不等于 Apple Sandbox，unsigned/archive/ad-hoc 不等于正式签名、公证或上传；合成 UIKit/SwiftUI 画布不证明真机旋转/交互、IME、VoiceOver、系统认证或锁屏保存。账号团队后置不阻塞软件验证，也不能用软件结果冒充正式发布。
+
+## 6. 正式交付入口的独立验证
+
+[app-store-release.yml](../../.github/workflows/app-store-release.yml) 只允许显式手动交付，不取代 full 软件验收。它要求 main 中精确 SHA 的成功 full run/最新 attempt、两包完整性与实际测试、受保护 `app-store` 环境审批和有效分发材料；默认只导出，TestFlight 上传另行明确选择，不提交审核或发布。详细配置见 [发布材料](../../docs/app-store-release.md)。
+
+仅修改交付脚本/调度时，直接选择 `test_app_store_release.py` 的纯 fixtures、Python/bash/YAML 语法、链接与 diff，再以 targeted 云端执行同一文件；不因 CI 改动重跑无关 App/模拟器/归档。fixtures 使用合成 archive/证书字节与 mock 系统命令，覆盖错 SHA/run/attempt、局部/失败/零执行、保护环境、ZIP/哈希、设备代码段、App ID/profile/证书/到期、IPA 元数据/entitlement、明确上传状态及临时材料清理；这不是实际证书验签或 Apple 交易/上传证据。
+
+正式签名只能在配置好的云端 runner 执行。首次真实 export/testflight 要记录自己 release run/attempt、实际 IPA SHA-256、来源 full SHA/run/attempt、团队/profile/证书和真实交付状态，并下载核对产物；导出验证不过不发布 IPA。只有成功上传确认仍不足以宣布 TestFlight 处理完成或可上架，须取得 Apple 和真实设备的后续证据。缺账号或材料时明确停止，禁止用 fixture、未签名包或历史 build 冒充这一步完成。
