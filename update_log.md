@@ -14,10 +14,19 @@
 - 当前迭代方式：由当前模型按用户目标自主规划、实施与验收，默认不开子智能体；`work.md` 保存本轮计划与恢复点，完成后清空任务内容。长期规则见 `AGENTS.md`。
 - 默认 `main` 直推、云端构建测试，未经用户特别要求禁止本机 build、XCTest、App/模拟器运行和性能采集。云端按直接/必要关联范围主动 dispatch，纯文档不触发发布全套。
 - 当前软件基线为 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` / run `40711015205` / attempt `2`：319/319 XCTest、28 张审查图/3 张素材、iOS/Catalyst Debug、universal Mac Release 和独立 unsigned iOS Release 均已云端通过并下载核对。软件验收不等于已具备正式签名、真实商店商品或提审通过；整体上架目标仍在 `work.md` 保留人工发布恢复点。
-- 正式云端交付入口另在 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 实现，targeted run `40809560857` / attempt `1` 实际 38/38 发布脚本 fixtures 并下载核对；GitHub app-store 环境已配置拥有者审批、仅 main、禁止管理员绕过。尚无真实 Apple 凭证、签名 IPA 或交付执行，不能用脚本回归冒充正式签名/上传通过。
+- 正式云端交付入口另在 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 实现，targeted run `40809560857` / attempt `1` 实际 38/38 发布脚本 fixtures 并下载核对；GitHub app-store 环境已配置拥有者审批、仅 main、禁止管理员绕过。尚无真实 Apple 凭证、签名 IPA 或交付执行，不能用脚本回归冒充正式签名/上传通过；第三次核实同一缺失条件后，整体目标已标记 blocked，待账号持有人提供真实配置。
 - 应用为原生 SwiftUI Markdown 日记，支持 iOS/iPadOS 与 Mac Catalyst，本地数据文件 `md-journal-entries.json`，没有日记服务器或账号。
 - 账号、团队和正式签名后置；真实设备、IME、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式发布仍需要对应证据，不能由 unsigned/StoreKitTest/合成画布替代。
 - 以下旧条目与 `md/prompt/` 保留当时称呼、执行方式和原始证据，仅供历史追溯，不再规定当前工作流程。
+
+### 维护 / 正式发布条件复核与保留恢复点
+
+日期：2026-10-29（台北时间）。本次仅修改工作台与日志，不修改软件或重跑 CI。
+
+- 从干净 main / `0d6f92dd803cfb3b4ef2390e1516906d8c9fea1c` 恢复，`git fetch origin` 成功并用 GitHub ref API 确认同 SHA。仓库和 app-store 环境的 secret 名称均为 []，变量数量均为0；工程四处 DEVELOPMENT_TEAM 仍为空，正式交付 workflow400139824 的 runs 总数仍为0，没有正在等待的交付工作。环境审批/仅main与禁止管理员绕过保持，没有写入凭证或调用 Apple。
+- 只读 API 重核 full run `40711015205` / attempt `2` 的两个 job 均 success；targeted run `40809560857` / attempt `1` 所选 static job success，独立设备归档未选。三个原已下载核对的 artifact ID/大小/digest 均保持且未过期。`git diff --exit-code 384f55e6e08db8d4fe1c29cbe9fe326505a7b18b -- MDJournal MDJournalTests MDJournal.xcodeproj` 通过；不把旧结果挪作本次文档 SHA 的运行证据。核查证明 `/private/tmp/mdjournal-release-checks-20261029/third-goal-audit-20261029T035313Z.json`。
+- 同一真实账号/签名/商店输入条件已在连续三个 goal turn 核实未解除，本次调用目标工具标记 blocked，不提前宣布完成、不继续盲重试或新增无关功能。保留 `work.md` 中完整目标、证据和恢复动作；待真实 Team ID/注册 Bundle ID、App/商品定价确认及 app-store 环境 Distribution P12/密码/profile 后，先确认临时材料清理授权，走默认 export 并下载核真正 IPA。显式上传另需 API key；Sandbox/TestFlight、真机与法定资料仍须真实验收，私钥/密码不能发到聊天或仓库。
+- 本次 `git diff --check`、两份变更文档的3条本地链接、4项恢复路径与核查证明文件存在性及规则核对通过；不运行本机 build、XCTest、模拟器、App、签名命令或性能采集，也不启动新的云端构建/fixture。后续文档提交保留上述精确被测 SHA/run/attempt，不冒充正式签名、上传或发布成功。
 
 ### 维护 / 受保护的云端正式签名与显式交付入口
 

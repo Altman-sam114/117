@@ -12,6 +12,7 @@
 - 总任务起点 f4b42403450f50af43351feac6cfb76ed640d64c / main，初始工作区干净，无用户未提交改动；实际目录 /Users/a114514/Desktop/codex/md。
 - 云端交付补充阶段起点 7d780f1c8247f4b54a9b605c250febfc3ff79faa / main，初始干净；实现 beaa667cfaca07c37dc1b39c50bd2f538f69a692 已 push origin/main。后续只改日志/工作台，恢复时以实际 Git HEAD/远端核对，不把文档 HEAD 当被测 SHA。
 - 此阶段相关文件：.github/workflows/app-store-release.yml；script/app_store_release.py、sign_app_store_release.sh、tests/test_app_store_release.py；docs/app-store-release.md；md/test/test.md；md/flow/flow.md、flowchart.md；work.md、update_log.md。App、Swift 测试与工程相对 384f55e 完全无 diff。
+- 本次恢复起点 0d6f92dd803cfb3b4ef2390e1516906d8c9fea1c / main，工作区干净；仅编辑 work.md、update_log.md，记录第三次真实发布条件核查及 blocked 状态，不新增 App/脚本变更。计划为重新核对 Git/远端配置与已有证据、保留人工恢复点、文档轻检后提交 push；不启动新 CI。
 
 ## 验收与当前证据
 
@@ -37,8 +38,11 @@
 
 ## 阻塞与最少人工输入
 
-- 上一 goal turn 是有效进展（App full/两包核对与提交），首次向用户请求实际发布信息。本 goal turn 也有有效进展：补齐正式交付软件、真实配置审批环境、云端38项验证与下载。没有把原目标缩小为软件候选。
-- 同一剩余条件在这两个连续 goal turn 中均未解除：用户尚未提供实际 Team/注册 App/商品定价，环境没有 Distribution/profile/API 凭证。当前已没有可安全代替真实账号而继续签名/商店验收的动作；这是第2个连续核实该人工条件的goal turn，不提前标complete/blocked。若后续仍需继续，必须先重查真实Git、secrets名称、环境与delivery run，不只依赖本记录计数。
+- 前两个连续 goal turn 分别完成 App full/两包核对，以及正式交付入口/审批环境/云端38项验证；没有把原目标缩小为软件候选。但它们结束时同一真实账号/签名/商店条件均未解除。
+- 本次第三个连续 goal turn 于 2026-10-29 11:53（台北时间）重新核实外部状态：git fetch origin 成功，main/远端均为 0d6f92d；仓库和 app-store 环境的 secret 名称均为 []，变量也均为0；工程四处 DEVELOPMENT_TEAM 仍为空；delivery workflow400139824 的 runs 总数仍为0，没有可继续等待的签名 job。环境仍为 owner 明确审批、main/branch、can_admins_bypass=false（允许单人本人审批，不冒充双人复核）。证据 /private/tmp/mdjournal-release-checks-20261029/third-goal-audit-20261029T035313Z.json。
+- 同次 API 复核确认 full run40711015205/attempt2 两 job 仍 success、targeted run40809560857/attempt1 所选 job 仍 success（设备 job 未选），三个已下载核对的 artifact 未过期，API 大小/digest 与原记录一致；App/Swift 测试/工程相对被测384f55e仍无 diff。没有重下载、重跑或将这些结果归属文档 HEAD。
+- 第三次核查后已调用目标工具将整个目标标记 blocked（非 complete/paused）。没有真实账号输入就不能安全继续签名、商品配置或商店/真机验收，停止盲重试；工作台保留，不清空。恢复时先取得下述材料与确认，再核实际外部状态，不仅依赖本记录。
+- 本次文档 baseline/direct 已通过：git diff --check、两份变更文档的3条本地链接、4项恢复路径与核查证明文件存在性及规则一致性；不运行 App 构建、XCTest、脚本 fixtures、模拟器、截图或新云端任务，因为没有可执行变更。本恢复点随文档收尾提交，恢复时以 Git 核对最终 SHA/远端状态。
 - 下一步请账号持有人确认实际 Apple Developer Team ID、注册 Bundle ID（当前工程com.codex.mdjournal），App Store Connect App及月/年商品ID/定价；按 [发布配置](docs/app-store-release.md) 在app-store环境设置真实P12/密码/profile，实际上传才另加API key。不要发私钥/密码到聊天。
 - 有资料后先确认临时签名材料清理授权，以精确full证据调用新workflow的默认export并经环境审批，下载核对真正IPA；成功后再按明确授权走TestFlight。任何首次实际导出错误按真实日志最小修复，不能以合成fixture当签名成功；上传不确定先查Apple再重试，重跑须整轮生成当前attempt输入。
 - 后续只有文档收尾不跑无关App；如注册身份/商品需改App配置，重新评估并云端验证受影响内容。详细测试边界见 [测试规范](md/test/test.md)。
