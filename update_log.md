@@ -14,9 +14,26 @@
 - 当前迭代方式：由当前模型按用户目标自主规划、实施与验收，默认不开子智能体；`work.md` 保存本轮计划与恢复点，完成后清空任务内容。长期规则见 `AGENTS.md`。
 - 默认 `main` 直推、云端构建测试，未经用户特别要求禁止本机 build、XCTest、App/模拟器运行和性能采集。云端按直接/必要关联范围主动 dispatch，纯文档不触发发布全套。
 - 当前软件基线为 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` / run `40711015205` / attempt `2`：319/319 XCTest、28 张审查图/3 张素材、iOS/Catalyst Debug、universal Mac Release 和独立 unsigned iOS Release 均已云端通过并下载核对。软件验收不等于已具备正式签名、真实商店商品或提审通过；整体上架目标仍在 `work.md` 保留人工发布恢复点。
+- 正式云端交付入口另在 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 实现，targeted run `40809560857` / attempt `1` 实际 38/38 发布脚本 fixtures 并下载核对；GitHub app-store 环境已配置拥有者审批、仅 main、禁止管理员绕过。尚无真实 Apple 凭证、签名 IPA 或交付执行，不能用脚本回归冒充正式签名/上传通过。
 - 应用为原生 SwiftUI Markdown 日记，支持 iOS/iPadOS 与 Mac Catalyst，本地数据文件 `md-journal-entries.json`，没有日记服务器或账号。
 - 账号、团队和正式签名后置；真实设备、IME、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式发布仍需要对应证据，不能由 unsigned/StoreKitTest/合成画布替代。
 - 以下旧条目与 `md/prompt/` 保留当时称呼、执行方式和原始证据，仅供历史追溯，不再规定当前工作流程。
+
+### 维护 / 受保护的云端正式签名与显式交付入口
+
+日期：2026-10-29（台北时间）。整体上架目标仍未完成，真实账号材料与商店/设备验收待补齐。
+
+- 在软件 full 验收后继续审计用户“直接 App Store 发布”目标，发现只有 unsigned archive、尚无云端正式交付入口，因此补齐可安全自主完成的发布软件工作，而非提前缩小目标或宣称完成。起点 `7d780f1c8247f4b54a9b605c250febfc3ff79faa`，main 干净；本阶段未改 App、Swift 测试、工程、部署目标或日记数据，它们与被测 `384f55e` 仍逐文件无 diff。
+- 实现 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 已提交并 push origin/main，精确 9 文件：`.github/workflows/app-store-release.yml`、`script/app_store_release.py`、`script/sign_app_store_release.sh`、`script/tests/test_app_store_release.py`、发布材料、流程/图、测试规范和工作台。三个 Actions v5 使用从官方仓库实际查询的完整 commit pin；新 workflow `400139824` 已注册 active，只提供手动 dispatch，不随 push/普通 CI 执行。
+- 入口要求完整 source SHA、成功 full run/最新 attempt、实际 Team ID，source 属于 main 历史；按精确来源下载功能/设备两包，核 GitHub 大小/digest、ZIP 未加密/CRC/安全路径、六阶段 JUnit、与源码声明一致的实际全测/商店和导航输入预检、图片/性能、设备内包逐文件 hash 与实际 arm64/iPhoneOS26+。局部、零执行、失败、跳过、错 SHA/run/attempt、缺图或错包均失败关闭。中间包还绑定当前 release run/attempt，不支持仅重跑签名 job 跨 attempt 复用。
+- 签名阶段仅云端 macOS/Xcode26.2，使用受保护环境 secrets、临时 keychain、明确 App Store profile 与有效 Apple Distribution 私钥身份，核团队/Bundle ID/有效期、禁止调试/通配符/development/ad-hoc/enterprise。重新导出同一已验收归档，不重建另一份代码或改版本；签名后核 Apple 信任锚/团队、证书与 profile/期限、entitlement、Mach-O file-backed 代码/数据小节、资源与隐私/版本元数据。实际 IPA manifest 分开记录来源验证 run、release run 与 automation SHA，不把文档/流水线 HEAD 冒充 App 被测 SHA。
+- 默认 `export` 不上传；只有发起人明确选择 `testflight` 才调用 Apple 验证与上传。不自动提交审核、改价格/地区或发布。上传确认仅标记 `upload-accepted-processing-unverified`，处理/TestFlight/审核/发布仍 false；失败只保留阶段与错误码，不公开原始账号响应。上传不确定时先查 App Store Connect，不能盲重试。IPA/manifest/导出日志保留 7 天，不上传 P12/P8 或私钥目录。
+- 临时材料清理需发起人显式确认，默认 false；只清本 run 的所有物，不碰日记。keychain 搜索列表在创建前保存，失败/退出及 always 阶段恢复并清理；安装采用原子 hard link 与 inode/hash 跟踪，不覆盖既有材料，发现其他写入者替换则保留其文件并报告，同时仍清自己的私钥。纯 fixture 覆盖中断/异常清理语义，未在本机操作真实 keychain/security/codesign、构建、App 或模拟器。
+- 必要关联的仓库安全配置已实际执行：确认授权用户与 User owner 同为 `Altman-sam114` 且 admin=true，创建前 environments=[] 后才新增 `app-store`。GET 复核 Required reviewer 为该真实 owner、仅 main/branch 自定义部署、can_admins_bypass=false；单人允许本人明确审批（prevent_self_review=false），不伪造双人复核。未修改 main 提交/分支保护规则，未写入任何 secret、未调用 Apple。环境 secrets 名称实际仍 []；配置证明 `/private/tmp/mdjournal-release-checks-20261029/environment-setup.json`。
+- 本机相关轻检实际通过：38/38 新发布脚本 fixture（最终 1.618 秒）、2 份 Python AST、新 shell/YAML/4 个 workflow run 块语法、12 条受影响文档本地链接和 `git diff --check`。fixtures 只用合成 archive/证书及 mock 系统调用，包含导出后代码/资源/隐私/调试权限篡改、到期、错误证书、Apple 成功/错误确认与清理拒误删；不是真实证书签名或上传证据。另只读把已下载的真实最终两包交给新校验器，实际 319 项证据、34 个 Mach-O file-backed section 和 4 个资源接受；真实 run/jobs/main ancestry/保护环境 API 合同也接受，未提供 Team ID 或启动交付。
+- 云端实际命令：`gh workflow run ci-results.yml --ref main -f validation_profile=targeted -f python_test_pattern=test_app_store_release.py`。run `40809560857` / attempt `1` / main / 精确 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` success，job 11 秒；实际脚本 fixture 38/38（1.164 秒），零失败/零跳过。只选 static-checks，JUnit 1/0/0/0；模拟器、XCTest、图片、iOS/Catalyst Debug、Mac Release 与独立设备归档均未选，不冒充通过。App 运行证据仍归属此前 `384f55e` full，而非本次脚本 SHA。
+- 已用 API ZIP 与 `gh run download` 双下载核对 artifact `mdjournal-ci-v0.95-targeted-main-beaa667-run40809560857-attempt1`，ID `12869109458`，3610 bytes，SHA-256 `60dc752f52af254ce916a3344fb1477cd02b30728d984a2e9d9da5a7c59d0342`。5 文件的身份、范围、大小/digest、未加密、CRC、安全路径、独立解压逐 hash、manifest/JUnit 与实际 38 项日志全部通过；缓存 `/private/tmp/mdjournal-review-40809560857/attempt-1/review-proof.json`。新增签名 workflow 尚未 dispatch，不能称已取得签名 IPA、Apple 上传/处理或正式发布证据。
+- 下一步仍须真实 Team ID/已注册 Bundle ID、App Store Connect App/订阅组/月年商品/定价与协议/法定资料，并由账号持有人在 app-store 环境设置 Distribution P12/密码/profile，实际上传另需 API key；私钥不通过聊天或仓库传递。首次真实导出与 Sandbox/TestFlight、设备输入/VoiceOver/认证/锁屏保存完成后才能继续总目标验收。当前不重跑无关 App，也不以完善流水线替代这些真实门槛；工作台保留整体目标、真实证据和恢复动作，收尾仅两份记录变更、diff 与 6 份相关文档的 14 条本地链接通过，不重复 App 回归。
 
 ### iOS 1.0 发布候选 / 写作偏好、保存透明性与默认隐私
 
