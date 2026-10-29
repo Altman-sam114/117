@@ -13,10 +13,28 @@
 
 - 当前迭代方式：由当前模型按用户目标自主规划、实施与验收，默认不开子智能体；`work.md` 保存本轮计划与恢复点，完成后清空任务内容。长期规则见 `AGENTS.md`。
 - 默认 `main` 直推、云端构建测试，未经用户特别要求禁止本机 build、XCTest、App/模拟器运行和性能采集。云端按直接/必要关联范围主动 dispatch，纯文档不触发发布全套。
-- 当前软件基线仍为 `1a961fcd4cb2c410b64ac6eae5d927ee806ff88c` / run `40630767545` / attempt `1`：311/311 XCTest、25 张审查图/3 张素材及两平台与 Release 产物已下载核对；这是历史软件证据，不冒充本次流程维护的运行结果。
+- 当前软件基线为 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` / run `40711015205` / attempt `2`：319/319 XCTest、28 张审查图/3 张素材、iOS/Catalyst Debug、universal Mac Release 和独立 unsigned iOS Release 均已云端通过并下载核对。软件验收不等于已具备正式签名、真实商店商品或提审通过；整体上架目标仍在 `work.md` 保留人工发布恢复点。
 - 应用为原生 SwiftUI Markdown 日记，支持 iOS/iPadOS 与 Mac Catalyst，本地数据文件 `md-journal-entries.json`，没有日记服务器或账号。
 - 账号、团队和正式签名后置；真实设备、IME、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式发布仍需要对应证据，不能由 unsigned/StoreKitTest/合成画布替代。
 - 以下旧条目与 `md/prompt/` 保留当时称呼、执行方式和原始证据，仅供历史追溯，不再规定当前工作流程。
+
+### iOS 1.0 发布候选 / 写作偏好、保存透明性与默认隐私
+
+日期：2026-10-29（台北时间）。软件验收完成；正式上架未执行。
+
+- 本轮从 `f4b42403450f50af43351feac6cfb76ed640d64c` 的干净 main 开始，不开子智能体；实现提交 `fceaa60`、辅助字号测试修正 `ac1284e`、分类文字对比度修正 `9b89e91`、原生辅助字号曲线修正 `384f55e` 均已同步 origin/main。保留 iOS 16、既有 JSON 格式、本机日记和 Store 唯一写入边界，不引入账号、日记服务器或第三方依赖。
+- 写作与界面：新增免费的跟随系统/浅色/深色外观、圆润/书页/等宽正文、三档字号和疏朗行距；编辑、阅读和设置示例共用原生字号计算，标准 body 使用 preferredFont、自定义字号使用 UIFontMetrics，保留全部辅助字号。UIKit 只有样式改变或外部换正文时更新段落属性，marked text 期间推迟，UTF-16 选区与切篇隔离不变。分类小字改语义强调色、保留分类色作装饰，补浅/深纸页与分类芯片 4.5:1 对比回归。
+- 保存与性能：Store 明确 saved/saving/failed/readProtected，只有当前 revision 确认写盘才显示已保存；关闭错误提示不清失败，编辑器和设置均可真实重试。无变化元数据/正文回写不发布集合、不重建正文派生、不增加 revision、不延后 debounce，也不更新修改时间。完整正文、原文件读取保护、串行 atomic 持久化与有限后台保存保持。
+- 隐私与订阅：免费且默认隐藏多任务预览，关闭该偏好不能绕过应用锁，窗口级遮罩继续覆盖 sheet。Pro 保留真实 StoreKit 月/年商品、验签/恢复/到期/退款与宽限期边界；PDF 新增可选自定义纸本封面、日期范围和篇数，保留完整 Markdown 原文、逐篇分页、取消与生成前后权益核验。免费编辑、统计、单篇分享、应用锁与 JSON 备份不设订阅门槛。
+- 关键文件：`MDJournal/Utilities/JournalWritingPreferences.swift`、`MDJournal/Views/JournalWritingSettingsView.swift`、`MDJournal/Stores/JournalStore.swift`、`MDJournal/Views/MarkdownBodyTextView.swift`、`MDJournal/Views/MarkdownPreviewView.swift`、`MDJournal/Stores/JournalAppLockStore.swift`、`MDJournal/Views/JournalPrivacyGate.swift`、`MDJournal/Utilities/JournalPremiumExport.swift` 及对应 Store/安全/输入/排版/导出/界面测试；工程注册三份新增源码，CI 审查图由 25 增至 28。README、隐私/支持/发布材料与流程/图及测试规范同步真实能力。
+- 本机仅相关轻检：`git diff --check`；21 个变更/新增 Swift DEBUG parse（仅语法）、project/Info/Privacy 三 plist、源码 target 注册、17/17 CI 范围 Python fixtures、workflow YAML/15 个 bash/3 个内嵌 Python 语法与 27 条文档本地链接检查通过。没有本机构建、XCTest、App/模拟器或性能采集。2026-10-29 重新 `git fetch origin` 成功，公开隐私与支持 URL 的未认证 `curl -L` 均实际 HTTP 200；静态复查未发现日记网络上传、分析 SDK 或生产日记内容日志。
+- 收敛过程：首轮 `40694382474` 与第二轮 `40696944198` 各实际执行 319 项，唯一失败均为新增字体测试对系统标尺的错误假设，生产输入/交易/保存/隐私/导出通过。根据真实 28/33/40/47/53 与自定义 metrics 曲线不等价的证据，统一生产 UIKit/SwiftUI 消费同一计算并逐档精确核对两种原生 API，未删用例、放宽阈值或跳过；尚排队的 `40702520535` 主动取消。随后 targeted `40707615479` / attempt `1` / `384f55e` 精确 7/7、0 失败/跳过；artifact `12824868578`（74980 bytes，SHA-256 `8671a216618839b739b710bd1951fc928838b89a3689ff2d8de2f6dca3a148b8`）此前已下载核对，局部通过不冒充 full。
+- 最终云端命令：`gh workflow run ci-results.yml --ref main -f validation_profile=full` 发起 run `40711015205`，attempt `1` 功能 job 无 steps、runner_id=0，GitHub 明确报告 hosted runner 未分配与 macOS arm64 容量不足，非 App 失败。2026-10-29 执行 `gh run rerun 40711015205`，attempt `2` / main / 精确 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` 两 job success：功能 16m56s、设备 1m13s。功能 manifest 六阶段全部 success、notSelectedStages 为空、JUnit 6/0/0/0；实际摘要与主日志 319/319 XCTest、0 失败/0 unexpected/0 跳过，StoreKit 预检 3/3、导航输入预检 4/4，云端 Python fixtures 48/48。Xcode 26.2 / iOS 26.2、既有 iPhone 16 串行运行；没有创建本机设备。
+- 已下载最终功能 artifact `mdjournal-ci-v0.95-full-main-384f55e-run40711015205-attempt2`，ID `12866300471`，190484573 bytes，SHA-256 `50e0e3b5fbea60af6a8f414402643db86a90895de4a91f9f1e68cbe85bdf59fc`。12 路有界 HTTP Range 逐段核 Content-Range，完整摘要/大小匹配 GitHub 后核 2819 文件的未加密、CRC、安全路径和独立解压哈希；复核 manifest 身份、JUnit、实际摘要及源码声明一致。逐图查看 28 张审查图与 3 张原始商店图，后者另核源附件逐字节一致、PNG CRC/流、无 alpha/tRNS 及 1179×2556 两张/2732×2048 一张尺寸；iPad 仍是生产画布而非设备运行证据。实际封面 PDF 27050 bytes、A4 三页、无加密/JavaScript，Poppler 全三页渲染检查封面、日期/篇数、标题/原文和页码，无排版溢出；第三方文本提取需规范化 Quartz 的兼容部首与字间空白，原生 PDFKit 完整原文断言通过。
+- 性能附件：同包 Debug 同步模型派生对照，159190 Character / 325830 UTF-8 bytes / 40 小节，三次结果完全一致，旧路径中位 `254.356583 ms`、有界路径 `58.997125 ms`（约 4.31 倍）。这是模型派生测量，不是本轮前后 App 整体提速、真机帧率、输入延迟或内存峰值，未设置虚构性能门槛。实际 iOS/Catalyst Debug 与 universal Mac Release 均成功；Mac 内包 2572412 bytes / SHA-256 `e92a6b2b03089147b996c2aec9c84ba140558cc1c3e9aecf7d0f47f506e73b0f`，7 个实文件逐 hash、CRC/未加密/路径及实际 arm64+x86_64 / Catalyst Mach-O 已只读复核，ad-hoc、未公证。
+- 已下载同 run/attempt 的独立设备 artifact `mdjournal-ios-release-v0.95-main-384f55e6e08db8d4fe1c29cbe9fe326505a7b18b-run40711015205-attempt2`，ID `12864643311`，2649057 bytes，SHA-256 `d9ea1b2b89877160191cdbfa11de1406b8b232385ecb97fa8a456a0f5efa90b6`。外层 13 文件及内 ZIP 25 条目/11 实文件的身份、大小、digest、CRC、未加密、安全路径和逐 hash 均通过；内 ZIP 2623941 bytes / `9bcdb3ddc31dbdc6f0c410a1ae72b5ea147436b23756c340b2c5f74ac05cffde`。实际 Info/Privacy/Mach-O 核 arm64 iOS device / SDK26.2 / iOS16.0 / 1.0(226.2)、Face ID、公开两链接、月年商品、CA92.1/不跟踪不收集、文档共享默认关闭、无测试 storekit，JUnit 1/0/0/0。仍 unsigned、没有 App Store 上传。
+- 证据缓存：`/private/tmp/mdjournal-review-40711015205/attempt-2/`，含两包 ZIP、GitHub 元数据、逐文件 proof、`device-review.json`、`functional-review.json`、完整图片和 PDF 渲染。日志并非零警告：Apple 测试框架 deprecated、3 个既有 weak 测试夹具提示、无 AppIntents 的元数据跳过、Catalyst runner 的 Metal 搜索路径警告，以及模拟器缺失 hapticpatternlibrary 的系统诊断；生产编译无 error，319 项零失败，SwiftUI 修改状态/导航 feedback 警告计数为 0。不为消除工具链噪声更改正确生产功能或放宽门槛。
+- 发布剩余项：工程 DEVELOPMENT_TEAM 仍为空，正式 App ID/团队、Distribution 签名与 App Store provisioning、App Store Connect App/订阅组/月年商品/实际价格/合同税务银行、法定联系/版权/分级/地区，以及真实 Sandbox/TestFlight、iPhone/iPad 中文输入、VoiceOver、系统认证、锁屏保存必须由账号配置及实际设备证据补齐。当前没有签名 IPA、正式商品可售或上传/审核证据，不能称可直接上传或已经发布；用户整体上架目标保留工作台等待最少人工信息。收尾仅日志/工作台文档提交，`git diff --check` 与 9 份受影响文档的 28 条本地链接复核通过，不重复 App 构建，也不把被测 `384f55e` 的结果冒充后续文档 HEAD。
 
 ### 维护 / 自主迭代与按范围云端验证
 
