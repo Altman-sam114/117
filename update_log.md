@@ -13,11 +13,24 @@
 
 - 当前迭代方式：由当前模型按用户目标自主规划、实施与验收，默认不开子智能体；`work.md` 保存本轮计划与恢复点，完成后清空任务内容。长期规则见 `AGENTS.md`。
 - 默认 `main` 直推、云端构建测试，未经用户特别要求禁止本机 build、XCTest、App/模拟器运行和性能采集。云端按直接/必要关联范围主动 dispatch，纯文档不触发发布全套。
-- 当前软件基线为 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` / run `40711015205` / attempt `2`：319/319 XCTest、28 张审查图/3 张素材、iOS/Catalyst Debug、universal Mac Release 和独立 unsigned iOS Release 均已云端通过并下载核对。软件验收不等于已具备正式签名、真实商店商品或提审通过；整体上架目标仍在 `work.md` 保留人工发布恢复点。
-- 正式云端交付入口另在 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 实现，targeted run `40809560857` / attempt `1` 实际 38/38 发布脚本 fixtures 并下载核对；GitHub app-store 环境已配置拥有者审批、仅 main、禁止管理员绕过。尚无真实 Apple 凭证、签名 IPA 或交付执行，不能用脚本回归冒充正式签名/上传通过；第三次核实同一缺失条件后，整体目标已标记 blocked，待账号持有人提供真实配置。
+- 当前软件基线为 `384f55e6e08db8d4fe1c29cbe9fe326505a7b18b` / run `40711015205` / attempt `2`：319/319 XCTest、28 张审查图/3 张素材、iOS/Catalyst Debug、universal Mac Release 和独立 unsigned iOS Release 均已云端通过并下载核对。软件验收不等于已具备正式签名、真实商店商品或提审通过。2026-11-17 按用户“签名、ID先不需要”的本轮范围完成软件发布准备复核，后置配置与设备验收保留在发布文档，不再将账号签名作为本轮工作台阻塞。
+- 正式云端交付入口另在 `beaa667cfaca07c37dc1b39c50bd2f538f69a692` 实现，targeted run `40809560857` / attempt `1` 实际 38/38 发布脚本 fixtures 并下载核对；GitHub app-store 环境已配置拥有者审批、仅 main、禁止管理员绕过。尚无真实 Apple 凭证、签名 IPA 或交付执行，不能用脚本回归冒充正式签名/上传通过；先前 blocked 记录保留为历史，已按用户此次明确的后置范围结束软件任务，未来实际发布再走真实配置和验收。
 - 应用为原生 SwiftUI Markdown 日记，支持 iOS/iPadOS 与 Mac Catalyst，本地数据文件 `md-journal-entries.json`，没有日记服务器或账号。
 - 账号、团队和正式签名后置；真实设备、IME、VoiceOver、系统认证、锁屏保存、Sandbox/TestFlight 与正式发布仍需要对应证据，不能由 unsigned/StoreKitTest/合成画布替代。
 - 以下旧条目与 `md/prompt/` 保留当时称呼、执行方式和原始证据，仅供历史追溯，不再规定当前工作流程。
+
+### 维护 / iOS 软件发布准备复核与按用户范围交付
+
+日期：2026-11-17（台北时间）。本次复核既有软件与云端证据，仅修改发布说明、更新日志和工作台，没有新增 App/脚本代码。
+
+- 用户明确“签名、id先不需要”，纠正旧工作台将账号/正式签名扩大为整个软件任务阻塞的假设。本轮范围完成为 iOS 软件发布候选与云端构建验收；没有上传、正式签名、注册身份或虚构真实商品可售。后续真实 App Store 提交事项集中保留在 [发布配置](docs/app-store-release.md)，无需继续重复索要本轮排除的签名材料。
+- 恢复起点 `f522f4b9b64808508e449043fe8743769685044f` / main，工作区干净；`git fetch origin` 成功且 main/origin 一致。`git diff --exit-code 384f55e6e08db8d4fe1c29cbe9fe326505a7b18b -- MDJournal MDJournalTests MDJournal.xcodeproj` 与 `git diff --exit-code beaa667cfaca07c37dc1b39c50bd2f538f69a692 -- script .github` 均通过；App/测试/工程及 CI/脚本与各自被测代码完全一致，不为文档 HEAD 重跑 App。
+- 对照生产实现复核纸本浅深色 UI、外观/字体/字号/行距与辅助字号、真实保存状态及重试、无变化写入短路、组合输入与切篇隔离、默认窗口级隐私遮罩、免费系统应用锁、JSON atomic 保存/文件保护与读取保护、备份合并恢复、StoreKit 2 月年订阅验签/恢复/到期、完整 Markdown 和带封面的分页 PDF。公开隐私政策与支持 URL 使用未认证 HTTPS 实测均返回200；未增加日记上传、账号或依赖。
+- 只读 `gh run view 40711015205` 与 artifact API 重核 full run / attempt2 / `384f55e` 两 job success，两包未过期。旧临时缓存已不存在，本次用 `gh api repos/Altman-sam114/117/actions/artifacts/<id>/zip` 重新完整下载：功能 artifact12866300471（190484573 bytes / SHA256 `50e0e3b5fbea60af6a8f414402643db86a90895de4a91f9f1e68cbe85bdf59fc`）和设备 artifact12864643311（2649057 bytes / SHA256 `d9ea1b2b89877160191cdbfa11de1406b8b232385ecb97fa8a456a0f5efa90b6`）。核身份、API大小/digest、ZIP未加密/CRC/路径和安全解压；只读调用现有 `validate_functional`/`validate_device` 验收器，manifest、六阶段JUnit、源码声明对应的实际319/319零失败/跳过、StoreKit预检3/3、导航输入预检4/4与主日志全部接受；设备内包逐文件hash、arm64/iPhoneOS26.2、1.0(226.2)、iOS16、FaceID/隐私/资源和34个代码小节通过。仍unsigned，没有运行本机签名命令。
+- 重新查看28张审查图（分四张只缩放联络图）及3张原始商店图；三张素材的大小、hash、PNG流/尺寸与无alpha检查通过。iPad仍为生产regular画布，非iPad实际设备运行；设置/大字/深色/隐私/方案与导出图未发现新增阻断。已生成只用于展示的三屏拼图 `ios-release-preview.png`，不替代原始商店素材。性能附件仍为同包Debug同步模型派生159190字符/325830 UTF8 bytes/40小节、各3次结果一致，中位254.356583→58.997125ms；不泛化为真机帧率或整App提速。
+- 脚本 run40809560857 / attempt1 / `beaa667` 重新下载 artifact12869109458（3610 bytes / SHA256 `60dc752f52af254ce916a3344fb1477cd02b30728d984a2e9d9da5a7c59d0342`），核同一身份/digest/CRC/路径、targeted manifest、JUnit1/0/0/0和实际38项日志成功；只是发布脚本fixture，不是真实签名或上传。本次三个包的复核证明分别位于 `/private/tmp/mdjournal-review-40711015205/attempt-2/review-proof-20261117.json` 与 `/private/tmp/mdjournal-review-40809560857/attempt-1/review-proof-20261117.json`。
+- 本轮实际验证：`git diff --check`、三份相关文档本地链接、生产与被测SHA一致性、公开URL及上述真实云端产物只读校验通过。本次没有新增可执行变更，因此未重新dispatch CI，也未运行本机build/XCTest/App/模拟器、性能采集或真实交付工作流。云端结果仍归属原精确被测SHA，不能归属此次文档提交。
+- 本轮软件任务验收后清空 `work.md`，提交并push到origin/main。后置事项：真实团队/Bundle ID/签名、App Store Connect月年商品和价格/合同/法定资料、Sandbox/TestFlight及真机中文输入/VoiceOver/系统认证/锁屏保存；这些尚未验证，未签名归档不能直接上传，也不代表Apple审核或正式发布通过。
 
 ### 维护 / 正式发布条件复核与保留恢复点
 
